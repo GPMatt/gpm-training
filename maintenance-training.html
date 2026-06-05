@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="GPM Maintenance Tech Training — essential skills for your first 200 work orders">
+<title>GPM Maintenance Tech Training</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0d1117;color:#e1e4e8}
+/* Header */
+header{background:#161b22;border-bottom:2px solid #238636;padding:20px 32px;position:sticky;top:0;z-index:200}
+.hrow{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+h1{font-size:1.3rem;font-weight:700;color:#2ea043}
+.hsub{font-size:0.75rem;color:#6e7681;margin-top:2px}
+.btn-sm{background:none;border:1px solid #30363d;color:#6e7681;padding:5px 12px;border-radius:6px;font-size:0.75rem;cursor:pointer}
+.btn-sm:hover{border-color:#f85149;color:#f85149}
+.ovr-label{font-size:0.8rem;color:#8b949e;margin-bottom:5px;display:flex;justify-content:space-between}
+.bar{background:#21262d;border-radius:20px;overflow:hidden}
+.bfill{height:100%;border-radius:20px;background:linear-gradient(90deg,#1a7f37,#2ea043);transition:width .6s}
+.bar-lg{height:13px}.bar-sm{height:5px}
+/* File warning */
+#file-banner{display:none;background:#1c1c00;border:1px solid #9e6a03;border-radius:7px;padding:10px 16px;margin:16px 32px 0;font-size:0.82rem;color:#d29922}
+#file-banner code{background:#2a2200;padding:2px 6px;border-radius:4px;font-family:monospace;color:#e3b341}
+/* Main */
+main{max-width:1140px;margin:0 auto;padding:28px 20px}
+.topic{margin-bottom:40px}
+.topic-hdr{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #21262d}
+.topic-name{font-size:1rem;font-weight:600;white-space:nowrap}
+.topic-bar{flex:1;max-width:200px}
+.topic-stat{font-size:0.77rem;color:#6e7681;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+/* Cards */
+.card{background:#161b22;border:1px solid #30363d;border-radius:9px;overflow:hidden;transition:border-color .2s,transform .15s}
+.card:hover{transform:translateY(-2px)}
+.card.done{border-color:#2ea043}.card.going{border-color:#d29922}
+/* YouTube card */
+.yt-thumb{position:relative;aspect-ratio:16/9;background:#000;cursor:pointer;overflow:hidden}
+.yt-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .2s}
+.yt-thumb:hover img{opacity:.82}
+.play-ring{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.play-inner{width:50px;height:50px;background:rgba(255,255,255,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.5)}
+.play-inner svg{margin-left:4px}
+/* Article card header */
+.art-header{background:#1c2128;padding:14px 16px 10px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.art-icon{font-size:1.4rem;line-height:1}
+.art-src{font-size:0.7rem;color:#58a6ff;margin-bottom:1px}
+/* Card body */
+.cbody{padding:13px}
+.ctitle{font-size:0.92rem;font-weight:600;margin-bottom:4px;line-height:1.3}
+.cnote{font-size:0.77rem;color:#6e7681;line-height:1.4;margin-bottom:9px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:0.7rem;padding:2px 8px;border-radius:10px;font-weight:500;margin-bottom:9px}
+.b-none{background:#21262d;color:#6e7681}
+.b-going{background:#2d1f02;color:#d29922;border:1px solid #5a3e00}
+.b-done{background:#0d1f0f;color:#2ea043;border:1px solid #2ea043}
+/* Buttons */
+.btn{width:100%;padding:8px;border:none;border-radius:6px;font-size:0.83rem;font-weight:600;cursor:pointer;transition:background .2s,opacity .2s}
+.btn-yt{background:#1f6feb;color:#fff;margin-bottom:7px}
+.btn-yt:hover{background:#388bfd}
+.btn-mark{background:transparent;border:1px solid #2ea043;color:#2ea043}
+.btn-mark:hover{background:#2ea043;color:#fff}
+.btn-done{border-color:#30363d;color:#484f58;cursor:default}
+.btn-done:hover{background:transparent;color:#484f58}
+.btn-art{background:#238636;color:#fff}
+.btn-art:hover{background:#2ea043}
+.btn-art-done{background:#0d1f0f;color:#2ea043;border:1px solid #2ea043}
+/* Article Modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;overflow-y:auto;padding:20px}
+.modal.open{display:block}
+.modal-inner{max-width:820px;margin:0 auto;background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden}
+.modal-top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#161b22;z-index:10}
+.modal-title{font-size:1rem;font-weight:700}
+.modal-src{font-size:0.72rem;color:#58a6ff;margin-top:2px}
+.btn-close{background:none;border:none;color:#6e7681;font-size:1.4rem;cursor:pointer;padding:2px 6px;border-radius:4px}
+.btn-close:hover{color:#e1e4e8;background:#21262d}
+.modal-body{padding:20px}
+.art-intro{font-size:0.88rem;color:#8b949e;line-height:1.6;margin-bottom:20px;padding:12px 14px;background:#0d1117;border-radius:6px;border-left:3px solid #238636}
+/* Tools/Materials */
+.tm-section{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.tm-box{background:#1c2128;border-radius:6px;padding:12px 14px;flex:1;min-width:160px}
+.tm-label{font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6e7681;margin-bottom:8px}
+.tm-list{list-style:none;padding:0}
+.tm-list li{font-size:0.82rem;color:#e1e4e8;padding:3px 0;display:flex;gap:6px;align-items:flex-start}
+.tm-list li::before{content:"•";color:#2ea043;flex-shrink:0}
+/* Steps */
+.step{margin-bottom:20px;border:1px solid #21262d;border-radius:8px;overflow:hidden}
+.step-hdr{display:flex;align-items:center;gap:12px;padding:12px 14px;background:#1c2128}
+.step-num{background:#238636;color:#fff;font-size:0.72rem;font-weight:700;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-heading{font-size:0.92rem;font-weight:600}
+.step-img{width:100%;max-height:340px;object-fit:cover;display:block;background:#0d1117}
+.step-text{padding:12px 14px;font-size:0.84rem;color:#c9d1d9;line-height:1.65}
+/* Modal footer */
+.modal-foot{padding:16px 20px;border-top:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#1c2128}
+.btn-complete{padding:9px 20px;border:none;border-radius:7px;font-size:0.88rem;font-weight:600;cursor:pointer;background:#238636;color:#fff;transition:background .2s}
+.btn-complete:hover{background:#2ea043}
+.btn-complete-done{background:#0d1f0f;color:#2ea043;border:1px solid #2ea043}
+.btn-complete-done:hover{background:#0d1f0f;color:#2ea043;cursor:default}
+.modal-note{font-size:0.75rem;color:#484f58}
+/* Reference */
+.ref-sec{margin-top:36px;padding-top:24px;border-top:1px solid #21262d}
+.ref-sec h2{font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#6e7681;margin-bottom:12px}
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.ref-card{background:#161b22;border:1px solid #30363d;border-radius:7px;padding:12px}
+.ref-card-t{font-size:0.88rem;font-weight:600;margin-bottom:3px}
+.ref-card-d{font-size:0.76rem;color:#6e7681;line-height:1.4;margin-bottom:6px}
+.ref-card a{font-size:0.78rem;color:#58a6ff;text-decoration:none}
+.ref-card a:hover{text-decoration:underline}
+footer{text-align:center;padding:20px;color:#484f58;font-size:0.73rem;border-top:1px solid #21262d;margin-top:16px}
+</style>
+</head>
+<body>
+
+<div id="file-banner">
+  <strong>&#x26A0; YouTube videos require HTTP to embed.</strong> To enable embedded players with progress tracking, run this in your terminal:&nbsp;
+  <code>python3 -m http.server 8080</code>&nbsp; then open &nbsp;<code>http://localhost:8080/maintenance-training.html</code><br>
+  <span style="color:#8b949e;font-size:0.77rem">For now, videos will open directly on YouTube &#x2014; return here and click "Mark as Watched" when done.</span>
+</div>
+
+<header>
+  <div class="hrow">
+    <div>
+      <h1>GPM Maintenance Tech Training</h1>
+      <div class="hsub">Progress saves automatically &nbsp;&#xb7;&nbsp; Videos open on YouTube &nbsp;&#xb7;&nbsp; Articles embedded inline</div>
+    </div>
+    <button class="btn-sm" onclick="resetAll()">Reset Progress</button>
+  </div>
+  <div class="ovr-label"><span>Overall Progress</span><span id="ovr-txt">0 of 0 completed</span></div>
+  <div class="bar bar-lg"><div class="bfill" id="ovr-fill" style="width:0%"></div></div>
+</header>
+
+<main id="app"></main>
+
+<!-- Article Reading Modal -->
+<div class="modal" id="art-modal">
+  <div class="modal-inner">
+    <div class="modal-top">
+      <div>
+        <div class="modal-title" id="art-modal-title"></div>
+        <div class="modal-src" id="art-modal-src"></div>
+      </div>
+      <button class="btn-close" onclick="closeArt()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="art-modal-body"></div>
+    <div class="modal-foot">
+      <button id="art-complete-btn" class="btn-complete" onclick="markArticleDone()">&#x2713; Mark as Complete</button>
+      <div class="modal-note">Read all steps, then mark complete</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const TOPICS = [
+  { id:"plumbing", label:"🔧 Plumbing", resources: [
+    { id:"toilet-running", title:"Running Toilet — Flapper & Fill Valve", note:"Learn both parts in one video — understand the system, not just the part", type:"yt", vid:"8TYdOXs3VIo" },
+    { id:"drain-snake",   title:"Snake a Clogged Drain",                         note:"Ask This Old House — licensed plumber covers the overflow plate trick most techs miss", type:"yt", vid:"TpmNDrBHcno" },
+    { id:"faucet-cartridge", title:"Leaky Faucet — Cartridge Replacement",  note:"Family Handyman — labeled diagrams, covers Moen/Delta/Kohler types", type:"art" },
+    { id:"shower-head",  title:"Replace a Shower Head",                           note:"Home Depot — Teflon tape, thread direction, common over-tightening mistake", type:"yt", vid:"vkdnGf5XYWI" },
+    { id:"disposal",     title:"Garbage Disposal — Reset & Unjam",           note:"Reset button + Allen wrench under the unit — solves 90% of disposal calls", type:"yt", vid:"Ns5kIHbKpeA" },
+    { id:"water-heater", title:"Water Heater — Relight Pilot Light",         note:"A.O. Smith manufacturer guide — piezo ignitor and manual light methods", type:"art" }
+  ]},
+  { id:"hvac", label:"❄️ HVAC", resources: [
+    { id:"air-filter",  title:"Change the Air Filter",                             note:"5 steps — teaches the airflow arrow direction, the #1 mistake new techs make", type:"art" },
+    { id:"hvac-diag",   title:"AC Not Cooling — Diagnose Before Assuming Failure", note:"Apply your HVAC diagnostic mindset to apartment calls — 6-step checklist", type:"art" },
+    { id:"condensate",  title:"Clean AC Condensate Drain Line",                    note:"Written by HVAC techs for HVAC techs — 10 methods, preferred method first", type:"art" }
+  ]},
+  { id:"electrical", label:"⚡ Electrical", resources: [
+    { id:"gfci-reset",   title:"GFCI Outlet — Reset",                       note:"Explains WHY it trips, not just how to reset — prevents the same callback", type:"yt", vid:"IfbXKmWRPak" },
+    { id:"gfci-replace", title:"GFCI Outlet — Replace",                     note:"Covers LINE vs. LOAD terminal wiring — the one thing installers get wrong", type:"yt", vid:"qretO8kaBMc" },
+    { id:"light-switch", title:"Replace a Light Switch",                           note:"See Jane Drill — best beginner electrical pacing; wire color ID very clear", type:"yt", vid:"OBli4TjITRc" },
+    { id:"smoke-det",    title:"Smoke/CO Detector — Battery & Unit Replace", note:"Made by a firefighter/paramedic — detectors expire at 10 years, not just batteries", type:"yt", vid:"G9VePsq3yuU" }
+  ]},
+  { id:"general", label:"🏠 General Maintenance", resources: [
+    { id:"drywall",     title:"Patch Drywall — Nail Holes to Fist-Sized",   note:"4 methods in one video — move-out season requires knowing all of them", type:"yt", vid:"uvQK7WTkKpI" },
+    { id:"caulk",       title:"Re-Caulk Tub & Shower",                            note:"Ace Hardware — painter\'s tape method + why you cannot caulk over old caulk", type:"yt", vid:"z8tdp0lLfCw" },
+    { id:"door-lock",   title:"Replace Deadbolt & Door Knob",                     note:"Both pieces in one video — step-by-step, no filler", type:"yt", vid:"e-Y2Y4XSQ5Y" },
+    { id:"weatherstrip",title:"Replace Door Weatherstripping",                     note:"Covers kerf-mounted and adhesive types — apartments have both", type:"yt", vid:"HjJanhnlS44" },
+    { id:"win-screen",  title:"Replace a Window Screen",                           note:"Full rescreen technique — most apartment screens need this vs. patching", type:"yt", vid:"gpduuz7Y_dc" }
+  ]},
+  { id:"appliances", label:"🍽️ Appliances", resources: [
+    { id:"dishwasher",  title:"Dishwasher Not Draining",                           note:"Filter → disposal connection → drain hose → pump — work in order", type:"art" },
+    { id:"refrigerator",title:"Refrigerator Not Cooling",                          note:"Family Handyman labeled photos — coils, vents, fan, gaskets in correct order", type:"art" }
+  ]}
+];
+
+const ARTICLES = {
+  "faucet-cartridge": {
+    title: "Leaky Faucet — Cartridge Replacement",
+    source: "Family Handyman", srcUrl: "https://www.familyhandyman.com/project/quickly-fix-leaky-cartridgetype-faucets/",
+    intro: "New faucets are easy to take apart and replacement parts are available at any hardware store. The whole job takes about 30 minutes. Shut off water to the sink before starting.",
+    tools: ["4-in-1 screwdriver","Adjustable wrench","Allen wrench","Pliers"],
+    materials: ["New seats and spring","Plumber\'s grease"],
+    steps: [
+      { num:1, heading:"Remove the handles and retaining nut",
+        text:"Shut off the water to the sink. Remove the faucet handles — most are held on by retaining screws under the caps on top of the handles, or by Allen screws underneath. Once the handle is off, unscrew the large nut holding the cartridge in place. If the faucet leaks at the spout, replace seats and springs first. If that doesn\'t fix it, replace the cartridge. Leaks around the handles mean the O-rings need replacement.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2018/09/FH99JAU_LEAKCR_01-2-CAPTIONS.jpg" },
+      { num:2, heading:"Remove the faucet cartridge and old seat",
+        text:"Pull straight up on the faucet cartridge to remove it. Use pliers if needed, but protect the cartridge with tape or a rag. Note the cartridge\'s orientation relative to the notches — this matters for reinstallation. Remove the old seat and spring with a small screwdriver.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2018/09/FH99JAU_01698027.jpg" },
+      { num:3, heading:"Install the new faucet cartridge",
+        text:"Drop the new spring into the recess and push the new seat in with your finger. Spread a thin layer of plumber\'s grease around the cartridge. Insert the cartridge, aligning it with the notches exactly as the old one was oriented. Tighten the retaining nut, reattach the handles, turn the water back on slowly, and test.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2018/09/FH99JAU_01698028.jpg" }
+    ]
+  },
+  "water-heater": {
+    title: "Water Heater — Relight Pilot Light",
+    source: "A.O. Smith", srcUrl: "https://www.hotwater.com/info-center/how-to-light-a-pilot-light.html",
+    intro: "Follow your water heater\'s instruction label first. STOP if you smell gas — leave, open windows, and call the gas company. Never skip the 10-minute wait in Step 2.",
+    tools: ["Flashlight","Long lighter (manual models only)","Screwdriver (some access panels)"],
+    materials: [],
+    steps: [
+      { num:1, heading:"Locate the pilot and gas control knob",
+        text:"Find the gas control valve near the bottom of the water heater. It has a knob with positions: OFF, PILOT, and temperature settings. Use a flashlight — the access panel is at the base of the unit.",
+        img:"https://www.hotwater.com/dw/image/v2/BDTV_PRD/on/demandware.static/-/Sites-hotwater-Library/default/dwa4956498/images/Content-Pages/cip/pilot-light-door.jpg" },
+      { num:2, heading:"Turn gas to OFF and wait 10 minutes",
+        text:"Turn the knob to the OFF position. Wait at least 10 minutes for residual gas to dissipate before proceeding. This wait is mandatory — do not skip it. If you smell gas at any point after this wait, stop and call the gas company.",
+        img:"https://www.hotwater.com/dw/image/v2/BDTV_PRD/on/demandware.static/-/Sites-hotwater-Library/default/dwb9cab1a7/images/Content-Pages/cip/pilot-light-knob.jpg" },
+      { num:3, heading:"Set knob to PILOT and push in",
+        text:"Turn the knob to the PILOT position and push it fully in (about ¼ inch). This opens the pilot gas supply valve. Keep it depressed throughout the lighting process.",
+        img:"https://www.hotwater.com/dw/image/v2/BDTV_PRD/on/demandware.static/-/Sites-hotwater-Library/default/dwb7fce915/images/Content-Pages/cip/pilot-light-pushing-knob.jpg" },
+      { num:4, heading:"Light the pilot",
+        text:"ELECTRONIC (modern units): While holding the knob in, press the ignite button once per second for up to 90 seconds. Hold the knob in for 30 seconds after the flame lights. MANUAL (older units): While holding the knob in, use a long lighter at the pilot tube end. Keep holding for 30 seconds after lighting.",
+        img:"https://www.hotwater.com/dw/image/v2/BDTV_PRD/on/demandware.static/-/Sites-hotwater-Library/default/dw61e6f299/images/Content-Pages/cip/blue-pilot-light.jpg" },
+      { num:5, heading:"Turn to ON and verify",
+        text:"Once the pilot stays lit, slowly turn the knob to ON and set your preferred temperature. Verify the status indicator light blinks once per second. If the pilot won\'t stay lit after multiple tries, the thermocouple is likely faulty — call a service tech.",
+        img:null }
+    ]
+  },
+  "air-filter": {
+    title: "Change the Air Filter",
+    source: "Aerterra", srcUrl: "https://aer-terra.com/blogs/air-filter-blog/how-to-change-hvac-filter-step-by-step",
+    intro: "A clogged filter reduces HVAC efficiency by 10–15% (U.S. Dept. of Energy). Replace every 60–90 days — monthly with pets or allergies. The whole job takes under 5 minutes.",
+    tools: ["Replacement filter (correct size)","Permanent marker","Flashlight (optional)","Trash bag"],
+    materials: [],
+    steps: [
+      { num:1, heading:"Turn off the HVAC system at the thermostat",
+        text:"Switch to OFF before removing the filter. This prevents the fan from activating while your hands are near the unit and stops unfiltered air from entering the system during the swap.",
+        img:null },
+      { num:2, heading:"Locate the air filter",
+        text:"Filters are behind return air vents (wall, ceiling, or floor), inside the air handler/furnace, or in a filter rack between return duct and furnace. Most units have one filter. Check all return vents if you\'re not sure — return vents have no airflow when you hold your hand near them (supply vents blow air out).",
+        img:"https://aer-terra.com/cdn/shop/articles/woman-changing-air-conditioning-filters-it-s-impo-2026-01-07-05-59-40-utc.jpg?v=1768280842&width=900" },
+      { num:3, heading:"Remove the old filter — note size and arrow direction",
+        text:"Slide the filter out carefully. Read the dimensions on the cardboard frame (e.g., 20x25x1). Find the AIRFLOW ARROW on the frame — this is critical. Hold the filter to light: if you can barely see through it, it was overdue. Dispose of it in a sealed bag.",
+        img:null },
+      { num:4, heading:"Install new filter — arrow points TOWARD the furnace",
+        text:"Insert the new filter with the printed arrow pointing toward the furnace or air handler (away from the return duct, in the direction air flows). A backward filter strains the system and reduces airflow significantly. Fit it snugly — no gaps. Write the installation date on the frame with a marker.",
+        img:null },
+      { num:5, heading:"Close up and restart",
+        text:"Replace all access doors and grilles. Secure any clips or latches. Return to the thermostat and switch back to your normal mode. Listen for clear, unrestricted airflow. Schedule the next change in 60–90 days.",
+        img:null }
+    ]
+  },
+  "hvac-diag": {
+    title: "AC Not Cooling — Diagnose Before Calling for Service",
+    source: "DIY Home Comfort", srcUrl: "https://diyhomecomfort.com/blog/hvac-troubleshooting-101",
+    intro: "Work through this checklist in order before assuming unit failure. The first three items alone resolve the majority of \"AC not working\" calls.",
+    tools: [],
+    materials: [],
+    steps: [
+      { num:1, heading:"Check the thermostat first",
+        text:"Verify: (1) Mode is set correctly — COOL in summer, HEAT in winter. (2) Set temperature is actually below room temperature. (3) Batteries aren\'t dead — a blank screen means no power. (4) No programmed schedule is overriding your setting. This one step resolves the majority of \"unit not working\" calls from tenants.",
+        img:"https://content.app-sources.com/s/40460189946594834/uploads/HVAC/happy_woman_in_front_of_a_smart_thermostat-5264630.jpg?format=webp" },
+      { num:2, heading:"Check and replace the air filter",
+        text:"A dirty or clogged filter restricts airflow and can cut cooling capacity significantly — the system runs but can\'t move enough air to change the room temperature. Pull the filter and hold it to light. If minimal light passes through or it appears gray/brown, replace it before doing anything else.",
+        img:null },
+      { num:3, heading:"Check the circuit breakers",
+        text:"HVAC systems often have two breakers — one for the air handler (inside) and one for the condenser (outside). Locate the electrical panel and reset any HVAC breakers that tripped (flip fully to OFF, then back to ON). Also check the disconnect switch near the outdoor condenser unit.",
+        img:null },
+      { num:4, heading:"Inspect the outdoor condenser unit",
+        text:"Ensure the unit has at least 2 feet of clearance. Remove leaves, grass clippings, or debris from around and on top of the unit. If the fan is running but cooling is poor and the coils feel warm, dirty condenser coils are likely — schedule a coil cleaning.",
+        img:"https://content.app-sources.com/s/40460189946594834/uploads/Blog_Images/HVAC_Troubleshooting_101_A_Beginners_Guide_to_Diagnosing_Issues-8471765.jpg?format=webp" },
+      { num:5, heading:"Listen and smell for warning signs",
+        text:"BANGING/RATTLING: loose or broken parts — shut the system off. WHISTLING: airflow restriction (filter or ductwork). BURNING SMELL: electrical issue — shut off immediately, call a tech. MUSTY SMELL: mold in drain pan or evaporator coil, likely a clogged condensate drain line.",
+        img:null },
+      { num:6, heading:"Know when to stop and call a tech",
+        text:"Call a licensed technician for: refrigerant leaks (hissing sounds, ice on refrigerant lines), electrical faults or burning smells, gas leaks from a gas furnace, short-cycling (frequent on/off), or persistent problems after all the above checks. These require licensed equipment and are not safe for general maintenance techs.",
+        img:null }
+    ]
+  },
+  "condensate": {
+    title: "Clean AC Condensate Drain Line",
+    source: "ACservicetech.com", srcUrl: "https://www.acservicetech.com/post/10-methods-to-clean-condensate-drains-traps-on-air-conditioners",
+    intro: "The condensate drain removes moisture from indoor air during cooling. A clogged drain causes water backup, ceiling damage, and mold. Clean proactively every 6 months. ALWAYS turn system power off first.",
+    tools: ["Wet/dry shop vacuum","Compressed air or nitrogen (30 PSI max)","Drain brush","½\" CPVC pipe (optional attachment)","Electrical tape"],
+    materials: ["Water (to refill trap after cleaning)"],
+    steps: [
+      { num:1, heading:"Turn off system power completely",
+        text:"Switch off at the thermostat AND at the breaker. This is not optional — air movement through the system during cleaning can cause pressure problems in the drain line.",
+        img:null },
+      { num:2, heading:"Locate the condensate drain and P-trap",
+        text:"The condensate drain is a PVC pipe (usually ¾\" or 1\") exiting the air handler. It runs to a floor drain, utility sink, or outside. The P-trap is the U-shaped section near the air handler — it holds water to prevent air from bypassing the drain. There is usually an access T or cap you can open.",
+        img:null },
+      { num:3, heading:"Method 1 (Best): Shop vac at the outdoor drain end",
+        text:"Connect a wet/dry shop vacuum hose to where the drain line exits the building. Seal around it tightly with electrical tape or a rag. Run the vacuum for 2–3 minutes. Simultaneously pour water into the primary drain pan at the indoor unit to flush material through. This pulls the clog out and flushes the line simultaneously — it is the preferred method.",
+        img:null },
+      { num:4, heading:"Method 2: Brush clearing through the P-trap",
+        text:"Remove caps at both ends of the condensate trap. Pull a drain brush through the trap to physically break up and extract debris. This is especially effective for algae or sludge that has accumulated inside the trap itself.",
+        img:null },
+      { num:5, heading:"Method 3: Compressed air at 30 PSI",
+        text:"Insert an extended tip wrapped with electrical tape into the trap or access point. Apply compressed air at exactly 30 PSI — do not exceed this pressure, as higher pressure can separate pipe joints and cause leaks. Nitrogen is preferred over shop air because it leaves no moisture residue.",
+        img:null },
+      { num:6, heading:"Always refill the trap with water when done",
+        text:"Frequently skipped and critically important: refill the P-trap with water after any cleaning method. The water in the trap creates a seal that prevents air from being pushed or pulled through the drain line during normal system operation. A dry trap defeats the purpose of having one.",
+        img:null }
+    ]
+  },
+  "dishwasher": {
+    title: "Dishwasher Not Draining",
+    source: "Appliance Mastery", srcUrl: "https://appliancemastery.com/how-to-fix-dishwasher-that-doesn-t-drain/",
+    intro: "Work through this in order: filter → garbage disposal connection → drain basket → drain hose → drain pump. The first two steps resolve most drainage calls without tools.",
+    tools: ["Screwdriver","Towels or sponge","Bucket (to catch standing water)","Multimeter (pump test only)"],
+    materials: [],
+    steps: [
+      { num:1, heading:"Clean the filter — most common cause",
+        text:"The filter is at the bottom of the dishwasher tub — a round cylindrical piece you twist counterclockwise and lift out. Rinse it under running water and use a soft brush to remove all food particles. A clogged filter prevents drainage entirely even if every other component is fine. This single step fixes the majority of drainage complaints.",
+        img:null },
+      { num:2, heading:"Check the garbage disposal connection",
+        text:"If the dishwasher drains through the garbage disposal, run the disposal to clear any blockage. If the disposal was recently installed, check that the knockout plug was removed from the dishwasher inlet port — this is a very common new-installation error that completely prevents drainage and looks like a pump failure.",
+        img:null },
+      { num:3, heading:"Clear the drain basket",
+        text:"At the bottom rear of the tub, locate the drain basket (a perforated cover over the drain opening). Remove any large food debris, broken glass, or items by hand or with a brush.",
+        img:null },
+      { num:4, heading:"Inspect the drain hose for kinks or clogs",
+        text:"The drain hose runs from the dishwasher to the garbage disposal or sink drain. Pull the dishwasher out slightly and check the hose for kinks or pinches. Disconnect and inspect for blockages inside. The hose must have a high loop (secured above the drain connection point) to prevent backflow — a sagging hose prevents proper drainage.",
+        img:null },
+      { num:5, heading:"Test the drain pump",
+        text:"Disconnect power. The pump is at the bottom of the dishwasher under the lower spray arm. Check for debris blocking the pump impeller and try rotating it manually — it should spin freely. If the impeller spins freely but the pump won\'t run, use a multimeter to verify power at the pump terminals during a drain cycle. A pump that has no blockage and no power signal during drain = control board issue. A pump with power that won\'t spin = pump replacement.",
+        img:null }
+    ]
+  },
+  "refrigerator": {
+    title: "Refrigerator Not Cooling",
+    source: "Family Handyman", srcUrl: "https://www.familyhandyman.com/project/fix-refrigerator-problems/",
+    intro: "Work through in order. The first four checks are tool-free and resolve most \"not cooling\" calls. FDA recommends 40°F or below for the fridge compartment.",
+    tools: ["Coil brush or vacuum with brush attachment","Flashlight"],
+    materials: ["Replacement door gasket (if worn)"],
+    steps: [
+      { num:1, heading:"Verify power and thermostat settings",
+        text:"Check that the fridge is plugged in and the interior light comes on. Verify the temperature control hasn\'t been accidentally turned down — this is common when the dial is inside the fridge. Check the circuit breaker if no power.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2025/06/Refrigerator-Not-Cooling-Heres-How-To-Fix-It_Refrigerator-Not-Cooling-Heres-How-To-Fix-It_FH09JUN_499_59_001_AI_CALLOUTS-scaled.jpg" },
+      { num:2, heading:"Check that freezer vents are not blocked",
+        text:"The refrigerator compartment is cooled by cold air flowing down from the freezer through back vents. If frozen food boxes are packed against those vents, airflow to the fridge section is blocked. Reorganize so all vents are clear.",
+        img:null },
+      { num:3, heading:"Clean the condenser coils",
+        text:"Dirty coils are the most common maintenance-related cooling failure. Coils are at the back of the unit or behind the toe grill at the bottom front. Unplug the fridge. Remove the toe grill. Use a coil brush to knock dust loose, then vacuum it up. Clean every 6–12 months. This one step can fully restore cooling performance.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2025/06/Refrigerator-Not-Cooling-Heres-How-To-Fix-It_FH09JUN_499_59_002_AI_CALLOUTS-scaled.jpg" },
+      { num:4, heading:"Check the condenser fan and door gaskets",
+        text:"With the fridge unplugged, spin the condenser fan blade by hand — it should rotate freely. Clear any debris jamming it. Also check door gaskets (rubber seals): close the door on a dollar bill — if you can pull it out with little resistance, the gasket is worn and cold air is leaking out.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2025/06/Refrigerator-Not-Cooling-Heres-How-To-Fix-It_FH09JUN_499_59_004_AI_CALLOUTS-scaled.jpg" },
+      { num:5, heading:"Check the evaporator fan (compressor runs but fridge won\'t cool)",
+        text:"If you hear the compressor running (low hum from the back) but the fridge won\'t cool, the evaporator fan behind the freezer\'s back wall panel may be stuck or frost-clogged. Thick frost on the evaporator coils means a failing defrost heater. Immediate fix: manual defrost (unplug 24–48 hours). Permanent fix: defrost heater or timer replacement — call a tech.",
+        img:"https://www.familyhandyman.com/wp-content/uploads/2025/06/Refrigerator-Not-Cooling-Heres-How-To-Fix-It_FH09JUN_499_59_021_AI_CALLOUTS-scaled.jpg" }
+    ]
+  }
+};
+
+const REFS = [
+  { t:"This Old House",       d:"All trades — licensed tradespeople on every video. Your ongoing lookup library.", u:"https://www.youtube.com/@thisoldhouse" },
+  { t:"RepairClinic",         d:"Best appliance channel — brand-specific and model-specific repair videos.",         u:"https://www.youtube.com/@RepairClinic" },
+  { t:"Roger Wakefield",      d:"Deep plumbing library — 40+ years licensed, 688K subscribers.",                    u:"https://www.youtube.com/@RogerWakefield" },
+  { t:"SkillCat",             d:"130+ hrs of HVAC, plumbing, electrical, appliances. Earns EPA 608 + OSHA-10.",           u:"https://www.skillcatapp.com/online-maintenance-training-courses" },
+  { t:"Visto: Basic Plumbing",d:"NAA-backed course built specifically for apartment maintenance context.",                 u:"https://store.gowithvisto.org/products/basic-plumbing" }
+];
+
+// ===== STATE =====
+const KEY = "gpm_v3";
+function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } }
+function save(s){ localStorage.setItem(KEY,JSON.stringify(s)); }
+let ST = load();
+function getP(id){ return ST[id]||{done:false,opened:false}; }
+function setP(id,u){ ST[id]=Object.assign({},getP(id),u); save(ST); renderAll(); }
+
+// ===== ACTIVE ARTICLE =====
+let activeArtId = null;
+
+function openArt(id) {
+  activeArtId = id;
+  const a = ARTICLES[id];
+  if(!a) return;
+  document.getElementById("art-modal-title").textContent = a.title;
+  document.getElementById("art-modal-src").innerHTML = "Source: <a href=\"" + a.srcUrl + "\" target=\"_blank\" rel=\"noopener\" style=\"color:#58a6ff\">" + a.source + " ↗</a>";
+  const p = getP(id);
+  const cbtn = document.getElementById("art-complete-btn");
+  if(p.done){ cbtn.textContent = "✓ Completed"; cbtn.className = "btn-complete btn-complete-done"; }
+  else { cbtn.textContent = "✓ Mark as Complete"; cbtn.className = "btn-complete"; }
+
+  // Build body
+  let html = "";
+  html += "<div class=\"art-intro\">" + esc(a.intro) + "</div>";
+  if(a.tools.length || (a.materials && a.materials.length)){
+    html += "<div class=\"tm-section\">";
+    if(a.tools.length){
+      html += "<div class=\"tm-box\"><div class=\"tm-label\">Tools Needed</div><ul class=\"tm-list\">";
+      a.tools.forEach(function(t){ html += "<li>" + esc(t) + "</li>"; });
+      html += "</ul></div>";
+    }
+    if(a.materials && a.materials.length){
+      html += "<div class=\"tm-box\"><div class=\"tm-label\">Materials</div><ul class=\"tm-list\">";
+      a.materials.forEach(function(m){ html += "<li>" + esc(m) + "</li>"; });
+      html += "</ul></div>";
+    }
+    html += "</div>";
+  }
+  a.steps.forEach(function(s){
+    html += "<div class=\"step\">";
+    html += "<div class=\"step-hdr\"><div class=\"step-num\">" + s.num + "</div><div class=\"step-heading\">" + esc(s.heading) + "</div></div>";
+    if(s.img) html += "<img class=\"step-img\" src=\"" + s.img + "\" alt=\"Step " + s.num + "\" loading=\"lazy\" onerror=\"this.style.display=\'none'\">";
+    html += "<div class=\"step-text\">" + esc(s.text) + "</div>";
+    html += "</div>";
+  });
+
+  document.getElementById("art-modal-body").innerHTML = html;
+  document.getElementById("art-modal").classList.add("open");
+  setP(id, {opened:true});
+  document.body.style.overflow = "hidden";
+}
+
+function closeArt(){
+  document.getElementById("art-modal").classList.remove("open");
+  document.body.style.overflow = "";
+  activeArtId = null;
+}
+
+function markArticleDone(){
+  if(activeArtId){
+    setP(activeArtId, {done:true, opened:true});
+    const cbtn = document.getElementById("art-complete-btn");
+    cbtn.textContent = "✓ Completed";
+    cbtn.className = "btn-complete btn-complete-done";
+  }
+}
+
+function esc(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ===== YOUTUBE =====
+function watchYT(id, vid) {
+  window.open("https://www.youtube.com/watch?v=" + vid, "_blank");
+  setP(id, {opened:true});
+}
+function markWatched(id) { setP(id, {done:true, opened:true}); }
+
+// ===== RENDER =====
+function renderAll(){
+  let total=0, done=0;
+  let html = TOPICS.map(function(topic){
+    const resources = topic.resources;
+    total += resources.length;
+    const tDone = resources.filter(function(r){ return getP(r.id).done; }).length;
+    done += tDone;
+    const tPct = resources.length ? Math.round((tDone/resources.length)*100) : 0;
+    return "<div class=\"topic\"><div class=\"topic-hdr\"><div class=\"topic-name\">" + esc(topic.label) + "</div>"
+      + "<div class=\"topic-bar\"><div class=\"bar bar-sm\"><div class=\"bfill\" style=\"width:" + tPct + "%\"></div></div></div>"
+      + "<div class=\"topic-stat\">" + tDone + "/" + resources.length + "</div></div>"
+      + "<div class=\"grid\">" + resources.map(renderCard).join("") + "</div></div>";
+  }).join("");
+
+  html += "<div class=\"ref-sec\"><h2>Reference Channels &amp; Platforms</h2><div class=\"ref-grid\">"
+    + REFS.map(function(r){
+        return "<div class=\"ref-card\"><div class=\"ref-card-t\">" + esc(r.t) + "</div><div class=\"ref-card-d\">" + esc(r.d) + "</div><a href=\"" + r.u + "\" target=\"_blank\" rel=\"noopener\">Open &#x2192;</a></div>";
+      }).join("") + "</div></div>"
+    + "<footer>Green Property Management &nbsp;&middot;&nbsp; Progress stored locally in your browser &nbsp;&middot;&nbsp; Article content from credited sources</footer>";
+
+  document.getElementById("app").innerHTML = html;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById("ovr-fill").style.width = pct + "%";
+  document.getElementById("ovr-txt").textContent = done + " of " + total + " completed";
+}
+
+function renderCard(r){
+  const p = getP(r.id);
+  const cls = "card" + (p.done?" done":"") + (!p.done&&p.opened?" going":"");
+
+  const badge = p.done
+    ? "<span class=\"badge b-done\">&#x2713; Complete</span>"
+    : p.opened
+      ? "<span class=\"badge b-going\">&#x25B6; In Progress</span>"
+      : "<span class=\"badge b-none\">Not Started</span>";
+
+  if(r.type === "yt"){
+    const thumb = "https://img.youtube.com/vi/" + r.vid + "/mqdefault.jpg";
+    const watchLabel = p.done ? "&#x21BA; Rewatch on YouTube" : p.opened ? "&#x25B6; Continue on YouTube" : "&#x25B6; Watch on YouTube";
+    const markLabel = p.done ? "&#x2713; Watched" : "Mark as Watched";
+    const markCls = p.done ? "btn btn-mark btn-done" : "btn btn-mark";
+    const markAction = p.done ? "" : "markWatched(\'" + r.id + "\')";
+    return "<div class=\"" + cls + "\"><div class=\"yt-thumb\" onclick=\"watchYT(\'" + r.id + "\',\'" + r.vid + "\')\"><img src=\"" + thumb + "\" alt=\"\" loading=\"lazy\"><div class=\"play-ring\"><div class=\"play-inner\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"#111\"><polygon points=\"5,3 19,12 5,21\"/></svg></div></div></div>"
+      + "<div class=\"cbody\"><div class=\"ctitle\">" + esc(r.title) + "</div><div class=\"cnote\">" + esc(r.note) + "</div>" + badge
+      + "<button class=\"btn btn-yt\" onclick=\"watchYT(\'" + r.id + "\',\'" + r.vid + "\')\">" + watchLabel + "</button>"
+      + "<button class=\"" + markCls + "\"" + (markAction ? " onclick=\"" + markAction + "\"" : "") + (p.done ? " disabled" : "") + ">" + markLabel + "</button></div></div>";
+  } else {
+    const openLabel = p.done ? "&#x21BA; Review Guide" : p.opened ? "&#x21A9; Continue Reading" : "&#x1F4D6; Read Guide";
+    const artCls = p.done ? "btn btn-art-done" : "btn btn-art";
+    return "<div class=\"" + cls + "\"><div class=\"art-header\" onclick=\"openArt(\'" + r.id + "\')\"><div class=\"art-icon\">&#x1F4C4;</div><div><div class=\"art-src\">" + esc(ARTICLES[r.id]?ARTICLES[r.id].source:"") + "</div><div class=\"ctitle\">" + esc(r.title) + "</div></div></div>"
+      + "<div class=\"cbody\"><div class=\"cnote\">" + esc(r.note) + "</div>" + badge
+      + "<button class=\"" + artCls + "\" onclick=\"openArt(\'" + r.id + "\')\">" + openLabel + "</button></div></div>";
+  }
+}
+
+function resetAll(){
+  if(confirm("Reset all progress? This cannot be undone.")){
+    localStorage.removeItem(KEY); ST={}; renderAll();
+  }
+}
+
+// File protocol detection
+if(window.location.protocol === "file:"){
+  document.getElementById("file-banner").style.display = "block";
+}
+
+renderAll();
+</script>
+</body>
+</html>
