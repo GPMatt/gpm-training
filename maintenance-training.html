@@ -64,16 +64,22 @@ main{max-width:1140px;margin:0 auto;padding:28px 20px}
 .btn-art{background:#238636;color:#fff}
 .btn-art:hover{background:#2ea043}
 .btn-art-done{background:#0d1f0f;color:#2ea043;border:1px solid #2ea043}
-/* Article Modal */
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;overflow-y:auto;padding:20px}
+/* Modals */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:300;overflow-y:auto;padding:20px}
 .modal.open{display:block}
 .modal-inner{max-width:820px;margin:0 auto;background:#161b22;border:1px solid #30363d;border-radius:10px;overflow:hidden}
-.modal-top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#161b22;z-index:10}
+.modal-inner-wide{max-width:960px}
+.modal-top{display:flex;justify-content:space-between;align-items:flex-start;padding:16px 20px;border-bottom:1px solid #21262d;position:sticky;top:0;background:#161b22;z-index:10}
 .modal-title{font-size:1rem;font-weight:700}
 .modal-src{font-size:0.72rem;color:#58a6ff;margin-top:2px}
-.btn-close{background:none;border:none;color:#6e7681;font-size:1.4rem;cursor:pointer;padding:2px 6px;border-radius:4px}
+.btn-close{background:none;border:none;color:#6e7681;font-size:1.4rem;cursor:pointer;padding:2px 6px;border-radius:4px;flex-shrink:0}
 .btn-close:hover{color:#e1e4e8;background:#21262d}
 .modal-body{padding:20px}
+/* YouTube player */
+#yt-player-wrap{aspect-ratio:16/9;background:#000;width:100%}
+#yt-player-wrap iframe{width:100%;height:100%}
+.skip-warn{display:none;color:#f85149;font-size:0.75rem;margin-top:6px;padding:6px 10px;background:#2d0a0a;border-radius:5px;border:1px solid #5a1a1a}
+/* Article modal */
 .art-intro{font-size:0.88rem;color:#8b949e;line-height:1.6;margin-bottom:20px;padding:12px 14px;background:#0d1117;border-radius:6px;border-left:3px solid #238636}
 /* Tools/Materials */
 .tm-section{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
@@ -90,7 +96,7 @@ main{max-width:1140px;margin:0 auto;padding:28px 20px}
 .step-img{width:100%;max-height:340px;object-fit:cover;display:block;background:#0d1117}
 .step-text{padding:12px 14px;font-size:0.84rem;color:#c9d1d9;line-height:1.65}
 /* Modal footer */
-.modal-foot{padding:16px 20px;border-top:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#1c2128}
+.modal-foot{padding:16px 20px;border-top:1px solid #21262d;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#1c2128;flex-wrap:wrap}
 .btn-complete{padding:9px 20px;border:none;border-radius:7px;font-size:0.88rem;font-weight:600;cursor:pointer;background:#238636;color:#fff;transition:background .2s}
 .btn-complete:hover{background:#2ea043}
 .btn-complete-done{background:#0d1f0f;color:#2ea043;border:1px solid #2ea043}
@@ -111,16 +117,16 @@ footer{text-align:center;padding:20px;color:#484f58;font-size:0.73rem;border-top
 <body>
 
 <div id="file-banner">
-  <strong>&#x26A0; YouTube videos require HTTP to embed.</strong> To enable embedded players with progress tracking, run this in your terminal:&nbsp;
+  <strong>&#x26A0; Videos require HTTP to play inline.</strong> Open this page from the shared link, or run:&nbsp;
   <code>python3 -m http.server 8080</code>&nbsp; then open &nbsp;<code>http://localhost:8080/maintenance-training.html</code><br>
-  <span style="color:#8b949e;font-size:0.77rem">For now, videos will open directly on YouTube &#x2014; return here and click "Mark as Watched" when done.</span>
+  <span style="color:#8b949e;font-size:0.77rem">On file://, videos open on YouTube instead — click "Mark as Watched" when done.</span>
 </div>
 
 <header>
   <div class="hrow">
     <div>
       <h1>GPM Maintenance Tech Training</h1>
-      <div class="hsub">Progress saves automatically &nbsp;&#xb7;&nbsp; Videos open on YouTube &nbsp;&#xb7;&nbsp; Articles embedded inline</div>
+      <div class="hsub">Progress saves automatically &nbsp;&#xb7;&nbsp; Videos play inline &nbsp;&#xb7;&nbsp; Articles embedded with steps &amp; photos</div>
     </div>
     <button class="btn-sm" onclick="resetAll()">Reset Progress</button>
   </div>
@@ -130,11 +136,29 @@ footer{text-align:center;padding:20px;color:#484f58;font-size:0.73rem;border-top
 
 <main id="app"></main>
 
+<!-- YouTube Player Modal -->
+<div class="modal" id="yt-modal">
+  <div class="modal-inner modal-inner-wide">
+    <div class="modal-top">
+      <div style="flex:1;min-width:0">
+        <div class="modal-title" id="yt-modal-title"></div>
+        <div id="yt-skip-warn" class="skip-warn">&#x26A0; Skipping detected — watch the full video to auto-complete, or click "Mark as Watched" when done.</div>
+      </div>
+      <button class="btn-close" onclick="closeYT()">&#x2715;</button>
+    </div>
+    <div id="yt-player-wrap"></div>
+    <div class="modal-foot">
+      <button id="yt-complete-btn" class="btn-complete" onclick="markYTWatched()">&#x2713; Mark as Watched</button>
+      <div class="modal-note">Finishes automatically when video ends without skipping</div>
+    </div>
+  </div>
+</div>
+
 <!-- Article Reading Modal -->
 <div class="modal" id="art-modal">
   <div class="modal-inner">
     <div class="modal-top">
-      <div>
+      <div style="flex:1;min-width:0">
         <div class="modal-title" id="art-modal-title"></div>
         <div class="modal-src" id="art-modal-src"></div>
       </div>
@@ -148,38 +172,39 @@ footer{text-align:center;padding:20px;color:#484f58;font-size:0.73rem;border-top
   </div>
 </div>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 // ===== DATA =====
 const TOPICS = [
   { id:"plumbing", label:"🔧 Plumbing", resources: [
     { id:"toilet-running", title:"Running Toilet — Flapper & Fill Valve", note:"Learn both parts in one video — understand the system, not just the part", type:"yt", vid:"8TYdOXs3VIo" },
-    { id:"drain-snake",   title:"Snake a Clogged Drain",                         note:"Ask This Old House — licensed plumber covers the overflow plate trick most techs miss", type:"yt", vid:"TpmNDrBHcno" },
-    { id:"faucet-cartridge", title:"Leaky Faucet — Cartridge Replacement",  note:"Family Handyman — labeled diagrams, covers Moen/Delta/Kohler types", type:"art" },
-    { id:"shower-head",  title:"Replace a Shower Head",                           note:"Home Depot — Teflon tape, thread direction, common over-tightening mistake", type:"yt", vid:"vkdnGf5XYWI" },
-    { id:"disposal",     title:"Garbage Disposal — Reset & Unjam",           note:"Reset button + Allen wrench under the unit — solves 90% of disposal calls", type:"yt", vid:"Ns5kIHbKpeA" },
-    { id:"water-heater", title:"Water Heater — Relight Pilot Light",         note:"A.O. Smith manufacturer guide — piezo ignitor and manual light methods", type:"art" }
+    { id:"drain-snake",   title:"Snake a Clogged Drain",                  note:"Ask This Old House — licensed plumber covers the overflow plate trick most techs miss", type:"yt", vid:"TpmNDrBHcno" },
+    { id:"faucet-cartridge", title:"Leaky Faucet — Cartridge Replacement", note:"Family Handyman — labeled diagrams, covers Moen/Delta/Kohler types", type:"art" },
+    { id:"shower-head",  title:"Replace a Shower Head",                   note:"Home Depot — Teflon tape, thread direction, common over-tightening mistake", type:"yt", vid:"vkdnGf5XYWI" },
+    { id:"disposal",     title:"Garbage Disposal — Reset & Unjam",        note:"Reset button + Allen wrench under the unit — solves 90% of disposal calls", type:"yt", vid:"Ns5kIHbKpeA" },
+    { id:"water-heater", title:"Water Heater — Relight Pilot Light",      note:"A.O. Smith manufacturer guide — piezo ignitor and manual light methods", type:"art" }
   ]},
   { id:"hvac", label:"❄️ HVAC", resources: [
-    { id:"air-filter",  title:"Change the Air Filter",                             note:"5 steps — teaches the airflow arrow direction, the #1 mistake new techs make", type:"art" },
+    { id:"air-filter",  title:"Change the Air Filter",                    note:"5 steps — teaches the airflow arrow direction, the #1 mistake new techs make", type:"art" },
     { id:"hvac-diag",   title:"AC Not Cooling — Diagnose Before Assuming Failure", note:"Apply your HVAC diagnostic mindset to apartment calls — 6-step checklist", type:"art" },
-    { id:"condensate",  title:"Clean AC Condensate Drain Line",                    note:"Written by HVAC techs for HVAC techs — 10 methods, preferred method first", type:"art" }
+    { id:"condensate",  title:"Clean AC Condensate Drain Line",           note:"Written by HVAC techs for HVAC techs — 10 methods, preferred method first", type:"art" }
   ]},
   { id:"electrical", label:"⚡ Electrical", resources: [
-    { id:"gfci-reset",   title:"GFCI Outlet — Reset",                       note:"Explains WHY it trips, not just how to reset — prevents the same callback", type:"yt", vid:"IfbXKmWRPak" },
-    { id:"gfci-replace", title:"GFCI Outlet — Replace",                     note:"Covers LINE vs. LOAD terminal wiring — the one thing installers get wrong", type:"yt", vid:"qretO8kaBMc" },
-    { id:"light-switch", title:"Replace a Light Switch",                           note:"See Jane Drill — best beginner electrical pacing; wire color ID very clear", type:"yt", vid:"OBli4TjITRc" },
+    { id:"gfci-reset",   title:"GFCI Outlet — Reset",                    note:"Explains WHY it trips, not just how to reset — prevents the same callback", type:"yt", vid:"IfbXKmWRPak" },
+    { id:"gfci-replace", title:"GFCI Outlet — Replace",                  note:"Covers LINE vs. LOAD terminal wiring — the one thing installers get wrong", type:"yt", vid:"qretO8kaBMc" },
+    { id:"light-switch", title:"Replace a Light Switch",                  note:"See Jane Drill — best beginner electrical pacing; wire color ID very clear", type:"yt", vid:"OBli4TjITRc" },
     { id:"smoke-det",    title:"Smoke/CO Detector — Battery & Unit Replace", note:"Made by a firefighter/paramedic — detectors expire at 10 years, not just batteries", type:"yt", vid:"G9VePsq3yuU" }
   ]},
   { id:"general", label:"🏠 General Maintenance", resources: [
-    { id:"drywall",     title:"Patch Drywall — Nail Holes to Fist-Sized",   note:"4 methods in one video — move-out season requires knowing all of them", type:"yt", vid:"uvQK7WTkKpI" },
-    { id:"caulk",       title:"Re-Caulk Tub & Shower",                            note:"Ace Hardware — painter\'s tape method + why you cannot caulk over old caulk", type:"yt", vid:"z8tdp0lLfCw" },
-    { id:"door-lock",   title:"Replace Deadbolt & Door Knob",                     note:"Both pieces in one video — step-by-step, no filler", type:"yt", vid:"e-Y2Y4XSQ5Y" },
-    { id:"weatherstrip",title:"Replace Door Weatherstripping",                     note:"Covers kerf-mounted and adhesive types — apartments have both", type:"yt", vid:"HjJanhnlS44" },
-    { id:"win-screen",  title:"Replace a Window Screen",                           note:"Full rescreen technique — most apartment screens need this vs. patching", type:"yt", vid:"gpduuz7Y_dc" }
+    { id:"drywall",     title:"Patch Drywall — Nail Holes to Fist-Sized", note:"4 methods in one video — move-out season requires knowing all of them", type:"yt", vid:"uvQK7WTkKpI" },
+    { id:"caulk",       title:"Re-Caulk Tub & Shower",                   note:"Ace Hardware — painter\'s tape method + why you cannot caulk over old caulk", type:"yt", vid:"z8tdp0lLfCw" },
+    { id:"door-lock",   title:"Replace Deadbolt & Door Knob",            note:"Both pieces in one video — step-by-step, no filler", type:"yt", vid:"e-Y2Y4XSQ5Y" },
+    { id:"weatherstrip",title:"Replace Door Weatherstripping",            note:"Covers kerf-mounted and adhesive types — apartments have both", type:"yt", vid:"HjJanhnlS44" },
+    { id:"win-screen",  title:"Replace a Window Screen",                  note:"Full rescreen technique — most apartment screens need this vs. patching", type:"yt", vid:"gpduuz7Y_dc" }
   ]},
   { id:"appliances", label:"🍽️ Appliances", resources: [
-    { id:"dishwasher",  title:"Dishwasher Not Draining",                           note:"Filter → disposal connection → drain hose → pump — work in order", type:"art" },
-    { id:"refrigerator",title:"Refrigerator Not Cooling",                          note:"Family Handyman labeled photos — coils, vents, fan, gaskets in correct order", type:"art" }
+    { id:"dishwasher",  title:"Dishwasher Not Draining",                  note:"Filter → disposal connection → drain hose → pump — work in order", type:"art" },
+    { id:"refrigerator",title:"Refrigerator Not Cooling",                 note:"Family Handyman labeled photos — coils, vents, fan, gaskets in correct order", type:"art" }
   ]}
 ];
 
@@ -358,8 +383,8 @@ const REFS = [
   { t:"This Old House",       d:"All trades — licensed tradespeople on every video. Your ongoing lookup library.", u:"https://www.youtube.com/@thisoldhouse" },
   { t:"RepairClinic",         d:"Best appliance channel — brand-specific and model-specific repair videos.",         u:"https://www.youtube.com/@RepairClinic" },
   { t:"Roger Wakefield",      d:"Deep plumbing library — 40+ years licensed, 688K subscribers.",                    u:"https://www.youtube.com/@RogerWakefield" },
-  { t:"SkillCat",             d:"130+ hrs of HVAC, plumbing, electrical, appliances. Earns EPA 608 + OSHA-10.",           u:"https://www.skillcatapp.com/online-maintenance-training-courses" },
-  { t:"Visto: Basic Plumbing",d:"NAA-backed course built specifically for apartment maintenance context.",                 u:"https://store.gowithvisto.org/products/basic-plumbing" }
+  { t:"SkillCat",             d:"130+ hrs of HVAC, plumbing, electrical, appliances. Earns EPA 608 + OSHA-10.",     u:"https://www.skillcatapp.com/online-maintenance-training-courses" },
+  { t:"Visto: Basic Plumbing",d:"NAA-backed course built specifically for apartment maintenance context.",            u:"https://store.gowithvisto.org/products/basic-plumbing" }
 ];
 
 // ===== STATE =====
@@ -370,7 +395,118 @@ let ST = load();
 function getP(id){ return ST[id]||{done:false,opened:false}; }
 function setP(id,u){ ST[id]=Object.assign({},getP(id),u); save(ST); renderAll(); }
 
-// ===== ACTIVE ARTICLE =====
+// ===== YOUTUBE EMBED =====
+// Protocol check: on file:// YouTube iframes are blocked — fall back to new tab
+const ON_HTTP = window.location.protocol !== "file:";
+
+let ytPlayer = null;
+let ytActiveId = null;
+let ytSkipDetector = null;
+let ytLastTime = 0;
+let ytSkipFlag = false;
+
+// YouTube IFrame API callback
+function onYouTubeIframeAPIReady() {}
+
+function openYT(id, vid) {
+  if (!ON_HTTP) {
+    // file:// fallback: open tab, manual mark
+    window.open("https://www.youtube.com/watch?v=" + vid, "_blank");
+    setP(id, {opened:true});
+    return;
+  }
+
+  ytActiveId = id;
+  const p = getP(id);
+
+  // Title
+  const res = TOPICS.reduce(function(found, t){
+    return found || t.resources.find(function(r){ return r.id === id; });
+  }, null);
+  document.getElementById("yt-modal-title").textContent = res ? res.title : "";
+
+  // Skip warning reset
+  const warn = document.getElementById("yt-skip-warn");
+  warn.style.display = "none";
+
+  // Complete button state
+  const cbtn = document.getElementById("yt-complete-btn");
+  if (p.done) {
+    cbtn.textContent = "✓ Watched";
+    cbtn.className = "btn-complete btn-complete-done";
+  } else {
+    cbtn.textContent = "✓ Mark as Watched";
+    cbtn.className = "btn-complete";
+  }
+
+  document.getElementById("yt-modal").classList.add("open");
+  document.body.style.overflow = "hidden";
+  setP(id, {opened:true});
+
+  // Destroy previous player and reset container
+  if (ytPlayer) { try { ytPlayer.destroy(); } catch(e){} ytPlayer = null; }
+  document.getElementById("yt-player-wrap").innerHTML = '<div id="yt-player"></div>';
+  ytLastTime = 0;
+  ytSkipFlag = false;
+
+  ytPlayer = new YT.Player("yt-player", {
+    videoId: vid,
+    width: "100%",
+    height: "100%",
+    playerVars: { autoplay:1, rel:0, modestbranding:1, iv_load_policy:3 },
+    events: { onStateChange: onYTStateChange }
+  });
+
+  clearInterval(ytSkipDetector);
+  ytSkipDetector = setInterval(checkForSkip, 500);
+}
+
+function checkForSkip() {
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== "function") return;
+  if (ytPlayer.getPlayerState() !== 1) return; // only while playing
+  const now = ytPlayer.getCurrentTime();
+  // Jump forward > 10 seconds in a 0.5s window = skip
+  if (ytLastTime > 0 && (now - ytLastTime) > 10) {
+    ytSkipFlag = true;
+    document.getElementById("yt-skip-warn").style.display = "block";
+  }
+  ytLastTime = now;
+}
+
+function onYTStateChange(event) {
+  // state 0 = ended
+  if (event.data === 0) {
+    clearInterval(ytSkipDetector);
+    if (!ytSkipFlag) {
+      // Watched clean — auto-complete
+      setP(ytActiveId, {done:true, opened:true});
+      const cbtn = document.getElementById("yt-complete-btn");
+      cbtn.textContent = "✓ Watched";
+      cbtn.className = "btn-complete btn-complete-done";
+    }
+    // If skipped: warning is already visible, user can manually mark
+  }
+}
+
+function closeYT() {
+  if (ytPlayer && typeof ytPlayer.pauseVideo === "function") {
+    try { ytPlayer.pauseVideo(); } catch(e){}
+  }
+  clearInterval(ytSkipDetector);
+  document.getElementById("yt-modal").classList.remove("open");
+  document.body.style.overflow = "";
+  ytActiveId = null;
+}
+
+function markYTWatched() {
+  if (!ytActiveId) return;
+  setP(ytActiveId, {done:true, opened:true});
+  const cbtn = document.getElementById("yt-complete-btn");
+  cbtn.textContent = "✓ Watched";
+  cbtn.className = "btn-complete btn-complete-done";
+}
+
+// ===== ARTICLE MODAL =====
 let activeArtId = null;
 
 function openArt(id) {
@@ -384,9 +520,7 @@ function openArt(id) {
   if(p.done){ cbtn.textContent = "✓ Completed"; cbtn.className = "btn-complete btn-complete-done"; }
   else { cbtn.textContent = "✓ Mark as Complete"; cbtn.className = "btn-complete"; }
 
-  // Build body
-  let html = "";
-  html += "<div class=\"art-intro\">" + esc(a.intro) + "</div>";
+  let html = "<div class=\"art-intro\">" + esc(a.intro) + "</div>";
   if(a.tools.length || (a.materials && a.materials.length)){
     html += "<div class=\"tm-section\">";
     if(a.tools.length){
@@ -434,13 +568,6 @@ function esc(s){
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// ===== YOUTUBE =====
-function watchYT(id, vid) {
-  window.open("https://www.youtube.com/watch?v=" + vid, "_blank");
-  setP(id, {opened:true});
-}
-function markWatched(id) { setP(id, {done:true, opened:true}); }
-
 // ===== RENDER =====
 function renderAll(){
   let total=0, done=0;
@@ -480,13 +607,13 @@ function renderCard(r){
 
   if(r.type === "yt"){
     const thumb = "https://img.youtube.com/vi/" + r.vid + "/mqdefault.jpg";
-    const watchLabel = p.done ? "&#x21BA; Rewatch on YouTube" : p.opened ? "&#x25B6; Continue on YouTube" : "&#x25B6; Watch on YouTube";
+    const watchLabel = p.done ? "&#x21BA; Rewatch Video" : p.opened ? "&#x25B6; Continue Video" : "&#x25B6; Watch Video";
     const markLabel = p.done ? "&#x2713; Watched" : "Mark as Watched";
     const markCls = p.done ? "btn btn-mark btn-done" : "btn btn-mark";
-    const markAction = p.done ? "" : "markWatched(\'" + r.id + "\')";
-    return "<div class=\"" + cls + "\"><div class=\"yt-thumb\" onclick=\"watchYT(\'" + r.id + "\',\'" + r.vid + "\')\"><img src=\"" + thumb + "\" alt=\"\" loading=\"lazy\"><div class=\"play-ring\"><div class=\"play-inner\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"#111\"><polygon points=\"5,3 19,12 5,21\"/></svg></div></div></div>"
+    const markAction = p.done ? "" : "markYTWatched(); ytActiveId=\'" + r.id + "\'";
+    return "<div class=\"" + cls + "\"><div class=\"yt-thumb\" onclick=\"openYT(\'" + r.id + "\',\'" + r.vid + "\')\"><img src=\"" + thumb + "\" alt=\"\" loading=\"lazy\"><div class=\"play-ring\"><div class=\"play-inner\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"#111\"><polygon points=\"5,3 19,12 5,21\"/></svg></div></div></div>"
       + "<div class=\"cbody\"><div class=\"ctitle\">" + esc(r.title) + "</div><div class=\"cnote\">" + esc(r.note) + "</div>" + badge
-      + "<button class=\"btn btn-yt\" onclick=\"watchYT(\'" + r.id + "\',\'" + r.vid + "\')\">" + watchLabel + "</button>"
+      + "<button class=\"btn btn-yt\" onclick=\"openYT(\'" + r.id + "\',\'" + r.vid + "\')\">" + watchLabel + "</button>"
       + "<button class=\"" + markCls + "\"" + (markAction ? " onclick=\"" + markAction + "\"" : "") + (p.done ? " disabled" : "") + ">" + markLabel + "</button></div></div>";
   } else {
     const openLabel = p.done ? "&#x21BA; Review Guide" : p.opened ? "&#x21A9; Continue Reading" : "&#x1F4D6; Read Guide";
@@ -503,7 +630,6 @@ function resetAll(){
   }
 }
 
-// File protocol detection
 if(window.location.protocol === "file:"){
   document.getElementById("file-banner").style.display = "block";
 }
