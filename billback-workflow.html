@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BillBack Workflow — GPM CC Receipt Billing</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f0;color:#1c1f1a;min-height:100vh}
+
+header{background:#fff;border-bottom:3px solid #8cc63f;padding:20px 32px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.hlogo{display:flex;align-items:center;gap:12px}
+.hlogo-mark{width:36px;height:36px;background:linear-gradient(135deg,#6aab24,#8cc63f);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.hlogo-mark svg{width:22px;height:22px;fill:#fff}
+h1{font-size:1.15rem;font-weight:700;color:#5a8a1a}
+.hsub{font-size:0.72rem;color:#8a8e85;margin-top:2px}
+.legend{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:5px;font-size:0.72rem;color:#555850}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.dot-live{background:#8cc63f}
+.dot-build{background:#d4a820}
+.dot-future{background:#c0c4ba}
+
+main{max-width:780px;margin:0 auto;padding:36px 20px 60px}
+
+.section-label{font-size:0.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a8e85;margin-bottom:20px;padding-left:52px}
+
+.pipeline{position:relative}
+.pipeline::before{content:"";position:absolute;left:22px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#8cc63f 0%,#8cc63f 45%,#d4a820 45%,#d4a820 88%,#c0c4ba 88%,#c0c4ba 100%);z-index:0}
+
+.step{position:relative;display:flex;gap:16px;margin-bottom:4px;padding-bottom:4px}
+.step-icon-col{display:flex;flex-direction:column;align-items:center;z-index:1;flex-shrink:0}
+.step-node{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;border:3px solid transparent;position:relative}
+.step-node.live{background:#f0f7e6;border-color:#8cc63f}
+.step-node.build{background:#fffbf0;border-color:#d4a820}
+.step-node.future{background:#f2f3f0;border-color:#c0c4ba}
+.connector{width:2px;flex:1;min-height:24px;background:transparent}
+
+.step-card{background:#fff;border:1px solid #dde0d8;border-radius:10px;padding:16px 18px;flex:1;margin-bottom:20px;transition:box-shadow .2s,border-color .2s}
+.step-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.step-card.live{border-left:4px solid #8cc63f}
+.step-card.build{border-left:4px solid #d4a820}
+.step-card.future{border-left:4px solid #c0c4ba}
+
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px}
+.step-title{font-size:0.95rem;font-weight:700;color:#1c1f1a;line-height:1.3}
+.badge{font-size:0.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.badge-live{background:#f0f7e6;color:#4a7a1a;border:1px solid #8cc63f}
+.badge-build{background:#fffbf0;color:#9a6600;border:1px solid #e8c840}
+.badge-future{background:#f2f3f0;color:#6a6e65;border:1px solid #c0c4ba}
+
+.step-desc{font-size:0.82rem;color:#555850;line-height:1.55;margin-bottom:10px}
+.step-detail{display:flex;flex-direction:column;gap:5px}
+.detail-row{display:flex;align-items:flex-start;gap:7px;font-size:0.77rem;color:#888c83;line-height:1.4}
+.detail-icon{font-size:0.9rem;flex-shrink:0;margin-top:1px}
+.note{background:#f2f6ea;border-radius:6px;padding:8px 12px;font-size:0.77rem;color:#4a7a1a;margin-top:10px;border-left:3px solid #8cc63f;line-height:1.45}
+.note.warn{background:#fffbf0;color:#9a6600;border-color:#d4a820}
+.note.gray{background:#f5f5f0;color:#6a6e65;border-color:#c0c4ba}
+
+.phase-divider{display:flex;align-items:center;gap:12px;margin:8px 0 24px;padding-left:52px}
+.phase-line{flex:1;height:1px;background:#e4e8da}
+.phase-tag{font-size:0.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a8e85;white-space:nowrap}
+
+footer{text-align:center;font-size:0.72rem;color:#aab0a3;padding:24px;border-top:1px solid #e4e8da;background:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div class="hlogo">
+      <div class="hlogo-mark">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <h1>BillBack — CC Receipt Billing</h1>
+        <div class="hsub">GPM Automated Invoice Pipeline</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="leg"><div class="dot dot-live"></div> Live</div>
+      <div class="leg"><div class="dot dot-build"></div> Building</div>
+      <div class="leg"><div class="dot dot-future"></div> Future</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="section-label">Receipt Intake</div>
+  <div class="pipeline">
+
+    <!-- Step 1 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node live">📋</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card live">
+        <div class="card-top">
+          <div class="step-title">Employee Submits CC Receipt</div>
+          <span class="badge badge-live">Live</span>
+        </div>
+        <div class="step-desc">Staff member completes the Google Form after making a company card purchase — attaches a photo of the receipt, logs the property/owner, amount, and description.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">🔗</span> Google Form (accessible on any device)</div>
+          <div class="detail-row"><span class="detail-icon">📎</span> Receipt photo attached directly in form</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node live">📁</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card live">
+        <div class="card-top">
+          <div class="step-title">Drive & Sheet Logging</div>
+          <span class="badge badge-live">Live</span>
+        </div>
+        <div class="step-desc">Form submission triggers a Google Apps Script that files the receipt photo into an organized Drive folder and appends a row to the Billing Sheet — ready for the monthly cycle.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">📂</span> Drive folder organized by owner/month</div>
+          <div class="detail-row"><span class="detail-icon">📊</span> Billing Sheet row: owner, amount, description, date, status</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="phase-divider">
+    <div class="phase-line"></div>
+    <div class="phase-tag">Monthly Billing Cycle</div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="pipeline">
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">📨</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">Trigger: "Statement Ready" Email</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">An incoming email with the subject "your statement is ready to view" fires the billing cycle. Google Apps Script watches for this email and kicks off the pipeline automatically.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">📬</span> GAS email trigger on automation@ account</div>
+          <div class="detail-row"><span class="detail-icon">⚡</span> No manual intervention needed to start</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">👥</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">Group Receipts by Owner</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">GAS reads all pending rows from the Billing Sheet and groups them by property owner — each owner becomes one invoice containing all their receipts for the cycle.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">🗂️</span> Pending rows only (not previously billed)</div>
+          <div class="detail-row"><span class="detail-icon">🏠</span> One invoice per owner, multiple line items possible</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">🤖</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">Gemini Description Cleanup</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">Raw receipt descriptions (often shorthand or messy) are passed to Gemini AI, which rewrites them into clean, professional language suitable for owner-facing invoices.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">✏️</span> "HD plumb tape misc" → "Plumbing materials — supply tape"</div>
+          <div class="detail-row"><span class="detail-icon">🔑</span> Gemini API key required in Config</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">👁️</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">Human Review Gate</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">Before any invoice is created, Alaina reviews every row in the Sheet — cleaned descriptions, amounts, and owner assignments. Each row is marked Approved or Rejected. The pipeline waits.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">✅</span> Approved rows proceed to QB invoice creation</div>
+          <div class="detail-row"><span class="detail-icon">❌</span> Rejected rows are skipped and flagged for follow-up</div>
+        </div>
+        <div class="note warn">100% review required during initial rollout — no invoice fires without Alaina's explicit approval.</div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">🧾</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">QuickBooks Invoice Creation</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">GAS calls the QuickBooks API to create an invoice for each approved owner group. QB is now authorized. Customer ID mapping is the next technical step.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">🔐</span> QB OAuth: authorized ✓</div>
+          <div class="detail-row"><span class="detail-icon">🗺️</span> Next: pull QB Customer IDs, map to owners in Sheet</div>
+          <div class="detail-row"><span class="detail-icon">📝</span> One QB invoice per owner per cycle</div>
+        </div>
+        <div class="note warn">Failures are non-fatal — if one invoice fails, the batch continues. All failures are logged for review.</div>
+      </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node build">📤</div>
+        <div class="connector"></div>
+      </div>
+      <div class="step-card build">
+        <div class="card-top">
+          <div class="step-title">Invoice Delivery</div>
+          <span class="badge badge-build">Building</span>
+        </div>
+        <div class="step-desc">Created invoices are emailed to Alaina for records and to the AppFolio intake address, which books them into the property management system automatically.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">📧</span> alaina@greenpropertymgt.com</div>
+          <div class="detail-row"><span class="detail-icon">🏢</span> greenproperty11@invoices.appfolio.com</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="phase-divider">
+    <div class="phase-line"></div>
+    <div class="phase-tag">Future State</div>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="pipeline" style="padding-bottom:0">
+    <!-- Step 9 -->
+    <div class="step">
+      <div class="step-icon-col">
+        <div class="step-node future">🚀</div>
+      </div>
+      <div class="step-card future">
+        <div class="card-top">
+          <div class="step-title">Full Automation — No Supervision</div>
+          <span class="badge badge-future">Future</span>
+        </div>
+        <div class="step-desc">Once the invoice workflow has earned trust through consistent, accurate results, the human review gate is removed. The pipeline runs end-to-end from trigger email to delivered invoices — no manual steps.</div>
+        <div class="step-detail">
+          <div class="detail-row"><span class="detail-icon">📬</span> Statement email arrives → invoices delivered, nothing else required</div>
+          <div class="detail-row"><span class="detail-icon">📉</span> 100–200 manual invoices/month eliminated for Alaina</div>
+        </div>
+        <div class="note gray">Unlocked only after the supervised cycle proves accuracy over multiple billing periods.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>GPM BillBack Workflow — Internal Reference &nbsp;·&nbsp; Green Property Management</footer>
+
+</body>
+</html>
