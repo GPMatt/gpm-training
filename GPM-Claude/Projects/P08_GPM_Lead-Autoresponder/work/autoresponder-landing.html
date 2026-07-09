@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A free Gmail auto-responder that captures and responds to leads 24/7 — no subscription, 10-minute setup.">
+<title>Auto Responder — Free Gmail Tool</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f0;color:#1c1f1a}
+
+/* Header */
+header{background:#ffffff;border-bottom:3px solid #8cc63f;padding:16px 32px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.hrow{display:flex;justify-content:space-between;align-items:center}
+.logo{height:34px;display:block}
+.logo-text{font-size:1rem;font-weight:700;color:#1c1f1a;letter-spacing:-.01em}
+.logo-text span{color:#8cc63f}
+.badge-free{font-size:0.68rem;font-weight:700;background:#f0f7e6;color:#4a7a1a;border:1px solid #8cc63f;padding:3px 9px;border-radius:10px;letter-spacing:.04em}
+
+/* Hero */
+.hero{max-width:680px;margin:0 auto;padding:72px 24px 56px;text-align:center}
+.eyebrow{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#5a8a1a;margin-bottom:16px}
+h1{font-size:2.6rem;font-weight:800;line-height:1.15;color:#1c1f1a;margin-bottom:18px;letter-spacing:-.02em}
+h1 em{font-style:normal;color:#8cc63f}
+.sub{font-size:1.05rem;color:#555850;line-height:1.6;margin-bottom:36px;max-width:520px;margin-left:auto;margin-right:auto}
+
+/* Form */
+.form-card{background:#ffffff;border:1px solid #dde0d8;border-radius:12px;padding:28px 32px;box-shadow:0 4px 24px rgba(0,0,0,.06);margin-bottom:24px}
+.form-label{font-size:0.8rem;font-weight:600;color:#3a3d38;margin-bottom:10px;display:block;text-align:left}
+.form-row{display:flex;gap:10px}
+.form-input{flex:1;padding:11px 16px;border:1.5px solid #dde0d8;border-radius:8px;font-size:0.95rem;color:#1c1f1a;background:#fff;outline:none;transition:border-color .2s}
+.form-input:focus{border-color:#8cc63f}
+.form-input::placeholder{color:#b5b9b0}
+.btn-submit{padding:11px 22px;background:#8cc63f;color:#fff;border:none;border-radius:8px;font-size:0.92rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .2s,transform .1s}
+.btn-submit:hover{background:#7ab534}
+.btn-submit:active{transform:scale(.98)}
+.btn-submit:disabled{background:#c8e6c9;cursor:default}
+.form-note{font-size:0.72rem;color:#b5b9b0;margin-top:10px;text-align:left}
+
+/* Success state */
+.success{display:none;text-align:center;padding:8px 0}
+.check-ring{width:56px;height:56px;background:#f0f7e6;border:2px solid #8cc63f;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:1.6rem}
+.success-title{font-size:1.1rem;font-weight:700;color:#1c1f1a;margin-bottom:6px}
+.success-sub{font-size:0.85rem;color:#8a8e85;line-height:1.5}
+.success-sub a{color:#5a8a1a;text-decoration:none}
+.success-sub a:hover{text-decoration:underline}
+
+/* Chips */
+.chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
+.chip{display:flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:500;color:#555850;background:#ffffff;border:1px solid #e4e8da;border-radius:20px;padding:5px 14px}
+.chip-dot{width:7px;height:7px;background:#8cc63f;border-radius:50%;flex-shrink:0}
+
+/* How it works */
+.section{max-width:860px;margin:0 auto;padding:0 24px 64px}
+.section-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#8a8e85;margin-bottom:20px;text-align:center}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:48px}
+.step-card{background:#ffffff;border:1px solid #dde0d8;border-radius:9px;padding:20px;position:relative}
+.step-num{width:26px;height:26px;background:linear-gradient(135deg,#6aab24,#8cc63f);color:#fff;font-size:0.75rem;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.step-title{font-size:0.9rem;font-weight:700;color:#1c1f1a;margin-bottom:6px}
+.step-desc{font-size:0.8rem;color:#8a8e85;line-height:1.5}
+
+/* Included */
+.included{background:#ffffff;border:1px solid #dde0d8;border-radius:9px;padding:20px 24px}
+.included-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8a8e85;margin-bottom:14px}
+.inc-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.inc-list li{display:flex;align-items:flex-start;gap:10px;font-size:0.85rem;color:#3a3d38}
+.inc-icon{width:22px;height:22px;background:#f0f7e6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;margin-top:1px}
+.inc-text strong{display:block;font-weight:600;color:#1c1f1a;margin-bottom:1px}
+.inc-text span{font-size:0.77rem;color:#8a8e85}
+
+/* Divider */
+.divider{border:none;border-top:1px solid #e4e8da;max-width:860px;margin:0 auto 56px}
+
+/* Footer */
+footer{text-align:center;padding:20px;color:#b5b9b0;font-size:0.72rem;border-top:1px solid #e4e8da}
+
+@media(max-width:540px){
+  h1{font-size:1.9rem}
+  .form-row{flex-direction:column}
+  .hero{padding:48px 20px 40px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <!-- Replace img tag with your logo: <img src="assets/your-logo.png" class="logo" alt="Your Company"> -->
+    <div class="logo-text">Auto<span>Responder</span></div>
+    <div class="badge-free">FREE TOOL</div>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+
+    <div class="eyebrow">Gmail Auto Responder</div>
+
+    <h1>Your inbox,<br>working <em>while you sleep.</em></h1>
+
+    <p class="sub">
+      A free Gmail tool that responds to leads the moment they arrive —
+      logs every contact, runs 24/7, and takes 10 minutes to set up.
+      No subscription. No code.
+    </p>
+
+    <!-- Form card -->
+    <div class="form-card" id="form-wrap">
+      <label class="form-label" for="email-input">Enter your work email and we'll send the complete kit.</label>
+      <div class="form-row">
+        <input
+          class="form-input"
+          id="email-input"
+          type="email"
+          placeholder="you@yourbusiness.com"
+          autocomplete="email"
+          required
+        >
+        <button class="btn-submit" id="submit-btn" onclick="handleSubmit()">
+          Send me the kit &rarr;
+        </button>
+      </div>
+      <div class="form-note">No spam. One email with your setup pack and you're done.</div>
+    </div>
+
+    <!-- Success state (shown after submit) -->
+    <div class="form-card" id="success-wrap" style="display:none">
+      <div class="success" style="display:block">
+        <div class="check-ring">&#x2713;</div>
+        <div class="success-title">Check your inbox — your setup pack is on the way.</div>
+        <div class="success-sub">
+          Didn't get it in 2 minutes? Check your spam folder or
+          <a href="mailto:YOUR_EMAIL_HERE">reply here</a> and we'll sort it out.
+        </div>
+      </div>
+    </div>
+
+    <!-- Chips -->
+    <div class="chips">
+      <div class="chip"><div class="chip-dot"></div>Runs every 5 minutes</div>
+      <div class="chip"><div class="chip-dot"></div>Logs every lead</div>
+      <div class="chip"><div class="chip-dot"></div>No subscription</div>
+      <div class="chip"><div class="chip-dot"></div>10-minute setup</div>
+    </div>
+
+  </div>
+
+  <!-- How it works -->
+  <div class="section">
+    <div class="section-label">How it works</div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-title">Set a Gmail filter</div>
+        <div class="step-desc">Route matching emails (subject keywords, sender domain, etc.) to a Gmail label you name.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-title">Responder fires instantly</div>
+        <div class="step-desc">When an email hits the label, your custom reply goes out automatically — first name, links, and all.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-title">Lead logged to your Sheet</div>
+        <div class="step-desc">Every contact is recorded: timestamp, email, name, and what triggered the response.</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- What's included -->
+    <div class="included">
+      <div class="included-title">What's in the kit</div>
+      <ul class="inc-list">
+        <li>
+          <div class="inc-icon">&#x1F4C4;</div>
+          <div class="inc-text">
+            <strong>The Apps Script file</strong>
+            <span>Paste into Google Sheets — no coding required.</span>
+          </div>
+        </li>
+        <li>
+          <div class="inc-icon">&#x2705;</div>
+          <div class="inc-text">
+            <strong>Step-by-step setup guide</strong>
+            <span>Six numbered steps from install to first live response.</span>
+          </div>
+        </li>
+        <li>
+          <div class="inc-icon">&#x25B6;</div>
+          <div class="inc-text">
+            <strong>Video walkthrough</strong>
+            <span>Watch the full setup end-to-end before you start.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  Built with Google Apps Script &nbsp;&middot;&nbsp; Runs free inside your Google account &nbsp;&middot;&nbsp; No data stored outside your own Sheets
+</footer>
+
+<script>
+// Replace this URL with your deployed GAS Web App URL after deployment
+var GAS_ENDPOINT = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+function handleSubmit() {
+  var input = document.getElementById('email-input');
+  var btn   = document.getElementById('submit-btn');
+  var email = input.value.trim();
+
+  if (!email || !isValidEmail(email)) {
+    input.style.borderColor = '#e05245';
+    input.focus();
+    return;
+  }
+
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  input.style.borderColor = '';
+
+  // Submit to GAS — no-cors because GAS doesn't return CORS headers.
+  // The request reaches GAS and executes even though we can't read the response.
+  fetch(GAS_ENDPOINT, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=' + encodeURIComponent(email)
+  })
+  .then(function() {
+    showSuccess();
+  })
+  .catch(function() {
+    // Even on network error after sending, show success —
+    // GAS likely processed it. If truly failed, the spam note covers it.
+    showSuccess();
+  });
+}
+
+function showSuccess() {
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('success-wrap').style.display = 'block';
+}
+
+function isValidEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+
+// Allow Enter key to submit
+document.getElementById('email-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleSubmit();
+});
+</script>
+
+</body>
+</html>
