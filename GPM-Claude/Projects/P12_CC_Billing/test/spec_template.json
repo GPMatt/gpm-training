@@ -1,0 +1,99 @@
+{
+  "_README": [
+    "Synthetic statement spec for the P12 test run. Fill this in from what",
+    "'Test — Propose Test Rows' prints, then:",
+    "    ./venv/bin/python make_test_statement.py spec.json GPM-TEST-Statement.pdf",
+    "",
+    "HARD CONSTRAINTS, each one a real failure mode rather than a style note:",
+    "  * close_date must be ON OR AFTER every test receipt's date. _buildReceiptPool",
+    "    (reconcile.js:524) drops any receipt dated past stmt.end, and a dropped",
+    "    receipt reads Missing receipt instead of the case you meant to test.",
+    "  * cardholders[].name must EXACTLY equal Cardholders col C for that employee.",
+    "    _buildCardholderIndex does an exact lookup, no fuzzy matching — the",
+    "    proposal report prints the exact string each row needs.",
+    "  * vendor must be the receipt's REAL merchant (Submissions col T).",
+    "    _upsertMerchantMap and _upsertGLMemoryForBilledRows learn from whatever",
+    "    bills, and both tables are permanent. A made-up vendor is a permanent",
+    "    wrong pairing, not a discardable test artifact.",
+    "  * ref numbers must all be distinct — statementParse flags duplicates.",
+    "  * amount is what the STATEMENT says. For an exact match it equals the",
+    "    receipt's col K; for the near-miss case it is deliberately higher."
+  ],
+
+  "company": "GREEN PROPERTY MGT (CPN 001558218)",
+  "card_last4": "2284",
+  "credit_limit": "50000",
+
+  "open_date": "2026-07-01",
+  "close_date": "2026-07-31",
+
+  "cardholders": [
+    {
+      "name": "GREEN,MARTIN W",
+      "last4": "6599",
+      "charges": [
+        {
+          "_case": "EXACT MATCH -> Matched -> Ready. Amount = row R1 col K exactly.",
+          "_expect_row": "R1",
+          "post_date": "2026-07-09", "trans_date": "2026-07-08",
+          "ref": "8801", "vendor": "THE HOME DEPOT #2708  GRAND RAPIDS MI",
+          "amount": 84.17
+        },
+        {
+          "_case": "EXACT MATCH -> Matched -> Ready. Amount = row R2 col K exactly.",
+          "_expect_row": "R2",
+          "post_date": "2026-07-14", "trans_date": "2026-07-13",
+          "ref": "8802", "vendor": "IVANREST TRUE VALUE  GRANDVILLE MI",
+          "amount": 21.35
+        },
+        {
+          "_case": "NEAR MISS -> charge is OVER the receipt by 3.47, so the matcher says 'an unprinted tip?'. Drives the Override Amount -> col K transcription and its four guards. Set amount = R3 col K + 3.47.",
+          "_expect_row": "R3",
+          "post_date": "2026-07-20", "trans_date": "2026-07-19",
+          "ref": "8803", "vendor": "GODWIN PLUMBING INC  GRAND RAPIDS MI",
+          "amount": 45.79
+        },
+        {
+          "_case": "MISSING RECEIPT -> no test row matches this at all. This is what puts a line in the chase email to the cardholder and into Laura's full list. Vendor here is NOT learned (nothing bills), so it may be invented.",
+          "_expect_row": "none",
+          "post_date": "2026-07-24", "trans_date": "2026-07-23",
+          "ref": "8804", "vendor": "SPEEDWAY 44348  WYOMING MI",
+          "amount": 62.40
+        }
+      ]
+    },
+    {
+      "name": "CROSS,LAURA",
+      "last4": "7412",
+      "charges": [
+        {
+          "_case": "EXACT MATCH -> Matched -> Ready. Amount = row R4 col K exactly.",
+          "_expect_row": "R4",
+          "post_date": "2026-07-11", "trans_date": "2026-07-10",
+          "ref": "8805", "vendor": "MENARDS GRANDVILLE  GRANDVILLE MI",
+          "amount": 133.02
+        },
+        {
+          "_case": "EXACT MATCH -> Matched -> Ready. Amount = row R5 col K exactly.",
+          "_expect_row": "R5",
+          "post_date": "2026-07-17", "trans_date": "2026-07-16",
+          "ref": "8806", "vendor": "LOWES #01746  KENTWOOD MI",
+          "amount": 58.90
+        },
+        {
+          "_case": "DOUBLE MATCHED -> include ONLY if two picked rows share an amount AND a cardholder (the proposal report says whether they do). One charge, two equally good receipts -> narrow Receipt Row (col H) to one, then tick Approve. Delete this charge if there is no collision.",
+          "_expect_row": "R5 + R6 (contested)",
+          "post_date": "2026-07-22", "trans_date": "2026-07-21",
+          "ref": "8807", "vendor": "LOWES #01746  KENTWOOD MI",
+          "amount": 58.90
+        }
+      ]
+    }
+  ],
+
+  "_not_on_the_statement": [
+    "Row R6 deliberately gets NO charge. It must still read Pending at the end —",
+    "that is the standing rail 'nothing bills without a matching statement charge',",
+    "and it is the one assertion that proves the gate actually holds."
+  ]
+}
