@@ -49,12 +49,15 @@ those would test a different program than the one that bills.
 1. Menu → **Repair GL Chart Numbers** (the `NNNN-N` → date coercion fix).
 2. Menu → **Health Check**. Expect the 5 chart tabs, GL Memory tab, and no red lines.
 3. Confirm the **Statements tab is empty** and the **Reconciliation tab is empty**.
-4. Config tab, add three rows:
+4. Config tab, add **one** row for now:
    | Key | Value |
    |---|---|
-   | `TEST_MODE` | `FALSE` — leave off until step 4 of the run |
-   | `TEST_ROWS` | *(blank for now)* |
-   | `TEST_EMAIL_OVERRIDE` | `matt@greenpropertymgt.com` |
+   | `TEST_ROWS` | *(blank — step 1 fills it)* |
+
+   `TEST_MODE` and `TEST_EMAIL_OVERRIDE` are added together at **step 4 of the run**, not
+   here. Setting the override while `TEST_MODE` is off is precisely the state the guard
+   pair treats as a STOP — in normal operation it means a real cycle whose invoices all
+   silently reroute — so creating it during setup just fires a false alarm at yourself.
 5. Delete the dead `STATEMENT_START_DATE` / `STATEMENT_END_DATE` Config rows if still present.
 
 > **Don't run between 4am and 6am** — the daily enrich (4am) and GL (5am) triggers fire
@@ -100,8 +103,16 @@ python3 -m venv venv && ./venv/bin/pip install reportlab
 Drop the PDF in the statement folder (`150vo8neNGxR3RTdOgIrhuUriawiYA6U3`).
 
 ### 4. Arm
-Config tab: `TEST_MODE` → `TRUE`. Run **Health Check** — it should now announce
-*TEST MODE IS ARMED* and echo your rows and override address.
+Config tab, add both keys **in this order** so the STOP state never exists:
+
+| Key | Value |
+|---|---|
+| `TEST_EMAIL_OVERRIDE` | `matt@greenpropertymgt.com` |
+| `TEST_MODE` | `TRUE` |
+
+Run **Health Check** — it should now announce *TEST MODE IS ARMED* and echo your rows
+and override address. If it says STOP instead, `TEST_MODE` didn't take: it must read
+`TRUE` as text or a real checkbox, not `Yes` or `1`.
 
 ### 5. Dry parse
 Apps Script editor → run `testParseStatement()`. Read-only: parses and reports, writes
