@@ -58,7 +58,16 @@ those would test a different program than the one that bills.
    here. Setting the override while `TEST_MODE` is off is precisely the state the guard
    pair treats as a STOP — in normal operation it means a real cycle whose invoices all
    silently reroute — so creating it during setup just fires a false alarm at yourself.
-5. Delete the dead `STATEMENT_START_DATE` / `STATEMENT_END_DATE` Config rows if still present.
+5. Delete the dead `STATEMENT_START_DATE` Config row if still present.
+
+   > **Do NOT delete `STATEMENT_END_DATE`.** An earlier version of this runbook
+   > said to remove both, and `billingCycle.js` still carries a comment calling
+   > both "gone". That is true of `STATEMENT_START_DATE` only.
+   > `STATEMENT_END_DATE` is written by `statementParse.js` on every kept parse
+   > and READ by `onFormSubmit.js` and `errorRetry.js` — it is what marks a new
+   > submission `Prior Period` when its purchase date falls inside a statement
+   > that has already closed. Delete it and that guard silently stops firing,
+   > and stragglers start landing as ordinary `Pending` again.
 
 > **Don't run between 4am and 6am** — the daily enrich (4am) and GL (5am) triggers fire
 > then, and with test mode armed the GL trigger would process only your test rows and
