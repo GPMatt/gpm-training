@@ -44,6 +44,29 @@ those would test a different program than the one that bills.
 
 ---
 
+## `Prior Period` is a live status
+
+Not a leftover, not test scaffolding — it is the status a receipt gets when its
+purchase date falls inside a statement that has **already closed and billed**.
+Two things write it automatically (`onFormSubmit.js` at intake and
+`errorRetry.js` on retry, both comparing against `STATEMENT_END_DATE`), and a
+human sets it from **GPM Billing → Set Status for Row(s)…** after billing a
+straggler by hand.
+
+What it does:
+
+- It is in `ARCHIVE_SETTLED_STATUSES`, so the row's receipt **archives** out of
+  `Current Statement/` with the cycle.
+- It is deliberately **not** in `RECON_CANON_STATUS`, so the matcher will never
+  pick the row up again and never spend a charge on it.
+
+Use it — not `Non-Billable` — for a receipt Laura bills outside the system.
+`Non-Billable` means "GPM paid for this", which is a different and wrong claim
+about an owner-billable purchase, and it also feeds `Matched (GPM pays)` on the
+Reconciliation tab.
+
+---
+
 ## Pre-flight
 
 1. Menu → **Repair GL Chart Numbers** (the `NNNN-N` → date coercion fix).
@@ -58,16 +81,21 @@ those would test a different program than the one that bills.
    here. Setting the override while `TEST_MODE` is off is precisely the state the guard
    pair treats as a STOP — in normal operation it means a real cycle whose invoices all
    silently reroute — so creating it during setup just fires a false alarm at yourself.
-5. Delete the dead `STATEMENT_START_DATE` Config row if still present.
+5. **Leave the statement dates alone. Never delete either one.**
 
-   > **Do NOT delete `STATEMENT_END_DATE`.** An earlier version of this runbook
-   > said to remove both, and `billingCycle.js` still carries a comment calling
-   > both "gone". That is true of `STATEMENT_START_DATE` only.
+   > Earlier versions of this runbook said to delete `STATEMENT_START_DATE`,
+   > and one said to delete both. Do neither.
+   >
    > `STATEMENT_END_DATE` is written by `statementParse.js` on every kept parse
    > and READ by `onFormSubmit.js` and `errorRetry.js` — it is what marks a new
    > submission `Prior Period` when its purchase date falls inside a statement
    > that has already closed. Delete it and that guard silently stops firing,
    > and stragglers start landing as ordinary `Pending` again.
+   >
+   > The correct lifecycle is **overwrite, never delete**: each billing cycle
+   > invoices and archives, and the statement date advances to that period's
+   > close. A blank is not a safe intermediate state — a blank means "no period
+   > has ever closed", so every straggler reads as current.
 
 > **Don't run between 4am and 6am** — the daily enrich (4am) and GL (5am) triggers fire
 > then, and with test mode armed the GL trigger would process only your test rows and
