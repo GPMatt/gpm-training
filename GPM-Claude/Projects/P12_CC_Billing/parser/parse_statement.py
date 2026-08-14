@@ -97,9 +97,46 @@ RE_PERIOD = re.compile(r'(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})')
 
 MASTER_BLOCK = 'BILLING ACCOUNT ACTIVITY'
 
+
 SECTION_DEBITS = 'Purchases and Other Debits'
 SECTION_CREDITS = 'Other Credits'
 SECTION_PAYMENTS = 'Payments and Other Credits'   # master account only
+
+# ---- Every non-blank line that may legally appear inside a block ----
+#
+# THIS IS THE ONLY CHECK THAT COVERS VENDOR TEXT. Every other check compares
+# totals, so a line the parser simply does not recognise is invisible to all of
+# them: it contributes nothing to any sum and nothing complains. That is how a
+# new line type — a fee, a foreign-currency conversion line, an annotation this
+# issuer has never printed before — would slip through unnoticed.
+#
+# So: anything inside a block that is neither a transaction nor recognised
+# furniture is reported as a failed check. Not an exception — the caller should
+# fall back to the model parse and have a human look, not crash.
+#
+# (Wrapped vendor names are NOT a risk here: this issuer hard-truncates the
+# description to the column width rather than wrapping, which is why the real
+# data carries strings like "BIRCH TREE BARK & STON" and "NAWARA BROTHERS HOME
+# S". The Merchant Map seed keys are truncated for the same reason.)
+ALLOWED_NOISE = [
+    re.compile(r'^\s*Post\s+Trans\s*$'),
+    re.compile(r'^\s*Date\s+Date\s+Ref\s*#\s+Transaction Description'),
+    re.compile(r'^\s*Continued on Next Page\s*$'),
+    re.compile(r'^\s*' + re.escape(SECTION_DEBITS) + r'\s*$'),
+    re.compile(r'^\s*' + re.escape(SECTION_CREDITS) + r'\s*$'),
+    re.compile(r'^\s*' + re.escape(SECTION_PAYMENTS) + r'\s*$'),
+    re.compile(r'Elan Financial Service'),                 # page header
+    re.compile(r'CPN\s*\d+'),                              # page header
+    re.compile(r'Statement\s+\d{2}/\d{2}/\d{4}\s*-'),      # page header
+    re.compile(r'Page\s+\d+\s+of\s+\d+'),                  # page header
+    # Transaction annotations printed on their own line under a charge. These
+    # are descriptive only and carry no money.
+    re.compile(r'^\s*MERCHANDISE/SERVICE RETURN\s*$'),
+]
+
+
+def _is_known_noise(line: str) -> bool:
+    return any(p.search(line) for p in ALLOWED_NOISE)
 
 # A charge posts 0-10 days after it transacts. Observed range on real data is
 # 1-4 and varies by merchant; 10 is a loose upper bound whose only job is to
@@ -258,6 +295,7 @@ def parse_text(text: str) -> dict:
     current: Block | None = None
     section: str | None = None
     orphans: list[int] = []          # txn lines seen with no open block
+    unrecognized: list[tuple[int, str]] = []   # see ALLOWED_NOISE
 
     for line_no, raw in enumerate(lines, start=1):
         if printed_purchases is None:
@@ -338,6 +376,11 @@ def parse_text(text: str) -> dict:
             current.txns.append(txn)
             continue
 
+        # Fell through every pattern. Inside a block that is a line type this
+        # parser has never seen, and no total will ever notice it.
+        if current is not None and raw.strip() and not _is_known_noise(raw):
+            unrecognized.append((line_no, raw.strip()[:90]))
+
     if current is not None:
         raise ParseError(
             f'block for "{current.cardholder}" opened at line {current.start_line} '
@@ -357,6 +400,7 @@ def parse_text(text: str) -> dict:
         'printed_purchases': printed_purchases,
         'printed_credits': printed_credits,
         'orphans': orphans,
+        'unrecognized': unrecognized,
         'text': text,
     }
 
@@ -423,6 +467,12 @@ def structural_checks(parsed: dict) -> list[Check]:
     checks.append(Check(
         f'every trans date within {lo} .. {hi}', not out,
         '; '.join(f'line {t.line_no} {t.trans_date}' for t in out[:5])))
+
+    unrec = parsed['unrecognized']
+    checks.append(Check(
+        'every line inside a block is recognised', not unrec,
+        '; '.join(f'line {n}: {t!r}' for n, t in unrec[:5])
+        + (f' (+{len(unrec) - 5} more)' if len(unrec) > 5 else '')))
 
     thin = [t for t in txns if len(t.vendor) < 3]
     checks.append(Check('every vendor is at least 3 characters', not thin,

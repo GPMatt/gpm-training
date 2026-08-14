@@ -174,6 +174,18 @@ def main():
     except ParseError as e:
         check('period' in str(e), 'missing period refuses with a clear reason', str(e))
 
+    # ---------------------------------- an unrecognised line inside a block --
+    print('\n--- a line type the parser has never seen (invisible to every total) ---')
+    injected = lines[:]
+    injected.insert(idx[80] + 1, '   FOREIGN CURRENCY CONVERSION FEE          1.4210 EUR')
+    failed, _, _ = run('\n'.join(injected))
+    money_only = [f for f in failed if f == 'purchases total' or f.startswith('card ')]
+    check(not money_only,
+          'it contributes to NO total, so every money check still passes',
+          f'unexpectedly failed: {money_only}')
+    check(any('recognised' in f for f in failed),
+          'the coverage check is the only thing that catches it', f'failed: {failed}')
+
     # ------------------------------------------------------ garbage input ----
     print('\n--- unrelated text must REFUSE, not return an empty success ---')
     try:
