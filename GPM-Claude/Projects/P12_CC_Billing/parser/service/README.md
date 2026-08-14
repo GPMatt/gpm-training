@@ -75,7 +75,7 @@ It prints the service URL. That URL goes into Script Properties as
 This is the one post-deploy check that actually matters:
 
 ```bash
-curl -s "$URL/healthz"
+curl -s "$URL/health"
 ```
 
 Compare the reported `poppler` version to the one your local runs print. If they
@@ -125,7 +125,7 @@ Script Property. There is no state to migrate.
 ## API
 
 ```
-GET  /healthz          -> {ok, poppler}                    (unauthenticated)
+GET  /health           -> {ok, poppler}                    (unauthenticated)
 POST /parse            -> see below
      X-GPM-Secret: <secret>
      {"pdf_base64": "..."}

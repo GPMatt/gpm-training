@@ -70,12 +70,19 @@ def _poppler_version() -> str:
         return 'unknown'
 
 
-@app.route('/healthz', methods=['GET'])
-def healthz():
-    """Unauthenticated on purpose — it reveals nothing but liveness and the
-    poppler build, and the poppler build is worth being able to check without
-    holding the secret, since a silent version bump is the most likely cause of
-    a parse that used to work and stopped."""
+@app.route('/health', methods=['GET'])
+def health():
+    """NOT `/healthz`. Cloud Run runs on Knative, and `/healthz` is the classic
+    Kubernetes health-check path — Google's frontend intercepts it before it
+    ever reaches the container, so it returns Google's own 404 page while every
+    other route works normally. That asymmetry is genuinely confusing to debug
+    (the service looks dead when it is fine), so the endpoint is named `/health`
+    and this comment is here to stop anyone renaming it back.
+
+    Unauthenticated on purpose — it reveals nothing but liveness and the poppler
+    build, and the poppler build is worth being able to check without holding
+    the secret, since a silent version bump is the most likely cause of a parse
+    that used to work and stopped."""
     return jsonify({'ok': True, 'poppler': _poppler_version()})
 
 
