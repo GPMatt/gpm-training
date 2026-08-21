@@ -48,3 +48,17 @@ create policy "record audit line edits" on audit_line_edits for insert with chec
 -- No delete policy on anything: the app can never remove a row, only add
 -- or correct one. If something truly needs to be deleted, that's a
 -- service_role / dashboard action, not something the PWA can do.
+
+-- RLS policies only decide *which rows* a role can see once it's already
+-- allowed to touch the table at all — Postgres still needs the baseline
+-- grant below, or every request 401s with "permission denied" regardless
+-- of the policies above.
+grant usage on schema public to anon, authenticated;
+
+grant select on
+  cause_codes, techs, vans, van_assignments, parts, par_syncs, van_par, jason_audit_schedule
+to anon, authenticated;
+
+grant select, insert, update on audit_sessions to anon, authenticated;
+grant select, insert, update on audit_lines    to anon, authenticated;
+grant select, insert          on audit_line_edits to anon, authenticated;
