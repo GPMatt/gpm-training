@@ -109,7 +109,8 @@ create table audit_sessions (
   started_at     timestamptz not null default now(),
   completed_at   timestamptz,
   status         text not null default 'in_progress'
-                   check (status in ('in_progress', 'completed', 'abandoned'))
+                   check (status in ('in_progress', 'completed', 'abandoned')),
+  is_test        boolean not null default false   -- deliberately marked from the app; excluded from both views below
 );
 -- session_type is set by the app when the session starts, based on the selected
 -- tech's role — a 'supervisor' selecting their name is what makes it jason_supervised.
@@ -160,7 +161,7 @@ from (
          row_number() over (partition by s.van_id, al.part_id order by s.completed_at desc) as rn
   from audit_lines al
   join audit_sessions s on s.id = al.session_id
-  where s.status = 'completed'
+  where s.status = 'completed' and not s.is_test
 ) recent
 where rn <= 4
 group by van_id, part_id
@@ -179,5 +180,5 @@ join vans v on v.id = s.van_id
 join techs t on t.id = s.tech_id
 join parts p on p.id = al.part_id
 left join cause_codes cc on cc.id = al.cause_code_id
-where al.delta <> 0 and s.status = 'completed'
+where al.delta <> 0 and s.status = 'completed' and not s.is_test
 order by v.label, p.name;
