@@ -4,6 +4,10 @@
 //   - keepSupabaseAwake  daily 3:00am EST   — free-tier projects pause after 7 days idle
 //   - drawJasonSchedule  1st of month 5:00am EST — random-without-replacement Jason-audit picker
 //
+// syncVanInventoryManual has no trigger — run it by hand from the editor to
+// backfill a missed week or seed the first baseline off whatever the latest
+// Van Inventory email in the inbox is.
+//
 // Before running setup(): open Project Settings in the Apps Script editor and
 // add two Script Properties — SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY —
 // using the values from Supabase (Project Settings -> API). Never put the
@@ -100,12 +104,29 @@ function syncVanInventory() {
     );
     return;
   }
+  runInventorySync(csv);
+}
 
+// Manual backfill: pulls the most recent Van Inventory email regardless of
+// date, instead of requiring one to have arrived today. For catching up a
+// missed Monday, or seeding a baseline before the first scheduled run.
+// Run by hand from the Apps Script editor: select this function, click Run.
+function syncVanInventoryManual() {
+  const csv = getLatestInventoryCSV();
+  if (!csv) {
+    GmailApp.sendEmail(CONFIG.ALERT_EMAIL, 'Van Inventory Manual Sync FAILED — No Email Found',
+      `No Van Inventory email from ${CONFIG.SENDER} with subject "${CONFIG.SUBJECT}" was found in the inbox at all.`);
+    return;
+  }
+  runInventorySync(csv);
+}
+
+function runInventorySync(csv) {
   const parsed = parseInventoryCSV(csv);
   if (!parsed.length) {
     sbInsert('par_syncs', [{ status: 'failed', row_count: 0 }]);
     GmailApp.sendEmail(CONFIG.ALERT_EMAIL, 'Van Inventory Sync FAILED — Empty CSV',
-      'The Monday sync found an email but the CSV parsed to zero usable rows.');
+      'The sync found an email but the CSV parsed to zero usable rows.');
     return;
   }
 
@@ -153,6 +174,27 @@ function getTodaysInventoryCSV() {
     }
   }
   return null;
+}
+
+function getLatestInventoryCSV() {
+  const query = `from:${CONFIG.SENDER} subject:"${CONFIG.SUBJECT}" has:attachment`;
+  const threads = GmailApp.search(query, 0, 10);
+  let newest = null;
+
+  for (const thread of threads) {
+    for (const message of thread.getMessages()) {
+      if (newest && message.getDate() <= newest.date) continue;
+      for (const att of message.getAttachments()) {
+        const name = att.getName().toLowerCase();
+        const type = att.getContentType().toLowerCase();
+        if (name.endsWith('.csv') || type.includes('csv') || type.includes('text/plain')) {
+          newest = { date: message.getDate(), csv: att.getDataAsString() };
+          break;
+        }
+      }
+    }
+  }
+  return newest ? newest.csv : null;
 }
 
 function formatGmailDate(date) {
