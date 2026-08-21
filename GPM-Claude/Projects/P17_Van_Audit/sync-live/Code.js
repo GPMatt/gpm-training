@@ -43,6 +43,12 @@ function sbConfig() {
   return { url: url.replace(/\/$/, ''), key };
 }
 
+// Supabase's newer secret-key format refuses to work over a browser-looking
+// request (an anti-leak protection) — Apps Script's UrlFetchApp sends a
+// browser-like User-Agent by default, which trips it. Every call overrides
+// it with something clearly server-side.
+const SB_USER_AGENT = 'GPM-VanAudit-Sync/1.0 (Google Apps Script)';
+
 // Bulk upsert; returns the rows as saved (including their ids).
 function sbUpsert(table, rows, conflictCol) {
   if (!rows.length) return [];
@@ -54,6 +60,7 @@ function sbUpsert(table, rows, conflictCol) {
       apikey: key,
       Authorization: `Bearer ${key}`,
       Prefer: 'resolution=merge-duplicates,return=representation',
+      'User-Agent': SB_USER_AGENT,
     },
     payload: JSON.stringify(rows),
     muteHttpExceptions: true,
@@ -68,7 +75,7 @@ function sbInsert(table, rows) {
   const res = UrlFetchApp.fetch(`${url}/rest/v1/${table}`, {
     method: 'post',
     contentType: 'application/json',
-    headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=representation' },
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=representation', 'User-Agent': SB_USER_AGENT },
     payload: JSON.stringify(rows),
     muteHttpExceptions: true,
   });
@@ -76,11 +83,23 @@ function sbInsert(table, rows) {
   return JSON.parse(res.getContentText());
 }
 
+function sbUpdate(table, id, fields) {
+  const { url, key } = sbConfig();
+  const res = UrlFetchApp.fetch(`${url}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'patch',
+    contentType: 'application/json',
+    headers: { apikey: key, Authorization: `Bearer ${key}`, Prefer: 'return=minimal', 'User-Agent': SB_USER_AGENT },
+    payload: JSON.stringify(fields),
+    muteHttpExceptions: true,
+  });
+  if (res.getResponseCode() >= 300) throw new Error(`Supabase update failed on ${table}: ${res.getContentText()}`);
+}
+
 function sbGet(table, query) {
   const { url, key } = sbConfig();
   const res = UrlFetchApp.fetch(`${url}/rest/v1/${table}?${query}`, {
     method: 'get',
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
+    headers: { apikey: key, Authorization: `Bearer ${key}`, 'User-Agent': SB_USER_AGENT },
     muteHttpExceptions: true,
   });
   if (res.getResponseCode() >= 300) throw new Error(`Supabase read failed on ${table}: ${res.getContentText()}`);
@@ -151,7 +170,19 @@ function runInventorySync(csv) {
     part_id: partIdByNumber[r.partNumber],
     expected_qty: r.quantity,
   }));
-  sbInsert('van_par', vanParRows);
+
+  // van_par rows must reference an existing par_syncs row (FK), so the sync
+  // row has to be created as 'ok' before we know the write actually
+  // succeeds. If it doesn't, correct the record rather than leave a false
+  // 'ok' pointing at a partial or missing baseline.
+  try {
+    sbInsert('van_par', vanParRows);
+  } catch (e) {
+    sbUpdate('par_syncs', sync.id, { status: 'failed' });
+    GmailApp.sendEmail(CONFIG.ALERT_EMAIL, 'Van Inventory Sync FAILED — Baseline Write Incomplete',
+      `par_syncs was created but writing van_par rows failed partway through:\n\n${e.message}\n\n` +
+      `This week's baseline is incomplete or missing. The par_syncs row has been corrected to status=failed.`);
+  }
 }
 
 function getTodaysInventoryCSV() {

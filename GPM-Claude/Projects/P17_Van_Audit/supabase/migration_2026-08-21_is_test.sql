@@ -34,22 +34,5 @@ left join cause_codes cc on cc.id = al.cause_code_id
 where al.delta <> 0 and s.status = 'completed' and not s.is_test
 order by v.label, p.name;
 
--- Today's leftover test sessions predate is_test — clean them up directly
--- rather than retroactively flagging them (they're not worth keeping).
-delete from audit_line_edits where audit_line_id in (
-  select id from audit_lines where session_id in (
-    'c441822d-42c9-4bb5-9493-578a66ef51d0',
-    '81b93706-c446-4cd1-b4d0-0cea64ca3bf0',
-    'e7208940-d479-4fc0-8974-95a5af5e67ac'
-  )
-);
-delete from audit_lines where session_id in (
-  'c441822d-42c9-4bb5-9493-578a66ef51d0',
-  '81b93706-c446-4cd1-b4d0-0cea64ca3bf0',
-  'e7208940-d479-4fc0-8974-95a5af5e67ac'
-);
-delete from audit_sessions where id in (
-  'c441822d-42c9-4bb5-9493-578a66ef51d0',
-  '81b93706-c446-4cd1-b4d0-0cea64ca3bf0',
-  'e7208940-d479-4fc0-8974-95a5af5e67ac'
-);
+-- (Today's leftover test sessions on Van 3 were already cleaned up directly
+-- while building this — nothing left to delete here.)
