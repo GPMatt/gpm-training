@@ -62,3 +62,10 @@ to anon, authenticated;
 grant select, insert, update on audit_sessions to anon, authenticated;
 grant select, insert, update on audit_lines    to anon, authenticated;
 grant select, insert          on audit_line_edits to anon, authenticated;
+
+-- service_role bypasses RLS but NOT the base Postgres grant — same gap as
+-- above, just for the Apps Script sync (vans/parts/van_par writes) and any
+-- manual admin script. Give it everything on every table in this schema.
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
