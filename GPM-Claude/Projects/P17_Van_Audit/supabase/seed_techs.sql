@@ -9,5 +9,6 @@ insert into techs (name, role) values
   ('Laura C', 'tech'),
   ('Joe', 'tech'),
   ('Riley', 'tech'),
-  ('Jason', 'supervisor')
+  ('Jason', 'supervisor'),
+  ('Matt', 'supervisor')
 on conflict (name) do nothing;
