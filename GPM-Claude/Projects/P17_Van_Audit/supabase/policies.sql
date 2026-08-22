@@ -19,6 +19,7 @@ alter table jason_audit_schedule enable row level security;
 alter table audit_sessions       enable row level security;
 alter table audit_lines          enable row level security;
 alter table audit_line_edits     enable row level security;
+alter table part_barcodes        enable row level security;
 
 -- Reference data: the app reads these to populate dropdowns and to know
 -- what's expected on a van. It never writes to them directly — that
@@ -45,6 +46,14 @@ create policy "edit audit lines"   on audit_lines for update using (true);
 create policy "read audit line edits"   on audit_line_edits for select using (true);
 create policy "record audit line edits" on audit_line_edits for insert with check (true);
 
+-- No real server-side auth exists to check "supervisor" (no PIN, no
+-- password anywhere in this schema) — the PWA's UI gates who ever sees the
+-- link controls (Jason/Matt for live linking, Matt only for Teach Mode),
+-- same trust model as session_type being self-reported by tech selection.
+create policy "read part barcodes"   on part_barcodes for select using (true);
+create policy "link part barcodes"   on part_barcodes for insert with check (true);
+create policy "relink part barcodes" on part_barcodes for update using (true);
+
 -- No delete policy on anything: the app can never remove a row, only add
 -- or correct one. If something truly needs to be deleted, that's a
 -- service_role / dashboard action, not something the PWA can do.
@@ -62,6 +71,7 @@ to anon, authenticated;
 grant select, insert, update on audit_sessions to anon, authenticated;
 grant select, insert, update on audit_lines    to anon, authenticated;
 grant select, insert          on audit_line_edits to anon, authenticated;
+grant select, insert, update on part_barcodes  to anon, authenticated;
 
 -- service_role bypasses RLS but NOT the base Postgres grant — same gap as
 -- above, just for the Apps Script sync (vans/parts/van_par writes) and any

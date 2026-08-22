@@ -69,6 +69,19 @@ create table parts (
   updated_at   timestamptz not null default now()
 );
 
+-- Barcode -> part crosswalk. A shelf-tag barcode is a GS1 UPC/EAN number —
+-- unrelated to part_number (the internal SKU) even though both appear on
+-- the same tag. Learned incrementally: the app prompts to link a barcode
+-- the first time it sees one it doesn't recognize (see project notes,
+-- 2026-08-21 barcode/SKU mismatch).
+create table part_barcodes (
+  id          uuid primary key default gen_random_uuid(),
+  part_id     uuid not null references parts(id),
+  barcode     text not null unique,
+  created_at  timestamptz not null default now(),
+  created_by  uuid references techs(id)
+);
+
 -- One row per Monday-morning AppFolio sync. Never overwritten — each week is its own snapshot.
 create table par_syncs (
   id           uuid primary key default gen_random_uuid(),
