@@ -65,6 +65,7 @@ create table parts (
   name         text not null,
   category     text,
   unit_cost    numeric(10,2),
+  bin_number   integer,          -- physical bin position in the van; drives audit walk order (see migration_2026-09-02_bin_number.sql)
   active       boolean not null default true,
   updated_at   timestamptz not null default now()
 );
