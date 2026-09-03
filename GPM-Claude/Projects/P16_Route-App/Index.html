@@ -115,6 +115,7 @@
   };
 
   function populateTechs(techs) {
+    techs = techs || [];
     const sel = document.getElementById('tech-select');
     techs.forEach(name => {
       const opt = document.createElement('option');
@@ -171,6 +172,8 @@
   // ── Pool ───────────────────────────────────────────────────────────────
   function renderPool() {
     google.script.run.withSuccessHandler(wos => {
+      if (!wos) { console.error('loadOpenWorkOrderPool returned', wos); showToast('Pool came back empty — check console'); }
+      wos = wos || [];
       poolCache = {};
       wos.forEach(w => { poolCache[w.woNumber] = w; });
 

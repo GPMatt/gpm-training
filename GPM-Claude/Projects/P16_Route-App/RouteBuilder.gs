@@ -16,6 +16,20 @@
 
 const MIN_WORK_ORDERS = 2;
 
+// TEMP DIAGNOSTIC — run this manually from the script editor (select it in
+// the function dropdown, click Run), then check View > Executions for the
+// logged output. Remove once the empty-pool issue is resolved.
+function debugPool() {
+  const sheet = getSheet_('WorkOrders');
+  const raw = sheet.getDataRange().getValues();
+  Logger.log('Raw row count (incl header): ' + raw.length);
+  Logger.log('Header row: ' + JSON.stringify(raw[0]));
+  if (raw.length > 1) Logger.log('First data row: ' + JSON.stringify(raw[1]));
+  const open = getOpenWorkOrders();
+  Logger.log('getOpenWorkOrders() returned: ' + open.length + ' rows');
+  Logger.log(JSON.stringify(open));
+}
+
 // ── Phase 1: Build My Day ───────────────────────────────────────────────────
 
 function getTechListForUI() {
