@@ -254,11 +254,23 @@
           '<div class="pool-card-addr" style="font-size:14.5px;">' + escapeHtml(wo.address) + '</div>' +
           '<div class="pool-card-meta">' + escapeHtml(wo.jobDesc || '') + '</div>' +
         '</div>' +
+        '<svg class="remove-x" data-action="remove" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>' +
         '<svg class="grip" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>';
+      el.querySelector('[data-action="remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.remove();
+        renumberUrgent();
+        afterZoneChange();
+      });
     } else if (zone === 'scheduled') {
       el.className = 'scheduled-card';
+      const isConfirmed = !!wo.scheduledConfirmed;
+      el.dataset.confirmed = isConfirmed ? 'true' : 'false';
       el.innerHTML =
-        '<div class="addr">' + escapeHtml(wo.address) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">' +
+          '<div class="addr">' + escapeHtml(wo.address) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
+          '<svg class="remove-x" data-action="remove" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>' +
+        '</div>' +
         '<div class="desc">' + escapeHtml(wo.jobDesc || '') + '</div>' +
         '<div class="row">' +
           '<div class="window">' +
@@ -266,26 +278,80 @@
             '<span>&ndash;</span>' +
             '<input type="time" class="sched-end" step="900" value="' + (wo.scheduledEnd || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
           '</div>' +
-          '<button type="button" class="btn-confirm-sched" data-action="confirm">Confirm</button>' +
+          '<button type="button" class="btn-confirm-sched' + (isConfirmed ? ' confirmed' : '') + '" data-action="confirm">' + (isConfirmed ? 'Confirmed ✓' : 'Confirm') + '</button>' +
         '</div>';
+      el.querySelector('[data-action="remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.remove();
+        google.script.run.withFailureHandler(showError).unflagAsScheduled(wo.woNumber);
+        afterScheduleSetChange();
+      });
       el.querySelector('[data-action="confirm"]').addEventListener('click', (e) => {
         e.stopPropagation();
         const btn = e.currentTarget;
         const start = el.querySelector('.sched-start').value;
         const end = el.querySelector('.sched-end').value;
-        wo.scheduledStart = start; wo.scheduledEnd = end;
+        if (!start || !end) { showToast('Set both start and end time'); return; }
+        wo.scheduledStart = start; wo.scheduledEnd = end; wo.scheduledConfirmed = true;
         google.script.run.withSuccessHandler(() => {
+          el.dataset.confirmed = 'true';
           btn.textContent = 'Confirmed ✓';
           btn.classList.add('confirmed');
           regenerateBucketZones();
+          updateBuildButton();
+          saveDraft();
         }).withFailureHandler(showError).flagAsScheduled(wo.woNumber, start, end);
       });
+      const unconfirm = () => {
+        if (el.dataset.confirmed !== 'true') return;
+        el.dataset.confirmed = 'false';
+        wo.scheduledConfirmed = false;
+        const btn = el.querySelector('[data-action="confirm"]');
+        btn.textContent = 'Confirm';
+        btn.classList.remove('confirmed');
+        regenerateBucketZones();
+        updateBuildButton();
+      };
+      el.querySelector('.sched-start').addEventListener('change', unconfirm);
+      el.querySelector('.sched-end').addEventListener('change', unconfirm);
     } else if (zone === 'bucket') {
       el.className = 'bucket-item';
       el.innerHTML =
         '<span>' + escapeHtml(wo.address.split(',')[0]) + ' &mdash; ' + escapeHtml((wo.jobDesc || '').slice(0, 40)) + '</span>' +
-        '<svg class="grip" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>';
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">' +
+          '<svg class="remove-x" data-action="remove" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>' +
+          '<svg class="grip" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>' +
+        '</div>';
+      el.querySelector('[data-action="remove"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.remove();
+        afterZoneChange();
+      });
     }
+  }
+
+  // Returns how many times woNumber currently appears anywhere in My Day
+  // (urgent + scheduled + bucket zones). Used to reject a just-dropped
+  // duplicate before it ever renders — the pool list can lag a beat behind
+  // a fast drag (it only refreshes after a server round trip), so this check
+  // has to run synchronously against the live DOM, not the async pool state.
+  function countInMyDay(woNumber) {
+    let count = 0;
+    document.querySelectorAll('#zone-urgent [data-wo], #zone-scheduled [data-wo], #bucket-zones [data-wo]').forEach(el => {
+      if (el.dataset.wo === woNumber) count++;
+    });
+    return count;
+  }
+
+  function rejectIfDuplicate(item) {
+    if (countInMyDay(item.dataset.wo) > 1) {
+      item.remove();
+      showToast('Already in My Day');
+      updateEmptyStates();
+      renderPool();
+      return true;
+    }
+    return false;
   }
 
   // ── Zones ────────────────────────────────────────────────────────────
@@ -293,14 +359,20 @@
     const urgentZone = document.getElementById('zone-urgent');
     new Sortable(urgentZone, {
       group: 'myday', animation: 150,
-      onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'urgent'); renumberUrgent(); afterZoneChange(); },
+      onAdd: (evt) => {
+        if (rejectIfDuplicate(evt.item)) return;
+        renderChip(evt.item, poolCache[evt.item.dataset.wo], 'urgent'); renumberUrgent(); afterZoneChange();
+      },
       onSort: () => { renumberUrgent(); afterZoneChange(); },
     });
 
     const schedZone = document.getElementById('zone-scheduled');
     new Sortable(schedZone, {
       group: 'myday', animation: 150, sort: false,
-      onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'scheduled'); afterScheduleSetChange(); },
+      onAdd: (evt) => {
+        if (rejectIfDuplicate(evt.item)) return;
+        renderChip(evt.item, poolCache[evt.item.dataset.wo], 'scheduled'); afterScheduleSetChange();
+      },
     });
 
     regenerateBucketZones();
@@ -326,14 +398,19 @@
   // (existing to-do placements are pooled back rather than cleverly remapped) —
   // keeps this reliable rather than guessing intent across a schedule change.
   function regenerateBucketZones() {
-    const schedEls = Array.from(document.querySelectorAll('#zone-scheduled .scheduled-card'));
+    // Only confirmed scheduled stops carve up the day — an unconfirmed or
+    // blank window has no trustworthy time to anchor a Before/Between/After
+    // boundary on, so it's left out of the split (it still sits in the
+    // Scheduled stops list, just doesn't fence off a bucket yet).
+    const schedEls = Array.from(document.querySelectorAll('#zone-scheduled .scheduled-card'))
+      .filter(el => el.dataset.confirmed === 'true');
     const scheduled = schedEls.map(el => ({
       woNumber: el.dataset.wo,
       start: el.querySelector('.sched-start').value || '99:99',
     })).sort((a, b) => a.start.localeCompare(b.start));
 
     const container = document.getElementById('bucket-zones');
-    // Reorder the scheduled-card DOM elements to match chronological order.
+    // Reorder the confirmed scheduled-card DOM elements to match chronological order.
     const schedZone = document.getElementById('zone-scheduled');
     scheduled.forEach(s => schedZone.appendChild(document.querySelector('[data-wo="' + s.woNumber + '"][data-zone="scheduled"]')));
 
@@ -344,9 +421,9 @@
       label.className = 'section-label mid';
       label.textContent = zoneCount === 1
         ? 'To Do'
-        : (i === 0 ? 'Before ' + fmtTime(scheduled[0].start)
-          : (i === zoneCount - 1 ? 'After ' + fmtTime(scheduled[zoneCount - 2].start)
-            : 'Between ' + fmtTime(scheduled[i - 1].start) + ' and ' + fmtTime(scheduled[i].start)));
+        : (i === 0 ? 'Before WO# ' + scheduled[0].woNumber + ' – ' + fmtTime(scheduled[0].start)
+          : (i === zoneCount - 1 ? 'After WO# ' + scheduled[zoneCount - 2].woNumber + ' – ' + fmtTime(scheduled[zoneCount - 2].start)
+            : 'Between WO# ' + scheduled[i - 1].woNumber + ' – ' + fmtTime(scheduled[i - 1].start) + ' and WO# ' + scheduled[i].woNumber + ' – ' + fmtTime(scheduled[i].start)));
       container.appendChild(label);
 
       const zone = document.createElement('div');
@@ -356,7 +433,10 @@
 
       new Sortable(zone, {
         group: 'myday', animation: 150,
-        onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'bucket'); afterZoneChange(); },
+        onAdd: (evt) => {
+          if (rejectIfDuplicate(evt.item)) return;
+          renderChip(evt.item, poolCache[evt.item.dataset.wo], 'bucket'); afterZoneChange();
+        },
         onSort: afterZoneChange,
       });
     }
@@ -399,15 +479,19 @@
 
   function updateBuildButton() {
     const urgent = Array.from(document.querySelectorAll('#zone-urgent [data-wo]')).length;
-    const scheduled = Array.from(document.querySelectorAll('#zone-scheduled [data-wo]')).length;
+    const scheduledEls = Array.from(document.querySelectorAll('#zone-scheduled [data-wo]'));
     const buckets = Array.from(document.querySelectorAll('#bucket-zones [data-wo]')).length;
-    const total = urgent + scheduled + buckets;
+    const total = urgent + scheduledEls.length + buckets;
+    const unconfirmed = scheduledEls.filter(el => el.dataset.confirmed !== 'true').length;
     const btn = document.getElementById('btn-build-route');
     const warn = document.getElementById('build-warning');
 
     if (total < 2) {
       btn.disabled = true;
       warn.textContent = 'Add at least 2 work orders before you can build the route';
+    } else if (unconfirmed > 0) {
+      btn.disabled = true;
+      warn.textContent = 'Confirm all scheduled time windows before building the route';
     } else {
       btn.disabled = false;
       warn.textContent = '';
@@ -443,6 +527,7 @@
       if (poolCache[s.woNumber]) {
         poolCache[s.woNumber].scheduledStart = s.windowStart;
         poolCache[s.woNumber].scheduledEnd = s.windowEnd;
+        poolCache[s.woNumber].scheduledConfirmed = !!(s.windowStart && s.windowEnd);
         renderChip(el, poolCache[s.woNumber], 'scheduled');
         document.getElementById('zone-scheduled').appendChild(el);
       }
