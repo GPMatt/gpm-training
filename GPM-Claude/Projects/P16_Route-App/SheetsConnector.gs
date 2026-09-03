@@ -78,6 +78,15 @@ function todayStr_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
+// Sheets auto-converts date/time-looking cell text (e.g. "09/01/2026") into
+// a real Date object on read-back — google.script.run's RPC serializer can
+// silently fail on a Date nested inside a returned array of objects (no
+// thrown error, client just gets null back). Strip it to an ISO string
+// before anything from a raw sheet cell crosses that boundary.
+function toPlain_(v) {
+  return (v instanceof Date) ? v.toISOString() : v;
+}
+
 function rowToWO_(row) {
   const apptDate = parseAppFolioSchedText_(row[WO_COL.APPFOLIO_SCHED_TEXT - 1]);
   // Stale AppFolio appointment dates (before today) are disregarded entirely —
@@ -96,12 +105,12 @@ function rowToWO_(row) {
     maintenanceLimit: row[WO_COL.MAINTENANCE_LIMIT - 1],
     assignedUser:     row[WO_COL.ASSIGNED_USER - 1],
     status:           row[WO_COL.STATUS - 1],
-    createdAt:        row[WO_COL.CREATED_AT - 1],
+    createdAt:        toPlain_(row[WO_COL.CREATED_AT - 1]),
     appFolioApptText: apptIsLive ? row[WO_COL.APPFOLIO_SCHED_TEXT - 1] : '',
     appFolioApptTime: apptIsLive && apptDate ? Utilities.formatDate(apptDate, Session.getScriptTimeZone(), 'HH:mm') : '',
     isScheduledToday: gpmWindowIsToday,
-    scheduledStart:   gpmWindowIsToday ? row[WO_COL.GPM_SCHED_START - 1] : '',
-    scheduledEnd:     gpmWindowIsToday ? row[WO_COL.GPM_SCHED_END - 1] : '',
+    scheduledStart:   gpmWindowIsToday ? toPlain_(row[WO_COL.GPM_SCHED_START - 1]) : '',
+    scheduledEnd:     gpmWindowIsToday ? toPlain_(row[WO_COL.GPM_SCHED_END - 1]) : '',
   };
 }
 
