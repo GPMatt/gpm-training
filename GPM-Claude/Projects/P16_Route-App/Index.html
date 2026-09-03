@@ -227,11 +227,12 @@
         '</div>' +
         '<div class="schedule-editor" hidden>' +
           '<span class="lbl">Window:</span>' +
-          '<input type="time" class="sched-start" step="900" value="' + (wo.appFolioApptTime || '09:00') + '">' +
+          timeSelectHtml('sched-start', '') +
           '<span>&ndash;</span>' +
-          '<input type="time" class="sched-end" step="900" value="">' +
+          timeSelectHtml('sched-end', '') +
           '<button type="button" class="btn-confirm-sched" data-action="save-schedule" style="margin-left:auto;">Flag Scheduled</button>' +
         '</div>';
+      wireTimeAutofill(el.querySelector('.schedule-editor'));
       el.querySelector('[data-action="toggle-schedule"]').addEventListener('click', (e) => {
         e.stopPropagation();
         el.querySelector('.schedule-editor').hidden = !el.querySelector('.schedule-editor').hidden;
@@ -274,12 +275,13 @@
         '<div class="desc">' + escapeHtml(wo.jobDesc || '') + '</div>' +
         '<div class="row">' +
           '<div class="window">' +
-            '<input type="time" class="sched-start" step="900" value="' + (wo.scheduledStart || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+            timeSelectHtml('sched-start', wo.scheduledStart || '', 'border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);') +
             '<span>&ndash;</span>' +
-            '<input type="time" class="sched-end" step="900" value="' + (wo.scheduledEnd || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+            timeSelectHtml('sched-end', wo.scheduledEnd || '', 'border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);') +
           '</div>' +
           '<button type="button" class="btn-confirm-sched' + (isConfirmed ? ' confirmed' : '') + '" data-action="confirm">' + (isConfirmed ? 'Confirmed ✓' : 'Confirm') + '</button>' +
         '</div>';
+      wireTimeAutofill(el.querySelector('.window'));
       el.querySelector('[data-action="remove"]').addEventListener('click', (e) => {
         e.stopPropagation();
         el.remove();
@@ -414,6 +416,12 @@
     const schedZone = document.getElementById('zone-scheduled');
     scheduled.forEach(s => schedZone.appendChild(document.querySelector('[data-wo="' + s.woNumber + '"][data-zone="scheduled"]')));
 
+    // Stops already placed in a To Do bucket keep their DOM nodes (and
+    // listeners) and get dropped into the new After bucket below, rather
+    // than being wiped back out to the pool every time the scheduled set
+    // changes.
+    const preserved = Array.from(container.querySelectorAll('[data-wo]'));
+
     container.innerHTML = '';
     const zoneCount = scheduled.length + 1;
     for (let i = 0; i < zoneCount; i++) {
@@ -439,6 +447,8 @@
         },
         onSort: afterZoneChange,
       });
+
+      if (i === zoneCount - 1) preserved.forEach(el => zone.appendChild(el));
     }
     updateEmptyStates();
   }
@@ -448,7 +458,7 @@
     updateBuildButton();
     renderPool();
     saveDraft();
-    showToast('Scheduled stops changed — redrag your to-do stops into place');
+    showToast('Scheduled stops changed — existing to-do stops moved to After');
   }
 
   function fmtTime(hhmm) {
@@ -757,6 +767,46 @@
         ? (fmtTime(stats.nextScheduled.windowStart) + ' – ' + fmtTime(stats.nextScheduled.windowEnd))
         : 'None left today';
     }).withFailureHandler(() => {}).getDayStats(TECH, TODAY);
+  }
+
+  // ── Time selects (6 AM–6 PM, 15-min steps) ──────────────────────────────
+  // Native <input type="time"> steps/min/max aren't reliably honored by the
+  // browser's own picker widget, so the allowed values are enumerated here
+  // instead — that's the only way to actually guarantee 15-minute increments
+  // clamped to the work day.
+  function buildTimeOptions() {
+    const opts = [];
+    for (let mins = 6 * 60; mins <= 18 * 60; mins += 15) {
+      const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+      const mm = String(mins % 60).padStart(2, '0');
+      const value = hh + ':' + mm;
+      opts.push({ value, label: fmtTime(value) });
+    }
+    return opts;
+  }
+  function timeSelectHtml(cls, selectedValue, style) {
+    let html = '<select class="' + cls + '"' + (style ? ' style="' + style + '"' : '') + '>';
+    html += '<option value="">--:--</option>';
+    buildTimeOptions().forEach(o => {
+      html += '<option value="' + o.value + '"' + (o.value === selectedValue ? ' selected' : '') + '>' + o.label + '</option>';
+    });
+    html += '</select>';
+    return html;
+  }
+  // Wires "pick a start time -> end defaults to 30 min later" on a container
+  // holding one .sched-start and one .sched-end select.
+  function wireTimeAutofill(container) {
+    const startEl = container.querySelector('.sched-start');
+    const endEl = container.querySelector('.sched-end');
+    startEl.addEventListener('change', () => {
+      if (!startEl.value) return;
+      const [h, m] = startEl.value.split(':').map(Number);
+      const target = Math.min(h * 60 + m + 30, 18 * 60);
+      const hh = String(Math.floor(target / 60)).padStart(2, '0');
+      const mm = String(target % 60).padStart(2, '0');
+      const value = hh + ':' + mm;
+      if (Array.from(endEl.options).some(o => o.value === value)) endEl.value = value;
+    });
   }
 
   // ── Utilities ──────────────────────────────────────────────────────────
