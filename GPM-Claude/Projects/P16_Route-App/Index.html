@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GPM Route Builder</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <?!= include('Stylesheet'); ?>
+</head>
+<body>
+
+<!-- ── Tech picker (boot) ── -->
+<div id="tech-picker" style="position:fixed; inset:0; background:var(--cream); display:flex; align-items:center; justify-content:center; z-index:500;">
+  <div style="background:#fff; border-radius:14px; padding:28px 32px; width:320px; box-shadow:0 12px 30px rgba(0,0,0,.15);">
+    <div style="font-size:18px; font-weight:700; margin-bottom:14px;">Who's building a route?</div>
+    <select id="tech-select" style="width:100%; padding:12px; border-radius:8px; border:1.5px solid var(--light); font-size:15px;">
+      <option value="">— Select your name —</option>
+    </select>
+    <button id="btn-tech-continue" disabled style="margin-top:14px; width:100%; padding:12px; border:none; border-radius:8px; background:var(--green); color:#fff; font-size:15px; font-weight:700; cursor:pointer;">Continue</button>
+  </div>
+</div>
+
+<!-- ── Screen 1: Build My Day ── -->
+<div id="screen-day" class="app" hidden>
+  <header>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6abf4b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><path d="M8 7h6a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H8"></path></svg>
+    <div class="title">Build My Day</div>
+    <div class="subtitle" id="day-header-sub"></div>
+  </header>
+
+  <div class="day-body">
+    <div class="pool-panel">
+      <div class="pool-header-label" id="pool-count-label">Open Work Orders</div>
+      <div class="filter-row">
+        <div class="filter-chip" data-filter="myProperties">My Properties</div>
+        <div class="filter-chip" data-filter="scheduledOnly">Scheduled</div>
+        <div class="filter-chip" data-filter="assignedToMe">Assigned to Me</div>
+      </div>
+      <div class="sort-row" id="sort-toggle">
+        <span id="sort-label">Newest first</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--mid2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </div>
+      <div class="pool-list" id="pool-list"></div>
+    </div>
+
+    <div class="myday-panel">
+      <div class="myday-title">My Day &mdash; drag stops in, top to bottom is the route order</div>
+      <div class="myday-sub">Minimum 2 work orders to build a route</div>
+
+      <div class="myday-scroll">
+        <div class="section-label urgent">Urgent &middot; ranked, opens the route</div>
+        <div class="dropzone urgent-zone" id="zone-urgent"></div>
+
+        <div class="section-label appt">Scheduled stops</div>
+        <div class="dropzone" id="zone-scheduled"></div>
+
+        <div id="bucket-zones"></div>
+      </div>
+
+      <div class="myday-footer">
+        <div class="myday-warning" id="build-warning"></div>
+        <button class="btn-build" id="btn-build-route" disabled>Build Route</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Screen 2: Review & Go ── -->
+<div id="screen-review" class="app" hidden>
+  <header>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6abf4b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><path d="M8 7h6a3 3 0 0 1 3 3v0a3 3 0 0 1-3 3H8"></path></svg>
+    <div class="title">Today's Route</div>
+    <div class="subtitle" id="review-header-sub"></div>
+    <div class="progress-wrap" style="flex:1; margin-left:16px;">
+      <div class="progress-row"><span id="progress-text">0 of 0 stops done</span><span id="progress-pct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+  </header>
+
+  <div class="review-body">
+    <div class="route-col">
+      <div class="route-list" id="route-list"></div>
+    </div>
+    <div class="summary-rail">
+      <div class="rail-title">Day Summary</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <div class="rail-stat-big" id="rail-drive-time">&mdash;</div>
+          <div class="rail-stat-label">Drive time left</div>
+        </div>
+        <div>
+          <div class="rail-stat-big" id="rail-next-sched" style="color:var(--appt); font-size:15px;">&mdash;</div>
+          <div class="rail-stat-label">Next scheduled stop</div>
+        </div>
+      </div>
+      <div class="rail-warning" id="rail-warning" hidden></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────
+  let TECH = '';
+  let TODAY = '';
+  let filters = { myProperties: false, scheduledOnly: false, assignedToMe: false };
+  let sortMode = 'newest';
+  let poolCache = {}; // woNumber -> wo object, refreshed on every pool load
+
+  // ── Boot ───────────────────────────────────────────────────────────────
+  window.onload = function () {
+    google.script.run.withSuccessHandler(populateTechs).withFailureHandler(showError).getTechListForUI();
+    google.script.run.withSuccessHandler(d => { TODAY = d; }).withFailureHandler(showError).todayDateStr();
+  };
+
+  function populateTechs(techs) {
+    const sel = document.getElementById('tech-select');
+    techs.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = opt.textContent = name;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => {
+      document.getElementById('btn-tech-continue').disabled = !sel.value;
+    });
+    document.getElementById('btn-tech-continue').addEventListener('click', () => {
+      TECH = sel.value;
+      document.getElementById('tech-picker').style.display = 'none';
+      startDay();
+    });
+  }
+
+  function startDay() {
+    document.getElementById('day-header-sub').textContent = '· ' + TECH;
+    document.getElementById('review-header-sub').textContent = '· ' + TECH;
+    document.getElementById('screen-day').hidden = false;
+
+    google.script.run.withSuccessHandler(plan => {
+      if (plan && plan.status === 'built') {
+        renderReview(plan);
+        showScreen('review');
+      } else {
+        renderPool();
+        initZones();
+        if (plan) restoreDraft(plan);
+        updateBuildButton();
+      }
+    }).withFailureHandler(showError).loadPlan(TECH, TODAY);
+
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('active');
+        filters[chip.dataset.filter] = chip.classList.contains('active');
+        renderPool();
+      });
+    });
+    document.getElementById('sort-toggle').addEventListener('click', () => {
+      sortMode = sortMode === 'newest' ? 'oldest' : 'newest';
+      document.getElementById('sort-label').textContent = sortMode === 'newest' ? 'Newest first' : 'Oldest first';
+      renderPool();
+    });
+    document.getElementById('btn-build-route').addEventListener('click', onBuildRoute);
+  }
+
+  function showScreen(name) {
+    document.getElementById('screen-day').hidden = name !== 'day';
+    document.getElementById('screen-review').hidden = name !== 'review';
+  }
+
+  // ── Pool ───────────────────────────────────────────────────────────────
+  function renderPool() {
+    google.script.run.withSuccessHandler(wos => {
+      poolCache = {};
+      wos.forEach(w => { poolCache[w.woNumber] = w; });
+
+      const usedNumbers = collectUsedWoNumbers();
+      const list = document.getElementById('pool-list');
+      list.innerHTML = '';
+      document.getElementById('pool-count-label').textContent = 'Open Work Orders · ' + wos.length;
+
+      wos.forEach(wo => {
+        if (usedNumbers.has(wo.woNumber)) return; // already placed in My Day
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.dataset.wo = wo.woNumber;
+        renderChip(el, wo, 'pool');
+        list.appendChild(el);
+      });
+
+      if (!list.sortableInstance) {
+        list.sortableInstance = new Sortable(list, {
+          group: { name: 'myday', pull: 'clone', put: false },
+          sort: false,
+          animation: 150,
+        });
+      }
+    }).withFailureHandler(showError).loadOpenWorkOrderPool(TECH, filters, sortMode);
+  }
+
+  function collectUsedWoNumbers() {
+    const set = new Set();
+    document.querySelectorAll('#zone-urgent [data-wo], #zone-scheduled [data-wo], #bucket-zones [data-wo]').forEach(el => set.add(el.dataset.wo));
+    return set;
+  }
+
+  // ── Chip rendering (one element type, re-skinned per zone) ─────────────
+  function renderChip(el, wo, zone) {
+    el.dataset.zone = zone;
+    if (zone === 'pool') {
+      el.className = 'pool-card';
+      const metaBits = [];
+      if (wo.address) metaBits.push(escapeHtml(wo.address.split(',')[0]));
+      if (wo.assignedUser && wo.assignedUser.includes(TECH)) metaBits.push('Assigned to you');
+      if (!wo.assignedUser && !wo.isScheduledToday) metaBits.push('Urgent-eligible');
+      el.innerHTML =
+        '<div class="pool-card-row">' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div class="pool-card-addr">' + escapeHtml(wo.address) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
+            '<div class="pool-card-meta">' + escapeHtml(wo.jobDesc || '') + '</div>' +
+          '</div>' +
+          '<svg class="schedule-toggle" data-action="toggle-schedule" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>' +
+          '<svg class="grip" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>' +
+        '</div>' +
+        '<div class="schedule-editor" hidden>' +
+          '<span class="lbl">Window:</span>' +
+          '<input type="time" class="sched-start" value="' + (wo.appFolioApptTime || '09:00') + '">' +
+          '<span>&ndash;</span>' +
+          '<input type="time" class="sched-end" value="">' +
+          '<button type="button" class="btn-confirm-sched" data-action="save-schedule" style="margin-left:auto;">Flag Scheduled</button>' +
+        '</div>';
+      el.querySelector('[data-action="toggle-schedule"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        el.querySelector('.schedule-editor').hidden = !el.querySelector('.schedule-editor').hidden;
+      });
+      el.querySelector('[data-action="save-schedule"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const start = el.querySelector('.sched-start').value;
+        const end = el.querySelector('.sched-end').value;
+        if (!start || !end) { showToast('Set both start and end time'); return; }
+        google.script.run.withSuccessHandler(() => {
+          wo.isScheduledToday = true; wo.scheduledStart = start; wo.scheduledEnd = end;
+          showToast('Flagged as Scheduled — drag it into the Scheduled zone');
+        }).withFailureHandler(showError).flagAsScheduled(wo.woNumber, start, end);
+      });
+    } else if (zone === 'urgent') {
+      el.className = 'rank-card';
+      el.innerHTML =
+        '<div class="rank-badge">?</div>' +
+        '<div style="flex:1;min-width:0;">' +
+          '<div class="pool-card-addr" style="font-size:14.5px;">' + escapeHtml(wo.address) + '</div>' +
+          '<div class="pool-card-meta">' + escapeHtml(wo.jobDesc || '') + '</div>' +
+        '</div>' +
+        '<svg class="grip" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>';
+    } else if (zone === 'scheduled') {
+      el.className = 'scheduled-card';
+      el.innerHTML =
+        '<div class="addr">' + escapeHtml(wo.address) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
+        '<div class="desc">' + escapeHtml(wo.jobDesc || '') + '</div>' +
+        '<div class="row">' +
+          '<div class="window">' +
+            '<input type="time" class="sched-start" value="' + (wo.scheduledStart || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+            '<span>&ndash;</span>' +
+            '<input type="time" class="sched-end" value="' + (wo.scheduledEnd || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+          '</div>' +
+          '<button type="button" class="btn-confirm-sched" data-action="confirm">Confirm</button>' +
+        '</div>';
+      el.querySelector('[data-action="confirm"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        const start = el.querySelector('.sched-start').value;
+        const end = el.querySelector('.sched-end').value;
+        wo.scheduledStart = start; wo.scheduledEnd = end;
+        google.script.run.withSuccessHandler(() => {
+          btn.textContent = 'Confirmed ✓';
+          btn.classList.add('confirmed');
+          regenerateBucketZones();
+        }).withFailureHandler(showError).flagAsScheduled(wo.woNumber, start, end);
+      });
+    } else if (zone === 'bucket') {
+      el.className = 'bucket-item';
+      el.innerHTML =
+        '<span>' + escapeHtml(wo.address.split(',')[0]) + ' &mdash; ' + escapeHtml((wo.jobDesc || '').slice(0, 40)) + '</span>' +
+        '<svg class="grip" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>';
+    }
+  }
+
+  // ── Zones ────────────────────────────────────────────────────────────
+  function initZones() {
+    const urgentZone = document.getElementById('zone-urgent');
+    new Sortable(urgentZone, {
+      group: 'myday', animation: 150,
+      onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'urgent'); renumberUrgent(); afterZoneChange(); },
+      onSort: () => { renumberUrgent(); afterZoneChange(); },
+    });
+
+    const schedZone = document.getElementById('zone-scheduled');
+    new Sortable(schedZone, {
+      group: 'myday', animation: 150, sort: false,
+      onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'scheduled'); afterScheduleSetChange(); },
+    });
+
+    regenerateBucketZones();
+    updateEmptyStates();
+  }
+
+  function renumberUrgent() {
+    document.querySelectorAll('#zone-urgent .rank-card').forEach((el, i) => {
+      const badge = el.querySelector('.rank-badge');
+      if (badge) badge.textContent = String(i + 1);
+    });
+  }
+
+  function afterZoneChange() {
+    updateEmptyStates();
+    updateBuildButton();
+    renderPool();
+    saveDraft();
+  }
+
+  // Regenerates the To Do bucket zones from the current Scheduled zone contents.
+  // Simplification: any time the SET of scheduled stops changes, buckets reset
+  // (existing to-do placements are pooled back rather than cleverly remapped) —
+  // keeps this reliable rather than guessing intent across a schedule change.
+  function regenerateBucketZones() {
+    const schedEls = Array.from(document.querySelectorAll('#zone-scheduled .scheduled-card'));
+    const scheduled = schedEls.map(el => ({
+      woNumber: el.dataset.wo,
+      start: el.querySelector('.sched-start').value || '99:99',
+    })).sort((a, b) => a.start.localeCompare(b.start));
+
+    const container = document.getElementById('bucket-zones');
+    // Reorder the scheduled-card DOM elements to match chronological order.
+    const schedZone = document.getElementById('zone-scheduled');
+    scheduled.forEach(s => schedZone.appendChild(document.querySelector('[data-wo="' + s.woNumber + '"][data-zone="scheduled"]')));
+
+    container.innerHTML = '';
+    const zoneCount = scheduled.length + 1;
+    for (let i = 0; i < zoneCount; i++) {
+      const label = document.createElement('div');
+      label.className = 'section-label mid';
+      label.textContent = zoneCount === 1
+        ? 'To Do'
+        : (i === 0 ? 'Before ' + fmtTime(scheduled[0].start)
+          : (i === zoneCount - 1 ? 'After ' + fmtTime(scheduled[zoneCount - 2].start)
+            : 'Between ' + fmtTime(scheduled[i - 1].start) + ' and ' + fmtTime(scheduled[i].start)));
+      container.appendChild(label);
+
+      const zone = document.createElement('div');
+      zone.className = 'dropzone';
+      zone.dataset.bucketIndex = String(i);
+      container.appendChild(zone);
+
+      new Sortable(zone, {
+        group: 'myday', animation: 150,
+        onAdd: (evt) => { renderChip(evt.item, poolCache[evt.item.dataset.wo], 'bucket'); afterZoneChange(); },
+        onSort: afterZoneChange,
+      });
+    }
+    updateEmptyStates();
+  }
+
+  function afterScheduleSetChange() {
+    regenerateBucketZones();
+    updateBuildButton();
+    renderPool();
+    saveDraft();
+    showToast('Scheduled stops changed — redrag your to-do stops into place');
+  }
+
+  function fmtTime(hhmm) {
+    if (!hhmm || hhmm === '99:99') return '';
+    const [h, m] = hhmm.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return h12 + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+  }
+
+  function updateEmptyStates() {
+    document.querySelectorAll('.dropzone').forEach(zone => {
+      const hasItems = zone.children.length > 0 && !zone.querySelector('.dropzone-empty');
+      const onlyEmpty = zone.querySelectorAll('[data-wo]').length === 0;
+      let placeholder = zone.querySelector('.dropzone-empty');
+      if (onlyEmpty && !placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.className = 'dropzone-empty';
+        placeholder.textContent = zone.id === 'zone-urgent' ? 'Drag urgent stops here'
+          : zone.id === 'zone-scheduled' ? 'Drag a scheduled stop here'
+          : 'Drag a work order here';
+        zone.appendChild(placeholder);
+      } else if (!onlyEmpty && placeholder) {
+        placeholder.remove();
+      }
+    });
+  }
+
+  function updateBuildButton() {
+    const urgent = Array.from(document.querySelectorAll('#zone-urgent [data-wo]')).length;
+    const scheduled = Array.from(document.querySelectorAll('#zone-scheduled [data-wo]')).length;
+    const buckets = Array.from(document.querySelectorAll('#bucket-zones [data-wo]')).length;
+    const total = urgent + scheduled + buckets;
+    const btn = document.getElementById('btn-build-route');
+    const warn = document.getElementById('build-warning');
+
+    if (total < 2) {
+      btn.disabled = true;
+      warn.textContent = 'Add at least 2 work orders before you can build the route';
+    } else {
+      btn.disabled = false;
+      warn.textContent = '';
+    }
+  }
+
+  function saveDraft() {
+    google.script.run.withFailureHandler(() => {}).saveDraftPlan(TECH, TODAY, collectDraft());
+  }
+
+  function collectDraft() {
+    const urgent = Array.from(document.querySelectorAll('#zone-urgent [data-wo]')).map(el => el.dataset.wo);
+    const scheduled = Array.from(document.querySelectorAll('#zone-scheduled [data-wo]')).map(el => ({
+      woNumber: el.dataset.wo,
+      windowStart: el.querySelector('.sched-start').value,
+      windowEnd: el.querySelector('.sched-end').value,
+    }));
+    const buckets = Array.from(document.querySelectorAll('#bucket-zones .dropzone')).map(zone =>
+      Array.from(zone.querySelectorAll('[data-wo]')).map(el => el.dataset.wo)
+    );
+    return { urgent, scheduled, buckets };
+  }
+
+  function restoreDraft(plan) {
+    // Best-effort restore of an in-progress draft after a refresh.
+    (plan.urgent || []).forEach(n => {
+      const el = document.createElement('div'); el.dataset.wo = n;
+      if (poolCache[n]) { renderChip(el, poolCache[n], 'urgent'); document.getElementById('zone-urgent').appendChild(el); }
+    });
+    renumberUrgent();
+    (plan.scheduled || []).forEach(s => {
+      const el = document.createElement('div'); el.dataset.wo = s.woNumber;
+      if (poolCache[s.woNumber]) {
+        poolCache[s.woNumber].scheduledStart = s.windowStart;
+        poolCache[s.woNumber].scheduledEnd = s.windowEnd;
+        renderChip(el, poolCache[s.woNumber], 'scheduled');
+        document.getElementById('zone-scheduled').appendChild(el);
+      }
+    });
+    regenerateBucketZones();
+    (plan.buckets || []).forEach((bucket, i) => {
+      const zone = document.querySelector('#bucket-zones .dropzone[data-bucket-index="' + i + '"]');
+      if (!zone) return;
+      bucket.forEach(n => {
+        if (!poolCache[n]) return;
+        const el = document.createElement('div'); el.dataset.wo = n;
+        renderChip(el, poolCache[n], 'bucket');
+        zone.appendChild(el);
+      });
+    });
+    updateEmptyStates();
+    renderPool();
+  }
+
+  function onBuildRoute() {
+    const draft = collectDraft();
+    document.getElementById('btn-build-route').disabled = true;
+    document.getElementById('btn-build-route').textContent = 'Building…';
+    google.script.run.withSuccessHandler(plan => {
+      showScreen('review');
+      renderReview(plan);
+    }).withFailureHandler(err => {
+      showError(err);
+      document.getElementById('btn-build-route').disabled = false;
+      document.getElementById('btn-build-route').textContent = 'Build Route';
+    }).buildRoute(TECH, TODAY, draft.urgent, draft.scheduled, draft.buckets);
+  }
+
+  // ── Review & Go ──────────────────────────────────────────────────────
+  let routeList; // Sortable instance
+
+  function renderReview(plan) {
+    const list = document.getElementById('route-list');
+    list.innerHTML = '';
+
+    const done = plan.route.filter(s => s.complete).length;
+    const total = plan.route.length;
+    document.getElementById('progress-text').textContent = done + ' of ' + total + ' stops done';
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-fill').style.width = pct + '%';
+
+    let sawIncomplete = false;
+    plan.route.forEach((stop) => {
+      if (!stop.complete && !sawIncomplete) {
+        sawIncomplete = true;
+        const div = document.createElement('div');
+        div.className = 'divider-row';
+        div.innerHTML = '<div class="line"></div><div class="lbl">Up next</div><div class="line"></div>';
+        list.appendChild(div);
+      }
+      list.appendChild(buildStopEl(stop));
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-wo-btn';
+    addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg> Add a work order';
+    addBtn.addEventListener('click', onAddWorkOrder);
+    list.appendChild(addBtn);
+
+    if (!routeList) {
+      routeList = new Sortable(list, {
+        animation: 150,
+        filter: '.add-wo-btn, .divider-row',
+        onEnd: () => {
+          const order = Array.from(list.querySelectorAll('.stop-swipe-wrap')).map(el => el.dataset.wo);
+          google.script.run.withSuccessHandler(res => {
+            if (res.warnings && res.warnings.length) showToast(res.warnings[0]);
+          }).withFailureHandler(showError).reorderRoute(TECH, TODAY, order);
+        },
+      });
+    }
+
+    refreshDayStats();
+  }
+
+  function buildStopEl(stop) {
+    const wo = poolCache[stop.woNumber] || {};
+    const wrap = document.createElement('div');
+    wrap.className = 'stop-swipe-wrap';
+    wrap.dataset.wo = stop.woNumber;
+
+    const trashBg = document.createElement('div');
+    trashBg.className = 'stop-trash-bg';
+    trashBg.innerHTML = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"></path></svg>';
+    trashBg.addEventListener('click', () => {
+      google.script.run.withSuccessHandler(plan => renderReview(plan)).withFailureHandler(showError).removeStopFromRoute(TECH, TODAY, stop.woNumber);
+    });
+    wrap.appendChild(trashBg);
+
+    const card = document.createElement('div');
+    card.className = 'stop-card' + (stop.complete ? ' complete' : '') + (stop.type === 'scheduled' ? ' scheduled' : '');
+
+    const check = document.createElement('div');
+    check.className = 'stop-check' + (stop.complete ? ' done' : '');
+    check.innerHTML = stop.complete ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>' : '';
+    check.addEventListener('click', () => {
+      google.script.run.withSuccessHandler(plan => renderReview(plan)).withFailureHandler(showError).markStopComplete(TECH, TODAY, stop.woNumber, !stop.complete);
+    });
+    card.appendChild(check);
+
+    const body = document.createElement('div');
+    body.style.flex = '1'; body.style.minWidth = '0';
+    let bodyHtml = '<div class="stop-addr">' + escapeHtml(wo.address || stop.woNumber) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
+      '<div class="stop-desc">' + escapeHtml(wo.jobDesc || '') + '</div>';
+    if (stop.type === 'scheduled') {
+      bodyHtml += '<div class="stop-window"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--appt)" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>' +
+        fmtTime(stop.windowStart) + ' – ' + fmtTime(stop.windowEnd) + '</div>';
+    }
+    body.innerHTML = bodyHtml;
+    card.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'stop-actions';
+    const dirBtn = document.createElement('button');
+    dirBtn.className = 'btn-directions';
+    dirBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2z"></path></svg> Directions';
+    dirBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const addr = encodeURIComponent((wo.address || '') + (wo.unit ? ' ' + wo.unit : ''));
+      window.open('https://www.google.com/maps/dir/?api=1&destination=' + addr, '_blank');
+    });
+    actions.appendChild(dirBtn);
+    const grip = document.createElement('div');
+    grip.className = 'stop-grip';
+    grip.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg>';
+    actions.appendChild(grip);
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+    attachSwipe(wrap, card);
+    return wrap;
+  }
+
+  // Swipe left-to-right reveals the red trash icon on the left edge —
+  // matches iMessage's swipe-to-delete pattern.
+  function attachSwipe(wrap, card) {
+    let startX = 0, currentX = 0, dragging = false;
+    const REVEAL = 64;
+
+    const onDown = (e) => {
+      dragging = true;
+      startX = (e.touches ? e.touches[0].clientX : e.clientX);
+      card.style.transition = 'none';
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const x = (e.touches ? e.touches[0].clientX : e.clientX);
+      currentX = Math.max(0, Math.min(REVEAL, x - startX));
+      card.style.transform = 'translateX(' + currentX + 'px)';
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      card.style.transition = 'transform .18s ease';
+      card.style.transform = 'translateX(' + (currentX > REVEAL / 2 ? REVEAL : 0) + 'px)';
+    };
+
+    card.addEventListener('mousedown', onDown);
+    card.addEventListener('touchstart', onDown, { passive: true });
+    window.addEventListener('mousemove', onMove);
+    card.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('mouseup', onUp);
+    card.addEventListener('touchend', onUp);
+  }
+
+  function onAddWorkOrder() {
+    google.script.run.withSuccessHandler(wos => {
+      const used = new Set(Array.from(document.querySelectorAll('.stop-swipe-wrap')).map(el => el.dataset.wo));
+      const available = wos.filter(w => !used.has(w.woNumber));
+      if (!available.length) { showToast('No other open work orders to add'); return; }
+      const pick = window.prompt('Add which WO #? \n' + available.slice(0, 15).map(w => w.woNumber + ' — ' + w.address).join('\n'));
+      if (!pick) return;
+      const match = available.find(w => w.woNumber === pick.trim());
+      if (!match) { showToast('WO not found in list'); return; }
+      poolCache[match.woNumber] = match;
+      google.script.run.withSuccessHandler(res => {
+        renderReview(res.plan);
+        if (res.warnings && res.warnings.length) showToast(res.warnings[0]);
+      }).withFailureHandler(showError).addStopToRoute(TECH, TODAY, match.woNumber, null);
+    }).withFailureHandler(showError).loadOpenWorkOrderPool(TECH, {}, 'newest');
+  }
+
+  function refreshDayStats() {
+    google.script.run.withSuccessHandler(stats => {
+      if (!stats) return;
+      document.getElementById('rail-drive-time').textContent = stats.driveMinutesRemaining + ' min';
+      document.getElementById('rail-next-sched').textContent = stats.nextScheduled
+        ? (fmtTime(stats.nextScheduled.windowStart) + ' – ' + fmtTime(stats.nextScheduled.windowEnd))
+        : 'None left today';
+    }).withFailureHandler(() => {}).getDayStats(TECH, TODAY);
+  }
+
+  // ── Utilities ──────────────────────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+  function showError(err) {
+    showToast('Error: ' + (err && err.message ? err.message : err));
+    console.error(err);
+  }
+</script>
+</body>
+</html>
