@@ -227,9 +227,9 @@
         '</div>' +
         '<div class="schedule-editor" hidden>' +
           '<span class="lbl">Window:</span>' +
-          '<input type="time" class="sched-start" value="' + (wo.appFolioApptTime || '09:00') + '">' +
+          '<input type="time" class="sched-start" step="900" value="' + (wo.appFolioApptTime || '09:00') + '">' +
           '<span>&ndash;</span>' +
-          '<input type="time" class="sched-end" value="">' +
+          '<input type="time" class="sched-end" step="900" value="">' +
           '<button type="button" class="btn-confirm-sched" data-action="save-schedule" style="margin-left:auto;">Flag Scheduled</button>' +
         '</div>';
       el.querySelector('[data-action="toggle-schedule"]').addEventListener('click', (e) => {
@@ -262,9 +262,9 @@
         '<div class="desc">' + escapeHtml(wo.jobDesc || '') + '</div>' +
         '<div class="row">' +
           '<div class="window">' +
-            '<input type="time" class="sched-start" value="' + (wo.scheduledStart || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+            '<input type="time" class="sched-start" step="900" value="' + (wo.scheduledStart || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
             '<span>&ndash;</span>' +
-            '<input type="time" class="sched-end" value="' + (wo.scheduledEnd || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
+            '<input type="time" class="sched-end" step="900" value="' + (wo.scheduledEnd || '') + '" style="border:1.5px solid #e6cf9e;border-radius:6px;padding:2px 4px;font-size:12px;color:var(--appt);">' +
           '</div>' +
           '<button type="button" class="btn-confirm-sched" data-action="confirm">Confirm</button>' +
         '</div>';
