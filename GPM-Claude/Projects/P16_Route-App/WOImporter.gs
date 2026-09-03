@@ -185,3 +185,27 @@ function seedSampleData() {
 
   Logger.log('Sample data loaded: ' + sample.length + ' work orders, plus a test tech (Miguel R.) and property mapping.');
 }
+
+// ─── Real tech roster + property mapping ────────────────────────────────────
+// REAL_TECH_ROSTER / REAL_TECH_PROPERTIES live in TechRosterData.gs, which is
+// gitignored (real tech names + property addresses, same reasoning as the
+// work_order-*.csv exclusion — this repo is public). Push both files to the
+// GAS project with `clasp push`; only this function ships in git.
+// REPLACES TechList/TechProperties content (clears the "Miguel R." placeholder
+// from seedSampleData()) rather than upserting. Safe to re-run.
+
+function seedRealTechRoster() {
+  const techSheet = getSheet_('TechList');
+  if (techSheet.getLastRow() > 1) {
+    techSheet.getRange(2, 1, techSheet.getLastRow() - 1, techSheet.getLastColumn()).clearContent();
+  }
+  techSheet.getRange(2, 1, REAL_TECH_ROSTER.length, 1).setValues(REAL_TECH_ROSTER.map(t => [t]));
+
+  const propSheet = getSheet_('TechProperties');
+  if (propSheet.getLastRow() > 1) {
+    propSheet.getRange(2, 1, propSheet.getLastRow() - 1, propSheet.getLastColumn()).clearContent();
+  }
+  propSheet.getRange(2, 1, REAL_TECH_PROPERTIES.length, 2).setValues(REAL_TECH_PROPERTIES);
+
+  Logger.log('Real tech roster loaded: ' + REAL_TECH_ROSTER.length + ' techs, ' + REAL_TECH_PROPERTIES.length + ' property mappings.');
+}
