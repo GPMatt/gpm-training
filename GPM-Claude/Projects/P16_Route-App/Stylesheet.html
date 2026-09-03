@@ -155,6 +155,19 @@
   .stop-desc { font-size: 11.5px; color: var(--mid); }
   .stop-card.complete .stop-desc { color: var(--mid2); }
   .stop-window { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; font-weight: 700; color: var(--appt); }
+  .stop-detail-toggle {
+    display: flex; align-items: center; gap: 4px; margin-top: 5px;
+    font-size: 11px; font-weight: 700; color: var(--mid2); cursor: pointer; user-select: none; width: fit-content;
+  }
+  .stop-detail-toggle .chev { transition: transform .15s ease; }
+  .stop-detail-toggle.open .chev { transform: rotate(90deg); }
+  .stop-details {
+    margin-top: 6px; padding-top: 7px; border-top: 1px dashed var(--light);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stop-detail-row { display: flex; gap: 10px; font-size: 12px; }
+  .stop-detail-row .k { font-weight: 700; color: var(--mid2); text-transform: uppercase; letter-spacing: .3px; font-size: 10.5px; flex-shrink: 0; padding-top: 1px; }
+  .stop-detail-row .v { color: var(--mid); }
   .stop-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
   .btn-directions {
     display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 8px;

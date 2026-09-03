@@ -555,6 +555,7 @@
         fmtTime(stop.windowStart) + ' – ' + fmtTime(stop.windowEnd) + '</div>';
     }
     body.innerHTML = bodyHtml;
+    appendStopDetails(body, wo);
     card.appendChild(body);
 
     const actions = document.createElement('div');
@@ -577,6 +578,38 @@
     wrap.appendChild(card);
     attachSwipe(wrap, card);
     return wrap;
+  }
+
+  // Adds a collapsed "Details" toggle to a Review & Go stop card, revealing
+  // Maintenance Limit / Status Notes on click — only these two AppFolio
+  // fields, only here (never on the Build My Day pool cards), only if either
+  // has a real value.
+  function appendStopDetails(body, wo) {
+    const hasNotes = !!(wo.statusNotes && wo.statusNotes.trim());
+    const limitVal = parseFloat(wo.maintenanceLimit);
+    const hasLimit = !isNaN(limitVal) && limitVal > 0;
+    if (!hasNotes && !hasLimit) return;
+
+    const toggle = document.createElement('div');
+    toggle.className = 'stop-detail-toggle';
+    toggle.innerHTML = '<svg class="chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg> Details';
+
+    const details = document.createElement('div');
+    details.className = 'stop-details';
+    details.hidden = true;
+    let detailsHtml = '';
+    if (hasLimit) detailsHtml += '<div class="stop-detail-row"><span class="k">Maintenance Limit</span><span class="v">$' + limitVal.toFixed(2) + '</span></div>';
+    if (hasNotes) detailsHtml += '<div class="stop-detail-row"><span class="k">Status Notes</span><span class="v">' + escapeHtml(wo.statusNotes) + '</span></div>';
+    details.innerHTML = detailsHtml;
+
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      details.hidden = !details.hidden;
+      toggle.classList.toggle('open', !details.hidden);
+    });
+
+    body.appendChild(toggle);
+    body.appendChild(details);
   }
 
   // Swipe left-to-right reveals the red trash icon on the left edge —
