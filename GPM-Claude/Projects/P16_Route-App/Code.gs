@@ -16,3 +16,7 @@ function include(filename) {
 function todayDateStr() {
   return todayStr_();
 }
+
+function getMapsApiKey() {
+  return getConfig_('MapsApiKey');
+}

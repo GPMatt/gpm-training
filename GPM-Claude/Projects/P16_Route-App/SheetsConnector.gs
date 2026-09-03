@@ -78,6 +78,16 @@ function todayStr_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 }
 
+// A "yyyy-MM-dd" string written to a cell comes back as a real Date object
+// once Sheets auto-detects it looks like a date — so a plain === against the
+// original string silently never matches on any read after the first write.
+function sameDateStr_(cellValue, dateStr) {
+  const cellStr = (cellValue instanceof Date)
+    ? Utilities.formatDate(cellValue, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+    : String(cellValue);
+  return cellStr === dateStr;
+}
+
 // Sheets auto-converts date/time-looking cell text (e.g. "09/01/2026") into
 // a real Date object on read-back — google.script.run's RPC serializer can
 // silently fail on a Date nested inside a returned array of objects (no
@@ -94,7 +104,7 @@ function rowToWO_(row) {
   const apptIsLive = isDateTodayOrFuture_(apptDate);
 
   const gpmSchedDate = row[WO_COL.GPM_SCHED_DATE - 1];
-  const gpmWindowIsToday = gpmSchedDate === todayStr_();
+  const gpmWindowIsToday = sameDateStr_(gpmSchedDate, todayStr_());
 
   return {
     woNumber:         String(row[WO_COL.WO_NUMBER - 1]),
@@ -169,7 +179,7 @@ function loadDayPlan(techName, dateStr) {
   const sheet = getSheet_('DayPlan');
   const rows = sheet.getDataRange().getValues();
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][DAYPLAN_COL.DATE - 1] === dateStr && rows[i][DAYPLAN_COL.TECH - 1] === techName) {
+    if (sameDateStr_(rows[i][DAYPLAN_COL.DATE - 1], dateStr) && rows[i][DAYPLAN_COL.TECH - 1] === techName) {
       const json = rows[i][DAYPLAN_COL.PLAN_JSON - 1];
       return json ? JSON.parse(json) : null;
     }
@@ -184,7 +194,7 @@ function saveDayPlan(techName, dateStr, planObject) {
   const json = JSON.stringify(planObject);
 
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][DAYPLAN_COL.DATE - 1] === dateStr && rows[i][DAYPLAN_COL.TECH - 1] === techName) {
+    if (sameDateStr_(rows[i][DAYPLAN_COL.DATE - 1], dateStr) && rows[i][DAYPLAN_COL.TECH - 1] === techName) {
       sheet.getRange(i + 1, DAYPLAN_COL.PLAN_JSON).setValue(json);
       sheet.getRange(i + 1, DAYPLAN_COL.UPDATED_AT).setValue(now);
       refreshManagerView();
@@ -204,7 +214,7 @@ function refreshManagerView() {
   const today = todayStr_();
 
   const rows = dayPlanSheet.getDataRange().getValues().slice(1)
-    .filter(r => r[DAYPLAN_COL.DATE - 1] === today && r[DAYPLAN_COL.PLAN_JSON - 1]);
+    .filter(r => sameDateStr_(r[DAYPLAN_COL.DATE - 1], today) && r[DAYPLAN_COL.PLAN_JSON - 1]);
 
   viewSheet.clearContents();
   viewSheet.getRange(1, 1, 1, 4).setValues([['Tech', 'Stops', 'Completed', 'Status']]).setFontWeight('bold');

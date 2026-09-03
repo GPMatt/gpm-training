@@ -151,24 +151,11 @@
   }
   .stop-check.done { background: var(--green); border-color: var(--green); }
   .stop-card.scheduled .stop-check { border-color: #d8b463; }
-  .stop-addr { font-size: 14px; font-weight: 700; }
+  .stop-wo { font-size: 10.5px; font-weight: 800; color: var(--mid2); text-transform: uppercase; letter-spacing: .3px; }
+  .stop-addr { font-size: 14px; font-weight: 700; cursor: pointer; }
+  .stop-addr:hover { text-decoration: underline; }
   .stop-card.complete .stop-addr { text-decoration: line-through; color: var(--mid2); }
-  .stop-desc { font-size: 11.5px; color: var(--mid); }
-  .stop-card.complete .stop-desc { color: var(--mid2); }
   .stop-window { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11.5px; font-weight: 700; color: var(--appt); }
-  .stop-detail-toggle {
-    display: flex; align-items: center; gap: 4px; margin-top: 5px;
-    font-size: 11px; font-weight: 700; color: var(--mid2); cursor: pointer; user-select: none; width: fit-content;
-  }
-  .stop-detail-toggle .chev { transition: transform .15s ease; }
-  .stop-detail-toggle.open .chev { transform: rotate(90deg); }
-  .stop-details {
-    margin-top: 6px; padding-top: 7px; border-top: 1px dashed var(--light);
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .stop-detail-row { display: flex; gap: 10px; font-size: 12px; }
-  .stop-detail-row .k { font-weight: 700; color: var(--mid2); text-transform: uppercase; letter-spacing: .3px; font-size: 10.5px; flex-shrink: 0; padding-top: 1px; }
-  .stop-detail-row .v { color: var(--mid); }
   .stop-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
   .btn-directions {
     display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 8px;
@@ -186,11 +173,31 @@
     color: var(--mid); font-size: 13.5px; font-weight: 700; margin-top: 2px; cursor: pointer;
   }
 
-  .summary-rail { width: 250px; flex-shrink: 0; background: #fbf9f5; border-left: 1.5px solid #e4dcca; padding: 20px 18px; }
+  .summary-rail { width: 250px; flex-shrink: 0; background: #fbf9f5; border-left: 1.5px solid #e4dcca; padding: 20px 18px; overflow-y: auto; }
   .summary-rail .rail-title { font-size: 12px; font-weight: 700; color: var(--mid2); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
   .rail-stat-big { font-size: 20px; font-weight: 800; }
   .rail-stat-label { font-size: 11px; color: var(--mid2); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
   .rail-warning { background: #fdf3e2; border: 1.5px solid #e6cf9e; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--appt); margin-top: 12px; }
+  .route-map { width: 100%; border-radius: var(--radius); display: block; margin-bottom: 16px; border: 1.5px solid var(--light); }
+
+  /* ── WO detail modal ── */
+  .wo-modal-overlay {
+    position: fixed; inset: 0; background: rgba(30,26,20,.45); z-index: 300;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .wo-modal {
+    position: relative; background: var(--card); border-radius: 14px; padding: 22px 24px;
+    width: 100%; max-width: 420px; max-height: 80vh; overflow-y: auto; box-shadow: 0 16px 40px rgba(0,0,0,.25);
+  }
+  .wo-modal-close {
+    position: absolute; top: 10px; right: 12px; border: none; background: transparent;
+    font-size: 22px; line-height: 1; color: var(--mid2); cursor: pointer; padding: 4px 8px;
+  }
+  .wo-modal-wo { font-size: 12px; font-weight: 800; color: var(--mid2); text-transform: uppercase; letter-spacing: .4px; }
+  .wo-modal-addr { font-size: 18px; font-weight: 800; margin-top: 2px; margin-bottom: 8px; }
+  .wo-modal-section { margin-top: 12px; }
+  .wo-modal-section .k { font-weight: 700; color: var(--mid2); text-transform: uppercase; letter-spacing: .3px; font-size: 10.5px; }
+  .wo-modal-section .v { color: var(--dark); font-size: 14px; margin-top: 3px; line-height: 1.4; }
 
   /* ── Shared ── */
   .toast {

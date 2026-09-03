@@ -82,6 +82,7 @@
       <div class="route-list" id="route-list"></div>
     </div>
     <div class="summary-rail">
+      <img id="route-map" class="route-map" hidden>
       <div class="rail-title">Day Summary</div>
       <div style="display:flex; flex-direction:column; gap:12px;">
         <div>
@@ -100,10 +101,18 @@
 
 <div class="toast" id="toast"></div>
 
+<div class="wo-modal-overlay" id="wo-modal-overlay" hidden>
+  <div class="wo-modal">
+    <button type="button" class="wo-modal-close" id="wo-modal-close" aria-label="Close">&times;</button>
+    <div id="wo-modal-body"></div>
+  </div>
+</div>
+
 <script>
   // ── State ──────────────────────────────────────────────────────────────
   let TECH = '';
   let TODAY = '';
+  let MAPS_API_KEY = '';
   let filters = { myProperties: false, scheduledOnly: false, assignedToMe: false };
   let sortMode = 'newest';
   let poolCache = {}; // woNumber -> wo object, refreshed on every pool load
@@ -112,6 +121,12 @@
   window.onload = function () {
     google.script.run.withSuccessHandler(populateTechs).withFailureHandler(showError).getTechListForUI();
     google.script.run.withSuccessHandler(d => { TODAY = d; }).withFailureHandler(showError).todayDateStr();
+    google.script.run.withSuccessHandler(k => { MAPS_API_KEY = k || ''; }).withFailureHandler(() => {}).getMapsApiKey();
+
+    document.getElementById('wo-modal-close').addEventListener('click', closeWoModal);
+    document.getElementById('wo-modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'wo-modal-overlay') closeWoModal();
+    });
   };
 
   function populateTechs(techs) {
@@ -616,7 +631,26 @@
       });
     }
 
+    renderRouteMap(plan);
     refreshDayStats();
+  }
+
+  // Static Maps API image — pins for every stop, address-geocoded by Google
+  // rather than us, so it needs no coordinates from the server. Red = not
+  // done yet, green = complete.
+  function renderRouteMap(plan) {
+    const img = document.getElementById('route-map');
+    if (!MAPS_API_KEY || !plan.route || !plan.route.length) { img.hidden = true; return; }
+    const markers = plan.route.map(stop => {
+      const wo = poolCache[stop.woNumber];
+      if (!wo || !wo.address) return null;
+      const addr = wo.address + (wo.unit ? ' ' + wo.unit : '');
+      return 'markers=' + encodeURIComponent('color:' + (stop.complete ? 'green' : 'red') + '|' + addr);
+    }).filter(Boolean);
+    if (!markers.length) { img.hidden = true; return; }
+    img.src = 'https://maps.googleapis.com/maps/api/staticmap?size=340x360&scale=2&maptype=roadmap&' +
+      markers.join('&') + '&key=' + encodeURIComponent(MAPS_API_KEY);
+    img.hidden = false;
   }
 
   function buildStopEl(stop) {
@@ -646,14 +680,17 @@
 
     const body = document.createElement('div');
     body.style.flex = '1'; body.style.minWidth = '0';
-    let bodyHtml = '<div class="stop-addr">' + escapeHtml(wo.address || stop.woNumber) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>' +
-      '<div class="stop-desc">' + escapeHtml(wo.jobDesc || '') + '</div>';
+    let bodyHtml = '<div class="stop-wo">WO# ' + escapeHtml(wo.woNumber || stop.woNumber) + '</div>' +
+      '<div class="stop-addr" data-action="open-details">' + escapeHtml(wo.address || stop.woNumber) + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>';
     if (stop.type === 'scheduled') {
       bodyHtml += '<div class="stop-window"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--appt)" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>' +
         fmtTime(stop.windowStart) + ' – ' + fmtTime(stop.windowEnd) + '</div>';
     }
     body.innerHTML = bodyHtml;
-    appendStopDetails(body, wo);
+    body.querySelector('[data-action="open-details"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openWoModal(wo, stop);
+    });
     card.appendChild(body);
 
     const actions = document.createElement('div');
@@ -678,36 +715,29 @@
     return wrap;
   }
 
-  // Adds a collapsed "Details" toggle to a Review & Go stop card, revealing
-  // Maintenance Limit / Status Notes on click — only these two AppFolio
-  // fields, only here (never on the Build My Day pool cards), only if either
-  // has a real value.
-  function appendStopDetails(body, wo) {
-    const hasNotes = !!(wo.statusNotes && wo.statusNotes.trim());
+  // Full-detail popup for a Review & Go stop, opened by tapping its address —
+  // the card itself only ever shows the WO# and address, everything else
+  // (description, maintenance limit, status notes, assignment) lives here.
+  function openWoModal(wo, stop) {
     const limitVal = parseFloat(wo.maintenanceLimit);
     const hasLimit = !isNaN(limitVal) && limitVal > 0;
-    if (!hasNotes && !hasLimit) return;
+    let html = '<div class="wo-modal-wo">WO# ' + escapeHtml(wo.woNumber || stop.woNumber) + '</div>' +
+      '<div class="wo-modal-addr">' + escapeHtml(wo.address || '') + (wo.unit ? ', ' + escapeHtml(wo.unit) : '') + '</div>';
+    if (stop.type === 'scheduled') {
+      html += '<div class="stop-window" style="margin-bottom:10px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--appt)" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>' +
+        fmtTime(stop.windowStart) + ' – ' + fmtTime(stop.windowEnd) + '</div>';
+    }
+    html += '<div class="wo-modal-section"><div class="k">Description</div><div class="v">' + escapeHtml(wo.jobDesc || '—') + '</div></div>';
+    if (hasLimit) html += '<div class="wo-modal-section"><div class="k">Maintenance Limit</div><div class="v">$' + limitVal.toFixed(2) + '</div></div>';
+    if (wo.statusNotes) html += '<div class="wo-modal-section"><div class="k">Status Notes</div><div class="v">' + escapeHtml(wo.statusNotes) + '</div></div>';
+    if (wo.assignedUser) html += '<div class="wo-modal-section"><div class="k">Assigned To</div><div class="v">' + escapeHtml(wo.assignedUser) + '</div></div>';
+    if (wo.status) html += '<div class="wo-modal-section"><div class="k">Status</div><div class="v">' + escapeHtml(wo.status) + '</div></div>';
 
-    const toggle = document.createElement('div');
-    toggle.className = 'stop-detail-toggle';
-    toggle.innerHTML = '<svg class="chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg> Details';
-
-    const details = document.createElement('div');
-    details.className = 'stop-details';
-    details.hidden = true;
-    let detailsHtml = '';
-    if (hasLimit) detailsHtml += '<div class="stop-detail-row"><span class="k">Maintenance Limit</span><span class="v">$' + limitVal.toFixed(2) + '</span></div>';
-    if (hasNotes) detailsHtml += '<div class="stop-detail-row"><span class="k">Status Notes</span><span class="v">' + escapeHtml(wo.statusNotes) + '</span></div>';
-    details.innerHTML = detailsHtml;
-
-    toggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      details.hidden = !details.hidden;
-      toggle.classList.toggle('open', !details.hidden);
-    });
-
-    body.appendChild(toggle);
-    body.appendChild(details);
+    document.getElementById('wo-modal-body').innerHTML = html;
+    document.getElementById('wo-modal-overlay').hidden = false;
+  }
+  function closeWoModal() {
+    document.getElementById('wo-modal-overlay').hidden = true;
   }
 
   // Swipe left-to-right reveals the red trash icon on the left edge —
