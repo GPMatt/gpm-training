@@ -139,6 +139,9 @@ function seedSampleData() {
   const fmt = (d) => Utilities.formatDate(d, Session.getScriptTimeZone(), 'MM/dd/yyyy');
   const plus = (days) => { const d = new Date(today); d.setDate(d.getDate() + days); return d; };
 
+  // Rows below are written in raw-CSV column order (matches the CSV map above,
+  // same as a real AppFolio export) — reordered into WorkOrders sheet order
+  // (WO_COL) before writing, same as importWOsFromEmail() does.
   const sample = [
     ['418 Cedar Ridge Dr, Wyoming, MI 49509', 'Unit 3B', fmt(plus(-2)), 'S1001', 'Garbage disposal not working', '', '0.00', 'Miguel R.', 'Assigned', ''],
     ['92 Willow Park Ln, Wyoming, MI 49509', 'Unit 7', fmt(plus(-5)), 'S1002', 'Replace HVAC filter, unit blowing warm', '', '0.00', 'Miguel R.', 'Assigned', ''],
@@ -159,10 +162,15 @@ function seedSampleData() {
   const newRows = [];
   for (const row of sample) {
     const woNum = row[CSV.WO_NUMBER];
+    const sheetRow = [
+      row[CSV.WO_NUMBER], row[CSV.ADDRESS], row[CSV.UNIT], row[CSV.JOB_DESC],
+      row[CSV.STATUS_NOTES], row[CSV.MAINT_LIMIT], row[CSV.ASSIGNED_USER],
+      row[CSV.STATUS], row[CSV.SCHED_TEXT], row[CSV.CREATED_AT],
+    ];
     if (woRowMap[woNum]) {
-      sheet.getRange(woRowMap[woNum], 1, 1, row.length).setValues([row]);
+      sheet.getRange(woRowMap[woNum], 1, 1, sheetRow.length).setValues([sheetRow]);
     } else {
-      const padded = row.slice();
+      const padded = sheetRow.slice();
       while (padded.length < 13) padded.push('');
       newRows.push(padded);
     }
