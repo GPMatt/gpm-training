@@ -635,21 +635,34 @@
     refreshDayStats();
   }
 
-  // Static Maps API image — pins for every stop, address-geocoded by Google
-  // rather than us, so it needs no coordinates from the server. Red = not
-  // done yet, green = complete.
+  // Static Maps API image — pins + a connecting line for every stop,
+  // address-geocoded by Google rather than us, so it needs no coordinates
+  // from the server. Pins are numbered in visiting order (single-char labels
+  // only past Z it just stops labeling); red = not done yet, green = complete.
   function renderRouteMap(plan) {
     const img = document.getElementById('route-map');
     if (!MAPS_API_KEY || !plan.route || !plan.route.length) { img.hidden = true; return; }
-    const markers = plan.route.map(stop => {
+
+    const addrs = [];
+    const markers = [];
+    plan.route.forEach((stop, i) => {
       const wo = poolCache[stop.woNumber];
-      if (!wo || !wo.address) return null;
+      if (!wo || !wo.address) return;
       const addr = wo.address + (wo.unit ? ' ' + wo.unit : '');
-      return 'markers=' + encodeURIComponent('color:' + (stop.complete ? 'green' : 'red') + '|' + addr);
-    }).filter(Boolean);
+      addrs.push(addr);
+      const label = i < 9 ? String(i + 1) : (i - 9 < 26 ? String.fromCharCode(65 + i - 9) : '');
+      markers.push('markers=' + encodeURIComponent(
+        'color:' + (stop.complete ? 'green' : 'red') + (label ? '|label:' + label : '') + '|' + addr
+      ));
+    });
     if (!markers.length) { img.hidden = true; return; }
-    img.src = 'https://maps.googleapis.com/maps/api/staticmap?size=340x360&scale=2&maptype=roadmap&' +
-      markers.join('&') + '&key=' + encodeURIComponent(MAPS_API_KEY);
+
+    const params = ['size=420x320', 'scale=2', 'maptype=roadmap'];
+    if (addrs.length > 1) {
+      params.push('path=' + encodeURIComponent('color:0x4a7fd6c0|weight:3|' + addrs.join('|')));
+    }
+    params.push(...markers);
+    img.src = 'https://maps.googleapis.com/maps/api/staticmap?' + params.join('&') + '&key=' + encodeURIComponent(MAPS_API_KEY);
     img.hidden = false;
   }
 
