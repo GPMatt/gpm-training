@@ -695,7 +695,7 @@
       return { center, zoom: 15 }; // one stop, or a tight cluster: neighborhood-level default
     }
 
-    const MARGIN = 0.82; // ~18% padding around the bounding box
+    const MARGIN = 0.98; // just enough padding that pins aren't clipped
     const latRad = lat => {
       const sin = Math.sin(lat * Math.PI / 180);
       return Math.log((1 + sin) / (1 - sin)) / 2;
@@ -704,8 +704,11 @@
     const lngDiff = maxLng - minLng;
     const lngFraction = (lngDiff < 0 ? lngDiff + 360 : lngDiff) / 360 || 1e-9;
 
-    const zoomFor = (px, fraction) => Math.floor(Math.log((px * MARGIN) / 256 / fraction) / Math.LN2);
-    const zoom = Math.max(2, Math.min(zoomFor(mapHeight, latFraction), zoomFor(mapWidth, lngFraction), 18));
+    // +1: the floored value is the last zoom guaranteed to fit with zero
+    // padding, so it under-zooms by a full level versus the ~5% margin
+    // above — bump it back up one to actually use that margin.
+    const zoomFor = (px, fraction) => Math.floor(Math.log((px * MARGIN) / 256 / fraction) / Math.LN2) + 1;
+    const zoom = Math.max(2, Math.min(zoomFor(mapHeight, latFraction), zoomFor(mapWidth, lngFraction), 19));
     return { center, zoom };
   }
 
