@@ -215,6 +215,26 @@ function removeStopFromRoute(techName, dateStr, woNumber) {
   return saveDayPlan(techName, dateStr, plan);
 }
 
+// Geocoded lat/lng for every stop in today's route, in route order — lets
+// the client fit the map to this specific route's spread instead of a
+// one-size-fits-all zoom. Reuses the same cached geocoder as route
+// optimization, so this costs nothing extra once a route's been built.
+function getRouteStopCoords(techName, dateStr) {
+  const plan = loadDayPlan(techName, dateStr);
+  if (!plan || !plan.route) return [];
+  const lookup = woLookup_();
+  return plan.route.map(stop => {
+    const wo = lookup[stop.woNumber];
+    if (!wo || !wo.address) return null;
+    try {
+      const loc = geocodeAddress_(fullAddress_(wo));
+      return { woNumber: stop.woNumber, lat: loc.latitude, lng: loc.longitude };
+    } catch (e) {
+      return null;
+    }
+  }).filter(Boolean);
+}
+
 function getDayStats(techName, dateStr) {
   const plan = loadDayPlan(techName, dateStr);
   if (!plan || !plan.route) return null;

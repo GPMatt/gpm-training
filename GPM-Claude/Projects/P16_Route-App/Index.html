@@ -635,35 +635,78 @@
     refreshDayStats();
   }
 
-  // Static Maps API image — pins + a connecting line for every stop,
-  // address-geocoded by Google rather than us, so it needs no coordinates
-  // from the server. Pins are numbered in visiting order (single-char labels
-  // only past Z it just stops labeling); red = not done yet, green = complete.
+  const MAP_W = 420, MAP_H = 320;
+
+  // Static Maps API image — pins + a connecting line for every stop. Zoom
+  // and center are computed per-route from real coordinates (see
+  // fitBoundsZoom below) rather than left to Static Maps' own auto-fit,
+  // which pads generously and can't be tightened via any parameter — so a
+  // tightly clustered route gets a close, custom frame while a spread-out
+  // one still gets zoomed out enough to show everything.
   function renderRouteMap(plan) {
     const img = document.getElementById('route-map');
     if (!MAPS_API_KEY || !plan.route || !plan.route.length) { img.hidden = true; return; }
+    google.script.run.withSuccessHandler(coords => {
+      drawRouteMap(plan, coords || []);
+    }).withFailureHandler(() => { img.hidden = true; }).getRouteStopCoords(TECH, TODAY);
+  }
 
-    const addrs = [];
+  function drawRouteMap(plan, coordList) {
+    const img = document.getElementById('route-map');
+    const coordsByWo = {};
+    coordList.forEach(c => { coordsByWo[c.woNumber] = c; });
+
+    const points = [];
     const markers = [];
     plan.route.forEach((stop, i) => {
-      const wo = poolCache[stop.woNumber];
-      if (!wo || !wo.address) return;
-      const addr = wo.address + (wo.unit ? ' ' + wo.unit : '');
-      addrs.push(addr);
+      const c = coordsByWo[stop.woNumber];
+      if (!c) return;
+      points.push(c);
       const label = i < 9 ? String(i + 1) : (i - 9 < 26 ? String.fromCharCode(65 + i - 9) : '');
       markers.push('markers=' + encodeURIComponent(
-        'color:' + (stop.complete ? 'green' : 'red') + (label ? '|label:' + label : '') + '|' + addr
+        'color:' + (stop.complete ? 'green' : 'red') + (label ? '|label:' + label : '') + '|' + c.lat + ',' + c.lng
       ));
     });
-    if (!markers.length) { img.hidden = true; return; }
+    if (!points.length) { img.hidden = true; return; }
 
-    const params = ['size=420x320', 'scale=2', 'maptype=roadmap'];
-    if (addrs.length > 1) {
-      params.push('path=' + encodeURIComponent('color:0x4a7fd6c0|weight:3|' + addrs.join('|')));
+    const fit = fitBoundsZoom(points, MAP_W, MAP_H);
+    const params = [
+      'size=' + MAP_W + 'x' + MAP_H, 'scale=2', 'maptype=roadmap',
+      'center=' + fit.center.lat + ',' + fit.center.lng, 'zoom=' + fit.zoom,
+    ];
+    if (points.length > 1) {
+      params.push('path=' + encodeURIComponent('color:0x4a7fd6c0|weight:3|' + points.map(p => p.lat + ',' + p.lng).join('|')));
     }
     params.push(...markers);
     img.src = 'https://maps.googleapis.com/maps/api/staticmap?' + params.join('&') + '&key=' + encodeURIComponent(MAPS_API_KEY);
     img.hidden = false;
+  }
+
+  // Static Maps has no fitBounds — this is the standard bounds->zoom
+  // formula (Mercator-projected lat span + raw lng span), reduced by a
+  // margin so pins/path don't sit flush against the frame edge.
+  function fitBoundsZoom(points, mapWidth, mapHeight) {
+    const lats = points.map(p => p.lat), lngs = points.map(p => p.lng);
+    const minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    const minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+    const center = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 };
+
+    if (points.length === 1 || (maxLat - minLat < 0.0005 && maxLng - minLng < 0.0005)) {
+      return { center, zoom: 15 }; // one stop, or a tight cluster: neighborhood-level default
+    }
+
+    const MARGIN = 0.82; // ~18% padding around the bounding box
+    const latRad = lat => {
+      const sin = Math.sin(lat * Math.PI / 180);
+      return Math.log((1 + sin) / (1 - sin)) / 2;
+    };
+    const latFraction = (latRad(maxLat) - latRad(minLat)) / Math.PI || 1e-9;
+    const lngDiff = maxLng - minLng;
+    const lngFraction = (lngDiff < 0 ? lngDiff + 360 : lngDiff) / 360 || 1e-9;
+
+    const zoomFor = (px, fraction) => Math.floor(Math.log((px * MARGIN) / 256 / fraction) / Math.LN2);
+    const zoom = Math.max(2, Math.min(zoomFor(mapHeight, latFraction), zoomFor(mapWidth, lngFraction), 18));
+    return { center, zoom };
   }
 
   function buildStopEl(stop) {
