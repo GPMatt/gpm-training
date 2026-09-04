@@ -89,6 +89,20 @@ function importWOsFromEmail() {
     if (n) woRowMap[n] = i + 1;
   }
 
+  // Wipe stale rows: anything left over from a prior day's batch that today's
+  // fresh report no longer includes (closed/cancelled/dropped by AppFolio).
+  // Delete bottom-up so earlier row indices stay valid. Rows still present in
+  // parsedWOs are upserted in place below, so GPM_SCHED_* (cols 11-13) is only
+  // ever lost when the WO itself is gone from today's report.
+  const staleEntries = Object.entries(woRowMap)
+    .filter(([woNum]) => !parsedWOs[woNum])
+    .sort((a, b) => b[1] - a[1]); // bottom-up so earlier row indices stay valid
+  for (const [woNum, row] of staleEntries) {
+    sheet.deleteRow(row);
+    delete woRowMap[woNum];
+  }
+  if (staleEntries.length) Logger.log('Wiped ' + staleEntries.length + ' stale WO row(s) not in today\'s report.');
+
   const newRows = [];
   let updatedCount = 0;
 
