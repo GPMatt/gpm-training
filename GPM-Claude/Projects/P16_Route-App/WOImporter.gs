@@ -13,9 +13,8 @@ const ROUTING_SUBJECTS = [
 ];
 const APPFOLIO_SENDER = 'donotreply@appfolio.com'; // TODO: confirm exact sender address
 
-// CSV column indices (0-based) — matches the real AppFolio export header:
-// Property Address, Unit, Created At, Work Order Number, Job Description,
-// Status Notes, Maintenance Limit, Assigned User, Status, Scheduled Start
+// CSV column indices (0-based), canonical order — used only by seedSampleData()
+// for synthetic test rows that have no real header row to read.
 const CSV = {
   ADDRESS:       0,
   UNIT:          1,
@@ -28,6 +27,41 @@ const CSV = {
   STATUS:        8,
   SCHED_TEXT:    9,
 };
+
+// Expected header text per column, keyed the same as CSV above. Real imports
+// match columns by this header text rather than trusting a fixed position —
+// the 5 realms are separately-saved AppFolio reports, so a column reordered
+// or renamed on just one of them would otherwise silently corrupt data
+// instead of failing loudly.
+const CSV_HEADERS = {
+  ADDRESS:       'Property Address',
+  UNIT:          'Unit',
+  CREATED_AT:    'Created At',
+  WO_NUMBER:     'Work Order Number',
+  JOB_DESC:      'Job Description',
+  STATUS_NOTES:  'Status Notes',
+  MAINT_LIMIT:   'Maintenance Limit',
+  ASSIGNED_USER: 'Assigned User',
+  STATUS:        'Status',
+  SCHED_TEXT:    'Scheduled Start',
+};
+
+// Maps a CSV header row to column indices by name (case/whitespace-insensitive).
+// Throws if any expected header is missing, so a mismatched export is skipped
+// with a clear log line instead of silently misaligning columns.
+function mapCsvHeaders_(headerRow) {
+  const norm = (s) => String(s || '').trim().toLowerCase();
+  const normalized = headerRow.map(norm);
+  const idx = {};
+  for (const key of Object.keys(CSV_HEADERS)) {
+    const i = normalized.indexOf(norm(CSV_HEADERS[key]));
+    if (i === -1) {
+      throw new Error('Missing expected column "' + CSV_HEADERS[key] + '" — header row was: ' + headerRow.join(' | '));
+    }
+    idx[key] = i;
+  }
+  return idx;
+}
 
 function importWOsFromEmail() {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -50,27 +84,37 @@ function importWOsFromEmail() {
 
     for (const att of latest.getAttachments()) {
       if (!att.getName().match(/^work_order.*\.csv$/i)) continue;
-      attachmentsSeen++;
 
       const rows = Utilities.parseCsv(att.getDataAsString());
+      if (!rows.length) continue;
+
+      let idx;
+      try {
+        idx = mapCsvHeaders_(rows[0]);
+      } catch (e) {
+        Logger.log('Skipping attachment "' + att.getName() + '" (subject "' + subject + '"): ' + e.message);
+        continue;
+      }
+      attachmentsSeen++;
+
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
-        const woNum = (r[CSV.WO_NUMBER] || '').trim();
-        const status = (r[CSV.STATUS] || '').trim();
+        const woNum = (r[idx.WO_NUMBER] || '').trim();
+        const status = (r[idx.STATUS] || '').trim();
         if (!woNum) continue;
         if (TERMINAL_STATUSES.includes(status)) continue;
 
         parsedWOs[woNum] = [
           woNum,
-          (r[CSV.ADDRESS] || '').trim(),
-          (r[CSV.UNIT] || '').trim(),
-          (r[CSV.JOB_DESC] || '').trim(),
-          (r[CSV.STATUS_NOTES] || '').trim(),
-          (r[CSV.MAINT_LIMIT] || '').trim(),
-          (r[CSV.ASSIGNED_USER] || '').trim().replace(/\s+/g, ' '),
+          (r[idx.ADDRESS] || '').trim(),
+          (r[idx.UNIT] || '').trim(),
+          (r[idx.JOB_DESC] || '').trim(),
+          (r[idx.STATUS_NOTES] || '').trim(),
+          (r[idx.MAINT_LIMIT] || '').trim(),
+          (r[idx.ASSIGNED_USER] || '').trim().replace(/\s+/g, ' '),
           status,
-          (r[CSV.SCHED_TEXT] || '').trim(),
-          (r[CSV.CREATED_AT] || '').trim(),
+          (r[idx.SCHED_TEXT] || '').trim(),
+          (r[idx.CREATED_AT] || '').trim(),
         ];
       }
     }
