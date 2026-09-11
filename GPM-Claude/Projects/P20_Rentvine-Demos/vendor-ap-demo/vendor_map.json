@@ -1,0 +1,12 @@
+{
+  "Royal Pest Control": {
+    "property": "Hello6",
+    "chargeAccountID": "31",
+    "chargeAccountName": "Landscaping (pest control stand-in — sandbox chart of accounts has no dedicated Pest Control expense line)"
+  },
+  "Coastal Air Mechanical": {
+    "property": "Hello3",
+    "chargeAccountID": "29",
+    "chargeAccountName": "HVAC"
+  }
+}

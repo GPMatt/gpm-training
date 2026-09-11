@@ -1,0 +1,38 @@
+[
+  {
+    "invoiceRef": "INV-RPC-24418",
+    "vendorName": "Royal Pest Control",
+    "vendorShape": "recurring",
+    "invoiceDate": "2026-09-11",
+    "dueDate": "2026-09-25",
+    "amount": 145.00,
+    "description": "Monthly pest control service",
+    "propertyName": "Hello6",
+    "displayInvoiceLabel": "Recurring vendor — same property every cycle. Property/account come from the static vendor map, not this invoice."
+  },
+  {
+    "invoiceRef": "INV-SW-88231",
+    "vendorName": "Sherwin Williams",
+    "vendorShape": "job-driven",
+    "invoiceDate": "2026-09-11",
+    "dueDate": "2026-09-25",
+    "amount": 312.47,
+    "description": "Paint & sundries - unit turn, WO-5190",
+    "workOrderRef": "WO-5190",
+    "propertyName": "Hello1",
+    "chargeAccountID": "33",
+    "chargeAccountName": "Painting",
+    "displayInvoiceLabel": "Job-driven vendor — property comes from the job site address printed on THIS invoice (via its WO#), not a static mapping."
+  },
+  {
+    "invoiceRef": "INV-CAM-30071",
+    "vendorName": "Coastal Air Mechanical",
+    "vendorShape": "recurring",
+    "invoiceDate": "2026-09-11",
+    "dueDate": "2026-09-25",
+    "amount": 210.00,
+    "description": "Quarterly HVAC service contract",
+    "propertyName": "Hello3",
+    "displayInvoiceLabel": "Recurring vendor — same property every cycle. Property/account come from the static vendor map, not this invoice."
+  }
+]

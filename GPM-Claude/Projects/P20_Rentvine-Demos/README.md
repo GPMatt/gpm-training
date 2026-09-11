@@ -41,6 +41,15 @@ content only, not developer docs — not useful here.
 If this sandbox has expired by the time you read this, ask the user for a
 fresh demo account before continuing.
 
+**Before investigating whether Rentvine supports some new capability**, check
+both doc sites first — don't jump straight to guessing endpoint paths against
+the sandbox:
+- https://help.rentvine.com/en/ — end-user product docs, tells you whether a
+  *feature* exists at all (e.g. is there a leasing CRM, guest cards, showing
+  scheduling) even though it's not developer API docs.
+- https://docs.rentvine.com/ — API reference, tells you what's *exposed*.
+  Known to get some paths wrong (see below) — verify empirically after.
+
 ## Confirmed-working endpoints (verified live, 2026-09-11)
 
 | Endpoint | Method | Notes |
@@ -64,6 +73,56 @@ fresh demo account before continuing.
 | `/maintenance/work-orders` | GET | scheduling + priority fields — see Routing demo below |
 | `/maintenance-technicians` | GET | NOT `/maintenance/technicians` |
 | `/reports?reportTypeID={N}` | GET | returns a named report's column/filter **schema only**, not data rows (60+ report types enumerated; no working "execute" endpoint found — don't burn time re-guessing this, use `/export` and `/search` instead) |
+| `/screening/applications` | GET | confirmed 200, empty array in this sandbox (no test data) — the closest thing to a "new prospect" hook Rentvine's API exposes |
+| `/screening/applications/export` | GET | confirmed 200 (empty in sandbox). Per docs.rentvine.com: filterable by `dateTimeModifiedMin/Max`, `primaryApplicationStatusIDs[]`/`applicationStatusIDs[]` (enum 1-8), `hasLease`, paginated — **pollable the same way `/leases/export` is**. Each record: `applicationID`, `unitID`, address, status IDs, timestamps, `applicants[]` (`applicantID`, `name`, `email`, `phone`) |
+| `/screening/applicants` | GET | confirmed 200, empty in sandbox |
+| `POST /screening/applications/{id}/status` | POST | per docs.rentvine.com — writes an application's status. **Untested empirically** (no application record exists in sandbox to test against) — verify before relying on it, per the docs-can-be-wrong quirk |
+
+## Confirmed NOT available — leasing/prospect funnel (checked 2026-09-11)
+
+Checked both doc sites (help.rentvine.com + docs.rentvine.com) and probed ~20
+plausible paths against the sandbox: **Rentvine has no API for the top-of-
+funnel leasing/prospect side** — no leads, guest cards, showing/tour
+scheduling, or appointment endpoints exist anywhere, confirmed or documented.
+- help.rentvine.com has no leasing-CRM/guest-card/showing/tour help category
+  at all — the product itself doesn't appear to have this as a Rentvine-native
+  feature ("Screening" and "Residents" categories exist but cover tenant
+  screening and post-lease resident portal, not pre-lease prospects).
+- docs.rentvine.com's "Marketing" section only lists "Search Listings" and
+  "Get Property Image" — the search-listings path itself 404'd on every guess
+  tried (`/marketing/listings/search`, `/listings/search`, etc.), consistent
+  with docs.rentvine.com's known unreliable-paths quirk.
+- The only real, verified hook into the leasing funnel is `/screening/applications`
+  (see confirmed-working table above) — i.e. Rentvine only sees a prospect
+  once they've submitted a rental **application**, not at initial inquiry.
+
+**Refined finding (still 2026-09-11):** `/screening/applications/export` is
+genuinely pollable — it takes `dateTimeModifiedMin/Max` filters just like
+`/leases/export` does, so "check every 5 min for new/changed applications" is
+a real, buildable pattern, and `POST /screening/applications/{id}/status`
+(untested — verify first) means status changes could be automated too, not
+just read.
+
+**The catch that determines everything:** Rentvine only sees a prospect once
+they submit a full rental **application** — there is still no raw
+lead/inquiry/guest-card object anywhere (confirmed via help.rentvine.com, all
+80 `/reports` type names — the closest are "Listings" #19 and "Vacancy" #30,
+schema-only, no working data export — and ~25 endpoint-path probes). Whether
+`/screening/applications/export` can drive a "prescreen → book a showing
+within 48h" flow depends entirely on **GPM's actual funnel order**: if
+prospects apply *before* touring (some PM shops require this), this endpoint
+fires at exactly the right moment. If prospects tour *before* applying (more
+common), this fires too late — the showing already happened. **Ask the user
+which order GPM's process follows before designing further.**
+
+There's also a community MCP server (`Rentor-CA/Rentvine-MCP` on Glama) —
+Rentvine itself stopped maintaining it ~2026-04-25, so it's a third-party fork
+wrapping the same API, not a source of additional data. Not worth building on
+for a production workflow; mentioned here only because it exists.
+
+No showings/tours/appointment API exists at any level — that half of the
+workflow always needs an external tool (Calendly-style) or a human, no matter
+which funnel order GPM uses.
 
 ## Known quirks — read before building anything
 
@@ -86,6 +145,35 @@ fresh demo account before continuing.
    above means corrections need a human in the Rentvine UI.
 5. Error responses are clean, structured 400s keyed by field path (e.g.
    `{"charges[0].ledgerID":["Payer is Invalid"]}`) — safe to branch on.
+6. **A created Bill is auto-approved — there is no API-native "pending
+   approval" state at the Bill level.** `POST /accounting/bills` always
+   comes back `isApproved: 1`, `approvedByUserID` set to the API key's own
+   user, even when the payload explicitly sends `"isApproved": 0` (tested
+   2026-09-11 — the override is silently ignored, re-fetch confirms it
+   stays `1`). It lands in `/accounting/payables` immediately, one step
+   from being paid in the next disbursement run. This by itself is not the
+   whole story — see the maker-checker note below.
+7. **Real maker-checker control exists, but at the payment-batch step, not
+   Bill creation — and it's a Settings toggle, not an API-controllable
+   field.** Confirmed via help.rentvine.com (not the sandbox — this is
+   account configuration, not something we found an endpoint for): the
+   Accounting Setting **"Is Payout Approved By Default"** governs whether
+   submitting a payment batch (the "Approve on Submission" + MFA screen we
+   walked through manually) auto-releases the money or leaves the batch
+   **pending approval** for a second person holding the separate "Approve
+   Bill Pay Batch" permission. **Implication for automation design:** don't
+   try to gate a Rentvine-based vendor-AP pipeline by holding the Bill back
+   before POSTing it (quirk #6 already rules that out as unreliable/not
+   supported) — instead, let automation freely create correctly-coded Bills
+   all month (auto-approved into payables is harmless, nothing pays yet),
+   and get "Is Payout Approved By Default" turned OFF so whoever stages a
+   payment batch and whoever approves its release are two different
+   people. That's a real segregation-of-duties control on the step that
+   actually matters (money leaving), and it's the right place to put review
+   weight for the higher-risk job-driven vendor case (Sherwin Williams/ACE)
+   from demo idea #4 below. Not yet verified whether this setting is
+   toggleable via the API or only in the UI — check before assuming
+   either way.
 
 Full raw findings (extra detail, IDs used in testing) if needed: this
 evaluation was originally run and logged in Claude's memory as
@@ -141,6 +229,73 @@ the notice — closer to "fully automated" than the current AppFolio pipeline,
 which still needs a human to pull the report. Payout/write-back isn't a
 concern here since this workflow is read + document-generation, not a
 Rentvine write.
+
+### 4. Vendor AP automation — Sherwin Williams-style owner-direct bill pay
+**Status: prototype built 2026-09-11 — button-triggered demo at
+[`vendor-ap-demo/`](vendor-ap-demo/), verified live against the sandbox
+(3 bills created, correctly coded, idempotency guard confirmed against a
+double-click). Not yet run live in front of Laura/Alaina — move to
+"demo-ready" after that.**
+Distinct from BillBack 2.0 above: BillBack recoups a *GPM credit-card* receipt.
+This is for vendors that invoice GPM with terms and get paid **directly out
+of an owner's funds** — Alaina currently keys these into AppFolio by hand,
+20+ hrs/week, with real wrong-owner coding mistakes happening. Matt confirmed
+most GPM vendors already work this way (Sherwin Williams, Royal Pest Control,
+HVAC contractors, occasionally ACE), each invoice already carries a job/WO
+reference, and the actual payment mechanic is: a Bill gets keyed into
+AppFolio coded to the right owner/property, and AppFolio's normal
+disbursement run pays it via ACH from the owner's trust funds — the same
+Bill → payables-queue → human-run-disbursement shape Rentvine already
+supports.
+
+**Two vendor shapes, two different risk profiles — don't build them as one
+automation:**
+- **Recurring/contracted vendors** (pest control, HVAC service contracts,
+  lawn) — same vendor bills the same property every cycle. The
+  vendor→property/owner mapping is static, so this is low-risk: no
+  per-invoice judgment call, nothing to get wrong once the mapping is set up
+  once. This also overlaps with [[project_p15_client_onboarding]]'s
+  `recurring_bills` checklist item — one mapping table could serve both.
+- **Job-driven vendors** (Sherwin Williams for a specific paint job, ACE
+  parts) — owner/property depends on which WO the invoice references, which
+  changes every time. This is where the current "wrong owner billed"
+  mistakes come from, and it's the harder case to automate safely.
+
+**Validated live in the sandbox (2026-09-11):** created two test vendors
+(`Royal Pest Control (TEST)` contactID 176, `Sherwin Williams (TEST)`
+contactID 177) and two mock Bills — one recurring-shape (property `Hello6`,
+ledgerID 11, portfolio 3, Landscaping account as a Pest Control stand-in —
+**note: sandbox chart of accounts has no dedicated Pest Control expense
+line**, one would need to be added) and one job-driven-shape (property
+`Hello1`, ledgerID 6, portfolio 1 — a *different* owner, Painting account,
+reference tagged with a mock WO#). Both landed correctly in
+`/accounting/payables` coded to their respective property/portfolio,
+unpaid, confirming the core mechanic: parse invoice → resolve vendor+WO to
+the right ledger → POST a correctly-coded Bill. Test bills: billID 16, 17
+(quirk #6 test: billID 18, explicit `isApproved:0` ignored).
+
+**Approval design (see quirks #6/#7 above):** a Bill is always auto-approved
+on write, so don't try to hold it back before POSTing — that's not a
+supported state. The real gate belongs on the *payment batch* step:
+turn off "Is Payout Approved By Default" in Accounting Settings so batch
+staging and batch approval are two different people. Recurring/contracted
+vendors (static mapping, low error surface) can probably ride through on a
+lighter review; job-driven vendors (Sherwin Williams/ACE, where owner
+depends on a per-invoice WO match) should get a real second-person look at
+the batch before it's approved, since that's the source of today's actual
+coding mistakes.
+
+**Manual disbursement is genuinely heavy today, confirmed by walking it
+live 2026-09-11:** paying a single already-approved Bill (Bill 17,
+Sherwin Williams, $340) took ~10 screens — Bills list → select → Actions →
+Pay Bills → re-search with bank account/date/payee → check payable → Post
+→ confirm dialog → toggle approve → MFA code → Submit Payments → batch
+page — and confirmed paid via `amountPaid` on re-fetch. This isn't
+shortcut-able by any automation (quirk #2, payout is UI-only everywhere,
+AppFolio included). The actual win isn't skipping this flow, it's
+batching: an automation that keeps bills correctly coded and queued all
+month turns N×(manual coding + this 10-screen walkthrough) into
+N×(auto-coding) + one batch run through this flow.
 
 ## Where things should live as they get built
 

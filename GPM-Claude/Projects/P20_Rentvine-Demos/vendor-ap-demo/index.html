@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>GPM Vendor AP — Rentvine Demo</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --card: #ffffff; --ink: #1f2420; --muted: #6b7268;
+    --brown: #6b4a2f; --tan: #c9a876; --green: #3f6b4a; --red: #b1473f;
+    --border: #e3ddd2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 20px 80px; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+  .invoices { display: grid; gap: 10px; margin-bottom: 28px; }
+  .invoice-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; font-size: 13px;
+  }
+  .invoice-card .top { display: flex; justify-content: space-between; align-items: baseline; }
+  .invoice-card .vendor { font-weight: 600; font-size: 15px; }
+  .invoice-card .amount { font-weight: 600; color: var(--brown); font-size: 15px; }
+  .invoice-card .meta { color: var(--muted); margin-top: 4px; }
+  .shape-tag {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    margin-left: 8px; font-weight: 600;
+  }
+  .shape-recurring { background: #e5efe8; color: var(--green); }
+  .shape-job-driven { background: #f6ece1; color: var(--brown); }
+
+  #run-btn {
+    display: block; width: 100%; padding: 20px; font-size: 18px; font-weight: 700;
+    background: var(--brown); color: #fff; border: none; border-radius: 12px; cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+  #run-btn:hover { background: #5a3d27; }
+  #run-btn:disabled { background: #a99; opacity: 0.6; cursor: default; }
+
+  #status { text-align: center; color: var(--muted); margin: 14px 0; font-size: 13px; min-height: 18px; }
+
+  .results { margin-top: 24px; display: none; }
+  .results.show { display: block; }
+  .result-row {
+    background: var(--card); border: 1px solid var(--border); border-left-width: 4px;
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; font-size: 13px;
+  }
+  .result-row.created { border-left-color: var(--green); }
+  .result-row.skipped-duplicate { border-left-color: var(--tan); }
+  .result-row.error { border-left-color: var(--red); }
+  .result-row .headline { font-weight: 600; display: flex; justify-content: space-between; }
+  .result-row .detail { color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .result-row .warn { color: var(--brown); margin-top: 6px; font-weight: 500; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .badge.ok { background: #e5efe8; color: var(--green); }
+  .badge.dup { background: #f6f0e2; color: #8a6a1f; }
+  .badge.err { background: #f6e5e2; color: var(--red); }
+
+  .batches { margin-top: 26px; }
+  .batches h2 { font-size: 16px; margin: 0 0 10px; }
+  .batch-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 10px;
+  }
+  .batch-card .head { display: flex; justify-content: space-between; font-weight: 600; }
+  .batch-card ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .footnote {
+    margin-top: 22px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border);
+    padding-top: 14px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vendor AP — Invoice Batch</h1>
+  <p class="sub">Live against the Rentvine sandbox. One click processes every invoice below.</p>
+
+  <div id="invoices" class="invoices"></div>
+
+  <button id="run-btn">Run this batch</button>
+  <div id="status"></div>
+
+  <div id="results" class="results">
+    <div id="result-rows"></div>
+    <div id="batch-section" class="batches" style="display:none">
+      <h2>How this batches by owner</h2>
+      <div id="batch-rows"></div>
+    </div>
+    <div class="footnote">
+      Bills land auto-approved in Rentvine's payables queue — that's how Rentvine's API works,
+      not a shortcut taken here. Running the actual payment batch (Money Out → Bills) is still
+      a manual step, by Rentvine's own design — that's where a second person can review before
+      money moves.
+    </div>
+  </div>
+</div>
+
+<script>
+async function loadInvoices() {
+  const res = await fetch('/api/invoices');
+  const invoices = await res.json();
+  const el = document.getElementById('invoices');
+  el.innerHTML = invoices.map(inv => `
+    <div class="invoice-card">
+      <div class="top">
+        <span class="vendor">${inv.vendorName}
+          <span class="shape-tag shape-${inv.vendorShape}">${inv.vendorShape}</span>
+        </span>
+        <span class="amount">$${Number(inv.amount).toFixed(2)}</span>
+      </div>
+      <div class="meta">${inv.invoiceRef} · ${inv.description}</div>
+      <div class="meta">${inv.displayInvoiceLabel || ''}</div>
+    </div>
+  `).join('');
+}
+
+function statusLabel(status) {
+  if (status === 'created') return { text: 'BILL CREATED', cls: 'ok' };
+  if (status === 'skipped-duplicate') return { text: 'ALREADY PROCESSED', cls: 'dup' };
+  return { text: 'ERROR', cls: 'err' };
+}
+
+function renderResults(data) {
+  const rowsEl = document.getElementById('result-rows');
+  rowsEl.innerHTML = data.results.map(r => {
+    const label = statusLabel(r.status);
+    if (r.status === 'error') {
+      return `
+        <div class="result-row error">
+          <div class="headline"><span>${r.vendorName} — ${r.invoiceRef}</span>
+            <span class="badge ${label.cls}">${label.text}</span></div>
+          <div class="detail">${r.error}</div>
+        </div>`;
+    }
+    const warnings = (r.warnings || []).map(w => `<div class="warn">⚠ ${w}</div>`).join('');
+    return `
+      <div class="result-row ${r.status}">
+        <div class="headline"><span>${r.vendorName} — $${Number(r.amount).toFixed(2)}</span>
+          <span class="badge ${label.cls}">${label.text}</span></div>
+        <div class="detail">
+          Bill #${r.billID} · ${r.resolvedPropertyName || ''} · ${r.chargeAccountName || ''}
+          ${r.confirmed ? ' · confirmed landed in payables' : r.status === 'created' ? ' · <b>not confirmed — check manually</b>' : ''}
+        </div>
+        ${r.note ? `<div class="detail">${r.note}</div>` : ''}
+        ${warnings}
+      </div>`;
+  }).join('');
+
+  const batchSection = document.getElementById('batch-section');
+  const batchRows = document.getElementById('batch-rows');
+  if (data.batches && data.batches.length) {
+    batchSection.style.display = 'block';
+    batchRows.innerHTML = data.batches.map(b => `
+      <div class="batch-card">
+        <div class="head"><span>${b.portfolioName}</span><span>$${b.total.toFixed(2)}</span></div>
+        <ul>${b.bills.map(bill => `<li>${bill.vendorName} — ${bill.invoiceRef} — $${Number(bill.amount).toFixed(2)}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  } else {
+    batchSection.style.display = 'none';
+  }
+
+  document.getElementById('results').classList.add('show');
+}
+
+document.getElementById('run-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('run-btn');
+  const statusEl = document.getElementById('status');
+  btn.disabled = true;
+  statusEl.textContent = 'Talking to Rentvine…';
+  try {
+    const res = await fetch('/api/run', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'request failed');
+    statusEl.textContent = '';
+    renderResults(data);
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+loadInvoices();
+</script>
+</body>
+</html>
