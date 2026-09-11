@@ -29,7 +29,8 @@ python3 server.py
 
 Open `http://localhost:8420`, click **Run this batch**. Requires `requests`
 (`pip install requests` if not already present — it was already on this
-machine).
+machine). Matt is fine running this from a visible terminal in front of
+Laura/Alaina — no packaged launcher was requested or built.
 
 The Rentvine sandbox credentials live server-side in `pipeline.py` only —
 `index.html`/the browser never sees them.
@@ -38,6 +39,11 @@ The Rentvine sandbox credentials live server-side in `pipeline.py` only —
 Bills / Payables) and show the same bills sitting there, correctly coded.
 That's the part that will actually land for Laura and Alaina — the
 button/terminal output means nothing to them on its own.
+
+**Before the real live run:** rehearse once, then click **Reset** (top of
+the page) to clear this tool's own dedup memory so the live click in front
+of them shows a fresh "BILL CREATED" instead of "already processed." Reset
+never touches Rentvine — see Idempotency section below.
 
 ## What it does NOT do (say this out loud in the demo)
 
@@ -62,13 +68,20 @@ re-posting them. Verified live 2026-09-11: first run created bills 19/20/21;
 second run returned `skipped-duplicate` for all three with no new bill
 created (confirmed no bill 22 exists).
 
-To reset for a clean re-run (new bills instead of reusing the ones above),
-delete `ledger.json` — but note the mock vendors/bills from this and the
-original 2026-09-11 validation pass (Royal Pest Control TEST contactID 176,
-Sherwin Williams TEST contactID 177, bills 16/17/18, and this build's
-non-TEST vendors 178/179/180 + bills 19/20/21) will still exist in the
-sandbox. That's fine — they don't collide with a fresh run since dedup keys
-off `invoiceRef`/reference, not vendor name reuse.
+**Reset button** (top of the page, next to Run) clears `ledger.json` via
+`POST /api/reset` — same effect as deleting the file by hand. It only
+resets this tool's own memory; it does **not** touch Rentvine. The next
+run after a reset creates brand-new bills reusing the same `invoiceRef`
+values. Verified live 2026-09-11: reset, then re-ran, got fresh bills
+22/23/24 (all confirmed), then ran a third time and correctly got
+`skipped-duplicate` for all three again.
+
+The mock vendors/bills from every validation pass so far (Royal Pest
+Control TEST contactID 176, Sherwin Williams TEST contactID 177, bills
+16/17/18; this build's non-TEST vendors 178/179/180 + bills 19/20/21, then
+22/23/24 after a reset) all still exist in the sandbox as harmless
+leftovers — they never collide with a fresh run since dedup keys off
+`invoiceRef`/reference, not vendor name reuse.
 
 ## Files
 
@@ -80,9 +93,14 @@ off `invoiceRef`/reference, not vendor name reuse.
   `ledgers/search` is substring, not exact: `search=Hello1` also returns
   Hello10/11/12), POST the Bill, re-fetch to confirm it landed (never trust
   a 200 alone), maintain `ledger.json`.
-- `server.py` — stdlib `http.server`, no framework. Serves `index.html` and
-  two endpoints: `GET /api/invoices` (preview), `POST /api/run` (the button).
-- `index.html` — the button page. Plain HTML/CSS/JS, no build step.
+- `server.py` — stdlib `http.server`, no framework. Serves `index.html`,
+  `assets/*` (logo/icon), and three endpoints: `GET /api/invoices`
+  (preview), `POST /api/run` (the button), `POST /api/reset` (clears the
+  dedup ledger only, never touches Rentvine).
+- `index.html` — the button page, plus a Reset control. Plain HTML/CSS/JS,
+  no build step.
+- `assets/gpm-logo.png`, `assets/gpm-icon.png` — GPM brand assets (sourced
+  from `~/GPM/GPM Brand/`), used in the header bar and browser tab icon.
 
 ## Verified live 2026-09-11
 

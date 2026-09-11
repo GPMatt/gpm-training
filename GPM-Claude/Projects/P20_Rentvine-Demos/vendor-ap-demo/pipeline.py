@@ -232,3 +232,13 @@ def preview_invoices():
 
 def current_ledger():
     return _load_json(LEDGER_PATH, {})
+
+
+def reset_ledger():
+    """Clears our local dedup ledger only — for rehearsal, before the real live
+    run. This does NOT touch Rentvine: the bills already created during a
+    rehearsal stay in the sandbox (harmless leftovers, quirk #4 means they
+    can't be voided/deleted via API anyway). The next click after a reset will
+    create brand-new bills reusing the same invoiceRef/reference values."""
+    _save_ledger({})
+    return {"status": "reset"}

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <title>GPM Vendor AP — Rentvine Demo</title>
+<link rel="icon" href="/assets/gpm-icon.png" />
 <style>
   :root {
     --bg: #f6f5f2; --card: #ffffff; --ink: #1f2420; --muted: #6b7268;
@@ -11,35 +12,59 @@
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 32px 20px 80px; background: var(--bg); color: var(--ink);
+    margin: 0; padding: 28px 20px 80px; background: var(--bg); color: var(--ink);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
-  .wrap { max-width: 860px; margin: 0 auto; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
-  .invoices { display: grid; gap: 10px; margin-bottom: 28px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  .brand-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .brand-bar img { height: 34px; display: block; }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+    color: var(--green); background: #e5efe8; padding: 5px 12px; border-radius: 999px;
+    letter-spacing: 0.4px;
+  }
+  .live-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  }
+
+  h1 { font-size: 25px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 26px; font-size: 15px; }
+  .invoices { display: grid; gap: 12px; margin-bottom: 26px; }
   .invoice-card {
-    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 16px; font-size: 13px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; font-size: 14px; box-shadow: 0 1px 2px rgba(31,36,32,0.04);
   }
   .invoice-card .top { display: flex; justify-content: space-between; align-items: baseline; }
-  .invoice-card .vendor { font-weight: 600; font-size: 15px; }
-  .invoice-card .amount { font-weight: 600; color: var(--brown); font-size: 15px; }
-  .invoice-card .meta { color: var(--muted); margin-top: 4px; }
+  .invoice-card .vendor { font-weight: 700; font-size: 16px; }
+  .invoice-card .amount { font-weight: 700; color: var(--brown); font-size: 16px; }
+  .invoice-card .meta { color: var(--muted); margin-top: 5px; }
   .shape-tag {
-    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px;
-    margin-left: 8px; font-weight: 600;
+    display: inline-block; font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    margin-left: 8px; font-weight: 700;
   }
   .shape-recurring { background: #e5efe8; color: var(--green); }
   .shape-job-driven { background: #f6ece1; color: var(--brown); }
 
+  .actions { display: flex; gap: 10px; align-items: stretch; }
   #run-btn {
-    display: block; width: 100%; padding: 20px; font-size: 18px; font-weight: 700;
+    flex: 1; padding: 20px; font-size: 18px; font-weight: 700;
     background: var(--brown); color: #fff; border: none; border-radius: 12px; cursor: pointer;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.3px; box-shadow: 0 2px 6px rgba(107,74,47,0.25);
   }
   #run-btn:hover { background: #5a3d27; }
-  #run-btn:disabled { background: #a99; opacity: 0.6; cursor: default; }
+  #run-btn:disabled { background: #a99; opacity: 0.6; cursor: default; box-shadow: none; }
+
+  #reset-btn {
+    padding: 20px 18px; font-size: 13px; font-weight: 600;
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer;
+  }
+  #reset-btn:hover { border-color: var(--brown); color: var(--brown); }
+  .reset-hint { text-align: center; color: var(--muted); font-size: 11px; margin-top: 6px; }
 
   #status { text-align: center; color: var(--muted); margin: 14px 0; font-size: 13px; min-height: 18px; }
 
@@ -76,12 +101,21 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="brand-bar">
+    <img src="/assets/gpm-logo.png" alt="Green Property Management" />
+    <span class="live-badge"><span class="dot"></span>LIVE — Rentvine Sandbox</span>
+  </div>
+
   <h1>Vendor AP — Invoice Batch</h1>
-  <p class="sub">Live against the Rentvine sandbox. One click processes every invoice below.</p>
+  <p class="sub">One click processes every invoice below against the real Rentvine sandbox.</p>
 
   <div id="invoices" class="invoices"></div>
 
-  <button id="run-btn">Run this batch</button>
+  <div class="actions">
+    <button id="run-btn">Run this batch</button>
+    <button id="reset-btn" title="Clears rehearsal state only — does not touch Rentvine">Reset</button>
+  </div>
+  <div class="reset-hint">Reset only clears this tool's own memory of what it already billed — it never touches Rentvine.</div>
   <div id="status"></div>
 
   <div id="results" class="results">
@@ -182,6 +216,24 @@ document.getElementById('run-btn').addEventListener('click', async () => {
     statusEl.textContent = 'Error: ' + e.message;
   } finally {
     btn.disabled = false;
+  }
+});
+
+document.getElementById('reset-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('status');
+  const ok = confirm(
+    'Reset clears this tool\'s own memory of what it already billed (for rehearsal).\n\n' +
+    'It does NOT touch Rentvine — bills already created stay in the sandbox. ' +
+    'The next run will create fresh bills reusing the same invoice numbers.\n\n' +
+    'Continue?'
+  );
+  if (!ok) return;
+  try {
+    await fetch('/api/reset', { method: 'POST' });
+    document.getElementById('results').classList.remove('show');
+    statusEl.textContent = 'Rehearsal state cleared — ready for a fresh run.';
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
   }
 });
 
