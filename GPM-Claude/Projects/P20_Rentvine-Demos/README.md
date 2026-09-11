@@ -175,6 +175,13 @@ which funnel order GPM uses.
    toggleable via the API or only in the UI — check before assuming
    either way.
 
+8. **`/accounting/ledgers/search?search=X` is substring, not exact.**
+   `search=Hello1` also returns Hello10, Hello11, Hello12 (and any other
+   loose match) — it is not a "resolve this exact property" lookup.
+   Anything that resolves a property name to a `ledgerID` must filter the
+   result set for an exact `unit.name` match before trusting it. Found
+   2026-09-11 building [`vendor-ap-demo/`](vendor-ap-demo/).
+
 Full raw findings (extra detail, IDs used in testing) if needed: this
 evaluation was originally run and logged in Claude's memory as
 `reference_rentvine_api_eval.md` and `reference_rentvine_delinquency_api.md`
