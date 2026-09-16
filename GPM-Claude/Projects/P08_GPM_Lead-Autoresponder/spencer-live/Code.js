@@ -9,14 +9,19 @@
 // Indian Village's "New Lead" format (fresh leads, not guest-card follow-ups)
 // puts the property's street address in the subject instead of its name. Indian
 // Village is a multi-building complex — confirmed live leads for both "1960
-// Burton St SE" and "1966 Burton St SE, Apt 25" — so this matches the shared
-// street name rather than one building's number, or it'd miss every building
-// but the one first seen. If Eaglebrook or Grand Central Lofts ever generate
-// that same "New Lead: ... interested in {address}" subject format, their
-// street name isn't in here yet and would need to be added the same way, or
+// Burton St SE" and "1966 Burton St SE, Apt 25" — so both exact building numbers
+// are listed individually. Do NOT broaden this to a bare "Burton St" match: GPM
+// separately manages 2737 Burton St SE (CC Main Street Properties LLC, per
+// GPM-Claude/property_directory-20260904.csv) — an unrelated property on the
+// same street — so a bare street-name match would misroute its leads here.
+// TODO: confirm with Matt whether Indian Village has any building numbers on
+// Burton St SE beyond 1960 and 1966 and add them the same way if so.
+// If Eaglebrook or Grand Central Lofts ever generate that same
+// "New Lead: ... interested in {address}" subject format, their street
+// address isn't in here yet and would need to be added the same way, or
 // those leads won't match on subject alone.
 var PROPERTIES = [
-  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', 'burton st'] },
+  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', '1960 burton', '1966 burton'] },
   { key: 'EAGLEBROOK', displayName: 'Eaglebrook Apartments', match: ['eaglebrook'] },
   { key: 'GRAND_CENTRAL_LOFTS', displayName: 'Grand Central Lofts', match: ['grand central lofts'] }
 ];
@@ -50,7 +55,7 @@ function autoResponder_run_() {
   // don't want to pull every message's full body just to check it either. The
   // match phrases in PROPERTIES are each unique to one property's subject line.
   var searchQuery = 'from:guestcards@appfolio.com is:unread ' +
-    'subject:("Indian Village" OR "Burton St" OR "Eaglebrook" OR "Grand Central Lofts")';
+    'subject:("Indian Village" OR "1960 Burton" OR "1966 Burton" OR "Eaglebrook" OR "Grand Central Lofts")';
   var threads = GmailApp.search(searchQuery);
   var cache = CacheService.getScriptCache();
 
