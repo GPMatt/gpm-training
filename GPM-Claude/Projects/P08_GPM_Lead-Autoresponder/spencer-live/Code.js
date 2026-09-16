@@ -7,13 +7,16 @@
 // "match" phrases must each be unique enough to appear ONLY for this property,
 // since they're matched against the subject line alone (see searchQuery below).
 // Indian Village's "New Lead" format (fresh leads, not guest-card follow-ups)
-// puts the property's street address in the subject instead of its name — "1960
-// Burton" covers that case. If Eaglebrook or Grand Central Lofts ever generate
-// that same "New Lead: ... interested in {address}" subject format, their address
-// isn't in here yet and would need to be added the same way, or those leads won't
-// match on subject alone.
+// puts the property's street address in the subject instead of its name. Indian
+// Village is a multi-building complex — confirmed live leads for both "1960
+// Burton St SE" and "1966 Burton St SE, Apt 25" — so this matches the shared
+// street name rather than one building's number, or it'd miss every building
+// but the one first seen. If Eaglebrook or Grand Central Lofts ever generate
+// that same "New Lead: ... interested in {address}" subject format, their
+// street name isn't in here yet and would need to be added the same way, or
+// those leads won't match on subject alone.
 var PROPERTIES = [
-  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', '1960 burton'] },
+  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', 'burton st'] },
   { key: 'EAGLEBROOK', displayName: 'Eaglebrook Apartments', match: ['eaglebrook'] },
   { key: 'GRAND_CENTRAL_LOFTS', displayName: 'Grand Central Lofts', match: ['grand central lofts'] }
 ];
@@ -47,57 +50,70 @@ function autoResponder_run_() {
   // don't want to pull every message's full body just to check it either. The
   // match phrases in PROPERTIES are each unique to one property's subject line.
   var searchQuery = 'from:guestcards@appfolio.com is:unread ' +
-    'subject:("Indian Village" OR "1960 Burton" OR "Eaglebrook" OR "Grand Central Lofts")';
+    'subject:("Indian Village" OR "Burton St" OR "Eaglebrook" OR "Grand Central Lofts")';
   var threads = GmailApp.search(searchQuery);
   var cache = CacheService.getScriptCache();
 
   for (var i = 0; i < threads.length; i++) {
     var messages = threads[i].getMessages();
-    var lastMessage = messages[messages.length - 1];
 
-    var property = detectProperty_(lastMessage.getSubject());
+    // Walk every message in the thread, not just the last one. AppFolio's near-
+    // identical subject lines make Gmail bundle unrelated prospects into a single
+    // thread (confirmed live: one thread held 4 messages from 3 different people)
+    // — reading only the last message would silently skip everyone earlier in
+    // that thread and then archive their unanswered messages along with it.
+    for (var m = 0; m < messages.length; m++) {
+      var message = messages[m];
+      if (!message.isUnread()) continue;
 
-    if (!property) {
-      // Defensive: shouldn't happen given the search query above, but if it does,
-      // leave the thread untouched (unread, in inbox) rather than archive a lead
-      // for a property this script doesn't own.
-      continue;
+      var property = detectProperty_(message.getSubject());
+      if (!property) {
+        // Not one of ours (shouldn't happen given the search query above, but
+        // defensive) — leave this specific message unread rather than touch it.
+        continue;
+      }
+
+      var prospectEmail = message.getReplyTo();
+      var fromHeader = message.getFrom();
+      var name = fromHeader.split('<')[0].trim();
+      var firstName = name.split(' ')[0];
+
+      if (!firstName || firstName.indexOf('@') !== -1 || firstName === '') {
+        firstName = 'there';
+      }
+
+      var subject = property.displayName + ' - Schedule Your Showing';
+      var htmlBody = `
+        Hello ${firstName},<br><br>
+        Thanks for your interest in ${property.displayName}! I'd love to get you scheduled for a showing.<br><br>
+        <strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
+        When you book, please note "${property.displayName}" in the event details so I know which property to prepare for.<br><br>
+        Looking forward to meeting you,<br>
+        ${SENDER_SIGNATURE}<br>
+        Green Property Management
+      `;
+
+      var cachedFlag = cache.get(prospectEmail);
+
+      if (!cachedFlag) {
+        GmailApp.sendEmail(prospectEmail, subject, "", {
+          htmlBody: htmlBody,
+          name: SENDER_NAME,
+          replyTo: REPLY_TO_EMAIL
+        });
+
+        cache.put(prospectEmail, "sent", 900);
+      }
+
+      message.markRead();
     }
 
-    var prospectEmail = lastMessage.getReplyTo();
-    var fromHeader = lastMessage.getFrom();
-    var name = fromHeader.split('<')[0].trim();
-    var firstName = name.split(' ')[0];
-
-    if (!firstName || firstName.indexOf('@') !== -1 || firstName === '') {
-      firstName = 'there';
+    // Only archive once nothing unread is left in the thread — if a message
+    // didn't match one of our properties, it stays unread and the thread stays
+    // in the inbox instead of getting buried by an archive.
+    if (!threads[i].isUnread()) {
+      threads[i].moveToArchive();
     }
-
-    var subject = property.displayName + ' - Schedule Your Showing';
-    var htmlBody = `
-      Hello ${firstName},<br><br>
-      Thanks for your interest in ${property.displayName}! I'd love to get you scheduled for a showing.<br><br>
-      <strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
-      When you book, please note "${property.displayName}" in the event details so I know which property to prepare for.<br><br>
-      Looking forward to meeting you,<br>
-      ${SENDER_SIGNATURE}<br>
-      Green Property Management
-    `;
-
-    var cachedFlag = cache.get(prospectEmail);
-
-    if (!cachedFlag) {
-      GmailApp.sendEmail(prospectEmail, subject, "", {
-        htmlBody: htmlBody,
-        name: SENDER_NAME,
-        replyTo: REPLY_TO_EMAIL
-      });
-
-      cache.put(prospectEmail, "sent", 900);
-    }
-
-    threads[i].markRead();
-    threads[i].moveToArchive();
   }
 }
 
