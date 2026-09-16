@@ -107,8 +107,12 @@ function sbGet(table, query) {
 }
 
 // ── Daily keep-alive so the free-tier project never crosses the 7-day idle line ─
+// A read-only SELECT wasn't a strong enough activity signal -- confirmed on
+// gpm-warehouse-pipeline, which paused despite a daily read-only ping
+// running clean the day before. A write is a stronger signal, hence the
+// upsert into a dedicated single-row table instead of a plain read.
 function keepSupabaseAwake() {
-  try { sbGet('vans', 'select=id&limit=1'); } catch (e) { /* a failed ping isn't worth alerting on */ }
+  try { sbUpsert('keepalive_heartbeat', [{ id: 1, pinged_at: new Date().toISOString() }], 'id'); } catch (e) { /* a failed ping isn't worth alerting on */ }
 }
 
 // ── Weekly AppFolio -> Supabase sync ─────────────────────────────────────────
