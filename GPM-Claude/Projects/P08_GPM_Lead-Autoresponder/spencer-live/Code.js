@@ -4,8 +4,16 @@
 // notifications for EVERY GPM property from the same sender, so sender alone is
 // not a safe filter — see detectProperty_ below.
 
+// "match" phrases must each be unique enough to appear ONLY for this property,
+// since they're matched against the subject line alone (see searchQuery below).
+// Indian Village's "New Lead" format (fresh leads, not guest-card follow-ups)
+// puts the property's street address in the subject instead of its name — "1960
+// Burton" covers that case. If Eaglebrook or Grand Central Lofts ever generate
+// that same "New Lead: ... interested in {address}" subject format, their address
+// isn't in here yet and would need to be added the same way, or those leads won't
+// match on subject alone.
 var PROPERTIES = [
-  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village'] },
+  { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', '1960 burton'] },
   { key: 'EAGLEBROOK', displayName: 'Eaglebrook Apartments', match: ['eaglebrook'] },
   { key: 'GRAND_CENTRAL_LOFTS', displayName: 'Grand Central Lofts', match: ['grand central lofts'] }
 ];
@@ -34,14 +42,12 @@ function autoResponder() {
 }
 
 function autoResponder_run_() {
-  // AppFolio's subject line varies between "New Lead: ..." and "New Interest on an
-  // existing guest card for ..." depending on lead source, and for at least one
-  // format (Indian Village's "New Lead") the property name isn't in the subject at
-  // all — only in the body. So we match sender + property phrase together, and the
-  // phrase search covers subject AND body, which is what actually narrows this down
-  // to our three properties out of every property this mailbox gets mail for.
+  // Subject-only, on purpose: automation@ gets guest-card/lead mail for every GPM
+  // property from this same sender, so sender alone can't be the filter — but we
+  // don't want to pull every message's full body just to check it either. The
+  // match phrases in PROPERTIES are each unique to one property's subject line.
   var searchQuery = 'from:guestcards@appfolio.com is:unread ' +
-    '("Indian Village" OR "Eaglebrook" OR "Grand Central Lofts")';
+    'subject:("Indian Village" OR "1960 Burton" OR "Eaglebrook" OR "Grand Central Lofts")';
   var threads = GmailApp.search(searchQuery);
   var cache = CacheService.getScriptCache();
 
@@ -49,8 +55,7 @@ function autoResponder_run_() {
     var messages = threads[i].getMessages();
     var lastMessage = messages[messages.length - 1];
 
-    var haystack = lastMessage.getSubject() + ' ' + lastMessage.getPlainBody();
-    var property = detectProperty_(haystack);
+    var property = detectProperty_(lastMessage.getSubject());
 
     if (!property) {
       // Defensive: shouldn't happen given the search query above, but if it does,
@@ -97,9 +102,10 @@ function autoResponder_run_() {
 }
 
 // Returns the matching entry from PROPERTIES, or null if none of our three
-// properties are mentioned anywhere in the subject/body.
-function detectProperty_(text) {
-  var lower = text.toLowerCase();
+// properties' subject phrases are present. Re-checked here (not just relied on
+// via the Gmail search above) so a stray match never gets marked read/archived.
+function detectProperty_(subjectText) {
+  var lower = subjectText.toLowerCase();
   for (var i = 0; i < PROPERTIES.length; i++) {
     var prop = PROPERTIES[i];
     for (var j = 0; j < prop.match.length; j++) {
@@ -107,4 +113,25 @@ function detectProperty_(text) {
     }
   }
   return null;
+}
+
+// Run this ONCE from the Apps Script editor (select createAutoResponderTrigger in
+// the function dropdown, then click Run) to install the recurring trigger. Safe
+// to re-run — it clears any existing trigger on autoResponder first so you don't
+// end up with duplicates stacking up and double-sending.
+function createAutoResponderTrigger() {
+  deleteAutoResponderTriggers_();
+  ScriptApp.newTrigger('autoResponder')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+}
+
+function deleteAutoResponderTriggers_() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'autoResponder') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
 }
