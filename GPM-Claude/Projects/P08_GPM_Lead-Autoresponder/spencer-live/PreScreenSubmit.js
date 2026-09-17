@@ -76,7 +76,7 @@ function onPreScreenSubmit_run_(e) {
   logLead_(answers, result);
 
   if (result.passed) {
-    sendTourEmail_(answers);
+    sendTourEmail_(answers, result);
   }
 }
 
@@ -143,21 +143,27 @@ function computeScreeningResult_(a) {
   var incomeOk = a.monthlyIncome >= req.incomeMultiplier * a.monthlyRent;
   var incomeShortfallNote = 'income below ' + req.incomeMultiplier + 'x rent';
 
+  // "If needed" means the applicant doesn't have a cosigner lined up yet but
+  // is willing to get one if required — that still clears the NO CREDIT gate
+  // (same as "Yes"), it just isn't confirmed yet, so the tour email has to
+  // flag the requirement rather than staying silent about it.
+  var needsCosignerFollowup = false;
+
   var creditOk;
   var reason;
   if (creditOkOutright) {
     creditOk = true;
     reason = incomeOk ? 'meets credit + income criteria' : ('credit OK, ' + incomeShortfallNote);
-  } else if (isNoCredit && a.cosigner === 'Yes') {
+  } else if (isNoCredit && (a.cosigner === 'Yes' || a.cosigner === 'If needed')) {
     // Cosigner only ever substitutes for a genuine NO CREDIT answer — never
     // for an actual (just insufficient) credit score.
     creditOk = true;
-    reason = incomeOk ? 'no credit, cosigner approved, income OK' : ('no credit, cosigner approved, ' + incomeShortfallNote);
+    needsCosignerFollowup = a.cosigner === 'If needed';
+    reason = (a.cosigner === 'If needed' ? 'no credit, cosigner needed (applicant said "if needed")' : 'no credit, cosigner confirmed')
+      + (incomeOk ? ', income OK' : (', ' + incomeShortfallNote));
   } else if (isNoCredit) {
     creditOk = false;
-    reason = a.cosigner === 'If needed'
-      ? 'no credit, cosigner undecided ("if needed")'
-      : 'no credit, no cosigner';
+    reason = 'no credit, no cosigner';
   } else {
     // Has an actual credit score below threshold — a cosigner does NOT apply
     // here regardless of what was selected; only a NO CREDIT answer does.
@@ -165,7 +171,7 @@ function computeScreeningResult_(a) {
     reason = 'credit below ' + req.creditThreshold + ' threshold (cosigner only applies to NO CREDIT applicants)';
   }
 
-  return { passed: creditOk && incomeOk, reason: reason };
+  return { passed: creditOk && incomeOk, reason: reason, needsCosignerFollowup: needsCosignerFollowup };
 }
 
 function isNoCreditAnswer_(rangeText) {
@@ -302,13 +308,20 @@ function logPreScreenError_(message, e) {
   }
 }
 
-function sendTourEmail_(a) {
+function sendTourEmail_(a, result) {
   var firstName = a.fullName.split(' ')[0] || 'there';
   var subject = a.property + ' - Schedule Your Showing';
+  // Cosigner note has to appear BEFORE the scheduling link — this applicant
+  // passed on a "will get a cosigner if needed" basis (isNoCreditAnswer_ +
+  // cosigner === 'If needed' in computeScreeningResult_), not a confirmed
+  // one, so they need to see the requirement before they book, not after.
+  var cosignerNote = result && result.needsCosignerFollowup
+    ? `Please note: since you don't have credit history on file yet, a cosigner will be required to move forward with your application. Please have your cosigner ready before or at the time of your tour.<br><br>`
+    : '';
   var htmlBody = `
     Hello ${firstName},<br><br>
     Thanks for filling that out! You're all set to book a tour of ${a.property}.<br><br>
-    <strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
+    ${cosignerNote}<strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
     When you book, please note "${a.property}" in the event details so I know which property to prepare for.<br><br>
     Looking forward to meeting you,<br>
     ${SENDER_SIGNATURE}<br>
