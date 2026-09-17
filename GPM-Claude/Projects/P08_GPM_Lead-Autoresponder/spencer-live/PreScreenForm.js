@@ -120,7 +120,22 @@ function getOrCreatePreScreenForm_() {
   form.setDestination(FormApp.DestinationType.SPREADSHEET, responseSheet.getId());
 
   props.setProperty(PRESCREEN_FORM_ID_PROP, form.getId());
+  props.setProperty('PRESCREEN_RESPONSES_SHEET_ID', responseSheet.getId());
   return form;
+}
+
+// Resolves the spreadsheet FormApp linked as this form's destination.
+// Re-derives from the Form itself if the cached property is missing (e.g. an
+// older install) instead of assuming it's always been set.
+function getPreScreenResponsesSpreadsheetId_() {
+  var props = PropertiesService.getScriptProperties();
+  var sheetId = props.getProperty('PRESCREEN_RESPONSES_SHEET_ID');
+  if (sheetId) return sheetId;
+
+  var form = getOrCreatePreScreenForm_();
+  sheetId = form.getDestinationId();
+  props.setProperty('PRESCREEN_RESPONSES_SHEET_ID', sheetId);
+  return sheetId;
 }
 
 function clearFormItems_(form) {
