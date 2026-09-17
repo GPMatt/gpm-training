@@ -62,8 +62,19 @@ function buildPreScreenForm() {
     .setValidation(FormApp.createTextValidation().requireNumber().build());
   form.addMultipleChoiceItem().setTitle('Do you have a cosigner?').setRequired(true)
     .setChoiceValues(['Yes', 'No', 'If needed']);
-  form.addParagraphTextItem().setTitle("What's prompting your move?").setRequired(false);
-  form.addTextItem().setTitle('How did you hear about us?').setRequired(false);
+  form.addListItem().setTitle('How did you hear about us?').setRequired(false)
+    .setChoiceValues([
+      'Google Search',
+      'Apartments.com / Zillow / other listing site',
+      'Facebook / Instagram',
+      'Drove by / saw the sign',
+      'Referral — friend or family',
+      'Referral — current GPM resident',
+      'Property website',
+      'Craigslist',
+      'Employer / school',
+      'Other'
+    ]);
   form.addParagraphTextItem().setTitle('Anything else we should know?').setRequired(false);
 
   // --- Wire up branching now that every target page break exists ----------

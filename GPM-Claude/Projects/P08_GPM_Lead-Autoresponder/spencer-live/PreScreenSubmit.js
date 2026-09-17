@@ -97,7 +97,6 @@ function parsePreScreenResponse_(e) {
     creditRange: creditRange,
     monthlyIncome: monthlyIncome,
     cosigner: cosigner,
-    reasonForMoving: map["What's prompting your move?"] || '',
     referralSource: map['How did you hear about us?'] || '',
     notes: map['Anything else we should know?'] || ''
   };
@@ -159,7 +158,6 @@ function logLead_(a, result) {
     a.creditRange,
     a.monthlyIncome,
     a.cosigner,
-    a.reasonForMoving,
     a.referralSource,
     a.notes,
     result.passed,
@@ -177,7 +175,7 @@ function getOrCreateLeadsSheet_() {
   sheet.appendRow([
     'Timestamp', 'FullName', 'Email', 'Property', 'UnitAnswer', 'MonthlyRent',
     'MoveInDate', 'Pets', 'PetDetails', 'CreditRange', 'MonthlyIncome',
-    'Cosigner', 'ReasonForMoving', 'ReferralSource', 'Notes',
+    'Cosigner', 'ReferralSource', 'Notes',
     'Passed', 'Status', 'Reason'
   ]);
   sheet.setFrozenRows(1);
