@@ -25,9 +25,9 @@ var PROPERTIES = [
 ];
 
 // TODO: replace with the real shared Google Calendar booking link once it exists.
-// It's one link for all three properties, so the reply asks the prospect to name
-// the property in the booking notes — that's how Spencer tells bookings apart
-// until there's a per-property link or booking form field.
+// Used by the SECOND email only (sent after a human reviews the pre-screen
+// answers in PreScreenForm.js's response sheet and decides to move the
+// prospect forward) — not sent automatically by autoResponder_run_ below.
 var SHOWING_LINK = 'https://calendar.google.com/PLACEHOLDER-SCHEDULING-LINK';
 
 var SENDER_NAME = 'Spencer';
@@ -85,12 +85,15 @@ function autoResponder_run_() {
         firstName = 'there';
       }
 
-      var subject = property.displayName + ' - Schedule Your Showing';
+      var prescreenUrl = buildPrescreenUrl_(name, prospectEmail, property.displayName);
+
+      var subject = property.displayName + ' - Tell Us What You’re Looking For';
       var htmlBody = `
         Hello ${firstName},<br><br>
-        Thanks for your interest in ${property.displayName}! I'd love to get you scheduled for a showing.<br><br>
-        <strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
-        When you book, please note "${property.displayName}" in the event details so I know which property to prepare for.<br><br>
+        Thanks for your interest in ${property.displayName}! Before we get you scheduled for a showing,
+        could you fill out this quick form so we can match you with the right unit?<br><br>
+        <strong><a href="${prescreenUrl}">TELL US A BIT MORE</a></strong><br><br>
+        Once we've had a look, we'll follow up with next steps.<br><br>
         Looking forward to meeting you,<br>
         ${SENDER_SIGNATURE}<br>
         Green Property Management
@@ -118,6 +121,28 @@ function autoResponder_run_() {
       threads[i].moveToArchive();
     }
   }
+}
+
+// Builds a pre-filled link into the pre-screen form (see PreScreenForm.js) so
+// the prospect never has to re-type what Spencer already knows from the
+// guest-card lead. Falls back to the bare form URL if the form hasn't been
+// built yet (props missing) so a misconfigured pre-screen setup can't stop
+// the whole autoresponder from sending.
+function buildPrescreenUrl_(fullName, email, propertyDisplayName) {
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl = props.getProperty('PRESCREEN_PUBLISHED_URL');
+  var entryName = props.getProperty('PRESCREEN_ENTRY_NAME');
+  var entryEmail = props.getProperty('PRESCREEN_ENTRY_EMAIL');
+  var entryProperty = props.getProperty('PRESCREEN_ENTRY_PROPERTY');
+
+  if (!baseUrl || !entryName || !entryEmail || !entryProperty) {
+    return baseUrl || 'https://forms.google.com/'; // pre-screen form not built yet — see PreScreenForm.js
+  }
+
+  return baseUrl + '?usp=pp_url'
+    + '&entry.' + entryName + '=' + encodeURIComponent(fullName)
+    + '&entry.' + entryEmail + '=' + encodeURIComponent(email)
+    + '&entry.' + entryProperty + '=' + encodeURIComponent(propertyDisplayName);
 }
 
 // Returns the matching entry from PROPERTIES, or null if none of our three
