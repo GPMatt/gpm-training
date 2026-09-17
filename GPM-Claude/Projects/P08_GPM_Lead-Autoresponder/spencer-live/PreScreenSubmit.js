@@ -9,17 +9,22 @@
 // human to follow up with. Self-reported credit/income can't be verified
 // anyway, so treat a fail as "needs a human look," not "denied."
 //
-// Screening criteria (Matt-confirmed 2026-09-16):
-//   - Credit Score Range "700 or above" or "650 - 699" passes on credit alone.
-//   - "600 - 649" or "Below 600" only passes credit if cosigner = "Yes".
-//     Cosigner = "If needed" is treated as undecided, never an auto-pass.
-//   - Monthly gross income must be >= 3x the rent of the unit type they
-//     selected (rent is parsed straight from that answer's own label, e.g.
-//     "Studio — 410 sqft — $1,225/mo — Immediate", so it always matches what
-//     the prospect was actually quoted, not a possibly-since-changed sheet
-//     price).
+// Screening criteria are PER-PROPERTY, read live from the "Requirements" tab
+// (same spreadsheet as Units — see getRequirementsForProperty_ below) rather
+// than hardcoded, so a PM can change a property's bar without a code change:
+//   - A credit-range answer passes outright if its LOWER bound is >= that
+//     property's Credit threshold (e.g. threshold 625 means "625 - 649" and
+//     "650 or above" both pass outright, "600 - 624" and "Below 600" don't).
+//   - Otherwise it only passes if cosigner = "Yes". Cosigner = "If needed" is
+//     treated as undecided, never an auto-pass.
+//   - Monthly gross income must be >= that property's Income multiplier (e.g.
+//     "3x") times the rent of the unit type they selected (rent is parsed
+//     straight from that answer's own label, e.g. "Studio — 410 sqft —
+//     $1,225/mo — Immediate", so it always matches what the prospect was
+//     actually quoted, not a possibly-since-changed sheet price).
 
 var LEADS_SHEET_NAME = 'Leads';
+var REQUIREMENTS_SHEET_NAME = 'Requirements';
 var PRESCREEN_ERRORS_SHEET_NAME = 'Errors';
 
 function onPreScreenSubmit_(e) {
@@ -103,26 +108,84 @@ function parsePreScreenResponse_(e) {
 }
 
 function computeScreeningResult_(a) {
-  var creditOkOutright = (a.creditRange === '700 or above' || a.creditRange === '650 - 699');
-  var incomeOk = a.monthlyIncome >= 3 * a.monthlyRent;
+  var req = getRequirementsForProperty_(a.property);
+  var creditLowerBound = parseCreditRangeLowerBound_(a.creditRange);
+  var creditOkOutright = creditLowerBound >= req.creditThreshold;
+  var incomeOk = a.monthlyIncome >= req.incomeMultiplier * a.monthlyRent;
+  var incomeShortfallNote = 'income below ' + req.incomeMultiplier + 'x rent';
 
   var creditOk;
   var reason;
   if (creditOkOutright) {
     creditOk = true;
-    reason = incomeOk ? 'meets credit + income criteria' : 'credit OK, income below 3x rent';
+    reason = incomeOk ? 'meets credit + income criteria' : ('credit OK, ' + incomeShortfallNote);
   } else if (a.cosigner === 'Yes') {
     creditOk = true;
-    reason = incomeOk ? 'cosigner covers credit range, income OK' : 'cosigner covers credit range, income below 3x rent';
+    reason = incomeOk ? 'cosigner covers credit range, income OK' : ('cosigner covers credit range, ' + incomeShortfallNote);
   } else if (a.cosigner === 'If needed') {
     creditOk = false;
-    reason = 'credit below 650 range, cosigner undecided ("if needed")';
+    reason = 'credit below ' + req.creditThreshold + ' threshold, cosigner undecided ("if needed")';
   } else {
     creditOk = false;
-    reason = 'credit below 650 range, no cosigner';
+    reason = 'credit below ' + req.creditThreshold + ' threshold, no cosigner';
   }
 
   return { passed: creditOk && incomeOk, reason: reason };
+}
+
+// "700 or above" -> 700, "625 - 649" -> 625 (the band's own lower edge is
+// what has to clear the property's threshold), "Below 600" -> 0 (never
+// passes outright — the band's whole point is being under every threshold).
+function parseCreditRangeLowerBound_(rangeText) {
+  var text = String(rangeText);
+  if (/below/i.test(text)) return 0;
+  var match = text.match(/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+// Reads the per-property screening bar from the "Requirements" tab (same
+// spreadsheet as Units). Falls back to a conservative default if a property
+// is somehow missing a row there, rather than letting scoring throw.
+function getRequirementsForProperty_(propertyDisplayName) {
+  var key = getPropertyKeyByDisplayName_(propertyDisplayName);
+  var sheet = getOrCreateRequirementsSheet_();
+  var rows = sheet.getDataRange().getValues();
+  var header = rows[0];
+  var col = {};
+  for (var c = 0; c < header.length; c++) col[header[c]] = c;
+
+  for (var r = 1; r < rows.length; r++) {
+    if (rows[r][col['PropertyKey']] === key) {
+      var incomeMatch = String(rows[r][col['Income']]).match(/([\d.]+)/);
+      return {
+        creditThreshold: Number(rows[r][col['Credit']]),
+        incomeMultiplier: incomeMatch ? parseFloat(incomeMatch[1]) : 3
+      };
+    }
+  }
+  logPreScreenError_('No Requirements row for property "' + propertyDisplayName + '" (key "' + key + '") — using default 625/3x', null);
+  return { creditThreshold: 625, incomeMultiplier: 3 };
+}
+
+function getPropertyKeyByDisplayName_(displayName) {
+  for (var i = 0; i < PROPERTIES.length; i++) {
+    if (PROPERTIES[i].displayName === displayName) return PROPERTIES[i].key;
+  }
+  return null;
+}
+
+function getOrCreateRequirementsSheet_() {
+  var ss = SpreadsheetApp.openById(getPropertyUnitsSpreadsheetId_());
+  var sheet = ss.getSheetByName(REQUIREMENTS_SHEET_NAME);
+  if (sheet) return sheet;
+
+  sheet = ss.insertSheet(REQUIREMENTS_SHEET_NAME);
+  sheet.appendRow(['PropertyKey', 'Credit', 'Income']);
+  for (var i = 0; i < PROPERTIES.length; i++) {
+    sheet.appendRow([PROPERTIES[i].key, 625, '3x']);
+  }
+  sheet.setFrozenRows(1);
+  return sheet;
 }
 
 // Guards against sending a second tour email if the same prospect fills out

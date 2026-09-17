@@ -56,24 +56,25 @@ function buildPreScreenForm() {
 
   // --- Shared final section: financial pre-screen + wrap-up ---------------
   var pageRest = form.addPageBreakItem().setTitle('Almost Done');
+  // Bands match Matt's live edit in the Forms UI — split exactly at 625 so
+  // there's no band straddling a threshold (600-624 / 625-649), matching how
+  // computeScreeningResult_ (PreScreenSubmit.js) reads each property's actual
+  // credit cutoff from the Requirements sheet rather than a hardcoded value.
   form.addMultipleChoiceItem().setTitle('Credit Score Range').setRequired(true)
-    .setChoiceValues(['700 or above', '650 - 699', '600 - 649', 'Below 600']);
+    .setChoiceValues(['650 or above', '625 - 649', '600 - 624', 'Below 600']);
   form.addTextItem().setTitle('Monthly Gross Income (before taxes)').setRequired(true)
     .setValidation(FormApp.createTextValidation().requireNumber().build());
   form.addMultipleChoiceItem().setTitle('Do you have a cosigner?').setRequired(true)
     .setChoiceValues(['Yes', 'No', 'If needed']);
+  // Matches Matt's live edit — condensed from the original 10 options.
   form.addListItem().setTitle('How did you hear about us?').setRequired(false)
     .setChoiceValues([
       'Google Search',
-      'livegreenlocal.com',
+      'LiveGreenLocal.com',
       'Apartments.com / Zillow / other listing site',
-      'Facebook / Instagram',
-      'Drove by / saw the sign',
-      'Referral — friend or family',
-      'Referral — current GPM resident',
-      'Property website',
-      'Employer / school',
-      'Other'
+      'Social Media',
+      'Drove by',
+      'Referral'
     ]);
   form.addParagraphTextItem().setTitle('Anything else we should know?').setRequired(false);
 
@@ -244,4 +245,12 @@ function getOrCreateUnitsSheet_() {
   props.setProperty(UNITS_SHEET_ID_PROP, ss.getId());
   Logger.log('Units sheet created — edit it here: ' + ss.getUrl());
   return sheet;
+}
+
+// Requirements (PreScreenSubmit.js) lives as a second tab in the same
+// spreadsheet as Units, so it reuses this same spreadsheet ID rather than
+// creating a separate file.
+function getPropertyUnitsSpreadsheetId_() {
+  getOrCreateUnitsSheet_(); // ensures the spreadsheet + Units tab + property already exist
+  return PropertiesService.getScriptProperties().getProperty(UNITS_SHEET_ID_PROP);
 }
