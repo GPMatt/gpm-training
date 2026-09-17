@@ -20,7 +20,12 @@
 // those leads won't match on subject alone.
 var PROPERTIES = [
   { key: 'INDIAN_VILLAGE', displayName: 'Indian Village Apartments', match: ['indian village', '1960 burton', '1966 burton', '1970 burton'] },
-  { key: 'EAGLEBROOK', displayName: 'Eaglebrook Apartments', match: ['eaglebrook'] },
+  // Eaglebrook's "New Lead" format (fresh leads, not guest-card follow-ups) puts
+  // its street address in the subject instead of the property name — confirmed
+  // live 2026-09-17 ("New Lead: test auto interested in 6009 8th Ave SW, Apt D"),
+  // same quirk documented above for Indian Village. Without this phrase, the
+  // Gmail search below never even finds the message, so nothing gets logged.
+  { key: 'EAGLEBROOK', displayName: 'Eaglebrook Apartments', match: ['eaglebrook', '6009 8th ave'] },
   { key: 'GRAND_CENTRAL_LOFTS', displayName: 'Grand Central Lofts', match: ['grand central lofts'] }
 ];
 
@@ -53,7 +58,7 @@ function autoResponder_run_() {
   // don't want to pull every message's full body just to check it either. The
   // match phrases in PROPERTIES are each unique to one property's subject line.
   var searchQuery = 'from:guestcards@appfolio.com is:unread ' +
-    'subject:("Indian Village" OR "1960 Burton" OR "1966 Burton" OR "1970 Burton" OR "Eaglebrook" OR "Grand Central Lofts")';
+    'subject:("Indian Village" OR "1960 Burton" OR "1966 Burton" OR "1970 Burton" OR "Eaglebrook" OR "6009 8th Ave" OR "Grand Central Lofts")';
   var threads = GmailApp.search(searchQuery);
   var cache = CacheService.getScriptCache();
 
