@@ -99,7 +99,12 @@ function autoResponder_run_() {
         Green Property Management
       `;
 
-      var cachedFlag = cache.get(prospectEmail);
+      // Keyed by email+property, not email alone — the same prospect can
+      // legitimately guest-card multiple GPM properties close together, and a
+      // bare-email key was silently swallowing every property after the
+      // first one within the 15-minute window.
+      var dedupKey = prospectEmail + '|' + property.key;
+      var cachedFlag = cache.get(dedupKey);
 
       if (!cachedFlag) {
         GmailApp.sendEmail(prospectEmail, subject, "", {
@@ -108,7 +113,7 @@ function autoResponder_run_() {
           replyTo: REPLY_TO_EMAIL
         });
 
-        cache.put(prospectEmail, "sent", 900);
+        cache.put(dedupKey, "sent", 900);
       }
 
       message.markRead();
