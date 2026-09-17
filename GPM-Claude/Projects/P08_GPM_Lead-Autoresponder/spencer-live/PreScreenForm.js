@@ -140,8 +140,28 @@ function getPreScreenResponsesSpreadsheetId_() {
 
 function clearFormItems_(form) {
   var items = form.getItems();
-  for (var i = items.length - 1; i >= 0; i--) {
-    form.deleteItem(items[i]);
+
+  // Strip cross-item references FIRST. Forms refuses to delete an item that's
+  // still targeted by a choice's branching or a page break's setGoToPage —
+  // and reverse-order deletion alone doesn't avoid that here, because several
+  // items (e.g. the Property question) target page breaks created AFTER them,
+  // so the reference points forward, not back. Neutralizing every item to a
+  // plain, non-branching state before deleting anything sidesteps the
+  // ordering problem entirely instead of trying to compute a safe order.
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (item.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
+      var mc = item.asMultipleChoiceItem();
+      var plainValues = mc.getChoices().map(function (c) { return c.getValue(); });
+      mc.setChoiceValues(plainValues);
+    } else if (item.getType() === FormApp.ItemType.PAGE_BREAK) {
+      item.asPageBreakItem().setGoToPage(FormApp.PageNavigationType.SUBMIT);
+    }
+  }
+
+  items = form.getItems();
+  for (var j = items.length - 1; j >= 0; j--) {
+    form.deleteItem(items[j]);
   }
 }
 
