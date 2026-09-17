@@ -28,11 +28,23 @@ var REQUIREMENTS_SHEET_NAME = 'Requirements';
 var PRESCREEN_ERRORS_SHEET_NAME = 'Errors';
 
 function onPreScreenSubmit_(e) {
+  // getScriptLock() is shared across the WHOLE script, including the every-
+  // 1-minute autoResponder trigger in Code.js — not scoped to this function.
+  // A submission arriving during contention used to vanish with zero trace;
+  // now it's at least logged instead of silently dropped.
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(5000)) return;
+  if (!lock.tryLock(5000)) {
+    logPreScreenError_('Could not acquire script lock within 5s — submission dropped (see LockService note in onPreScreenSubmit_)', e);
+    return;
+  }
 
   try {
     onPreScreenSubmit_run_(e);
+  } catch (err) {
+    // Catch-all so an exception anywhere in the scoring/logging path (a
+    // transient Sheets API error, an unexpected null, etc.) leaves a trace
+    // instead of failing the trigger invisibly.
+    logPreScreenError_('Uncaught exception in onPreScreenSubmit_run_: ' + err + (err && err.stack ? ' | ' + err.stack : ''), e);
   } finally {
     lock.releaseLock();
   }
