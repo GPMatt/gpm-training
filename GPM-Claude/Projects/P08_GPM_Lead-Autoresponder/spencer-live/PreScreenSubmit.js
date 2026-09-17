@@ -54,7 +54,15 @@ function onPreScreenSubmit_run_(e) {
   var answers = parsePreScreenResponse_(e);
   if (!answers) return; // malformed submission — already logged to Errors tab
 
-  if (alreadyPassed_(answers.email)) return; // prospect re-submitted after already passing — don't double-send
+  if (alreadyPassed_(answers.email)) {
+    // Deliberate no-op, not a failure — but it looks exactly like a silent
+    // drop from the outside (no Leads row, no Errors row) unless it's
+    // logged. This is the actual explanation behind several "submission
+    // didn't go through" reports during testing: repeat submissions from the
+    // same email after an earlier one already passed.
+    logPreScreenError_('Skipped — ' + answers.email + ' already has a Passed row (repeat submission, not resent)', e);
+    return;
+  }
 
   var result = computeScreeningResult_(answers);
   logLead_(answers, result);
