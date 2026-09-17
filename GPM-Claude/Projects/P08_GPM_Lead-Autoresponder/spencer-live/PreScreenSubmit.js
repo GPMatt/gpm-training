@@ -15,13 +15,21 @@
 //   - A credit-range answer passes outright if its LOWER bound is >= that
 //     property's Credit threshold (e.g. threshold 625 means "625 - 649" and
 //     "650 or above" both pass outright, "600 - 624" and "Below 600" don't).
-//   - Otherwise it only passes if cosigner = "Yes". Cosigner = "If needed" is
-//     treated as undecided, never an auto-pass.
-//   - Monthly gross income must be >= that property's Income multiplier (e.g.
-//     "3x") times the rent of the unit type they selected (rent is parsed
-//     straight from that answer's own label, e.g. "Studio — 410 sqft —
+//   - A cosigner can ONLY rescue an applicant who selected "NO CREDIT —
+//     ALLOWS COSIGNER" (no credit file at all). An applicant with an actual
+//     but insufficient credit score (e.g. "600 - 624", "Below 600") is NEVER
+//     rescued by a cosigner — that combination always needs human review.
+//     (Fixed 2026-09-17 — the prior version let cosigner=Yes rescue ANY
+//     below-threshold credit score, which is not the policy.)
+//   - Cosigner = "If needed" is always treated as undecided, never an
+//     auto-pass, regardless of the credit answer.
+//   - Monthly gross income must ALSO be >= that property's Income multiplier
+//     (e.g. "3x") times the rent of the unit type they selected (rent is
+//     parsed straight from that answer's own label, e.g. "Studio — 410 sqft —
 //     $1,225/mo — Immediate", so it always matches what the prospect was
-//     actually quoted, not a possibly-since-changed sheet price).
+//     actually quoted, not a possibly-since-changed sheet price) — income is
+//     required on top of a passing credit/cosigner path, not an alternative
+//     to it.
 
 var LEADS_SHEET_NAME = 'Leads';
 var REQUIREMENTS_SHEET_NAME = 'Requirements';
@@ -129,8 +137,9 @@ function parsePreScreenResponse_(e) {
 
 function computeScreeningResult_(a) {
   var req = getRequirementsForProperty_(a.property);
+  var isNoCredit = isNoCreditAnswer_(a.creditRange);
   var creditLowerBound = parseCreditRangeLowerBound_(a.creditRange);
-  var creditOkOutright = creditLowerBound >= req.creditThreshold;
+  var creditOkOutright = !isNoCredit && creditLowerBound >= req.creditThreshold;
   var incomeOk = a.monthlyIncome >= req.incomeMultiplier * a.monthlyRent;
   var incomeShortfallNote = 'income below ' + req.incomeMultiplier + 'x rent';
 
@@ -139,23 +148,35 @@ function computeScreeningResult_(a) {
   if (creditOkOutright) {
     creditOk = true;
     reason = incomeOk ? 'meets credit + income criteria' : ('credit OK, ' + incomeShortfallNote);
-  } else if (a.cosigner === 'Yes') {
+  } else if (isNoCredit && a.cosigner === 'Yes') {
+    // Cosigner only ever substitutes for a genuine NO CREDIT answer — never
+    // for an actual (just insufficient) credit score.
     creditOk = true;
-    reason = incomeOk ? 'cosigner covers credit range, income OK' : ('cosigner covers credit range, ' + incomeShortfallNote);
-  } else if (a.cosigner === 'If needed') {
+    reason = incomeOk ? 'no credit, cosigner approved, income OK' : ('no credit, cosigner approved, ' + incomeShortfallNote);
+  } else if (isNoCredit) {
     creditOk = false;
-    reason = 'credit below ' + req.creditThreshold + ' threshold, cosigner undecided ("if needed")';
+    reason = a.cosigner === 'If needed'
+      ? 'no credit, cosigner undecided ("if needed")'
+      : 'no credit, no cosigner';
   } else {
+    // Has an actual credit score below threshold — a cosigner does NOT apply
+    // here regardless of what was selected; only a NO CREDIT answer does.
     creditOk = false;
-    reason = 'credit below ' + req.creditThreshold + ' threshold, no cosigner';
+    reason = 'credit below ' + req.creditThreshold + ' threshold (cosigner only applies to NO CREDIT applicants)';
   }
 
   return { passed: creditOk && incomeOk, reason: reason };
 }
 
+function isNoCreditAnswer_(rangeText) {
+  return /no credit/i.test(String(rangeText));
+}
+
 // "700 or above" -> 700, "625 - 649" -> 625 (the band's own lower edge is
 // what has to clear the property's threshold), "Below 600" -> 0 (never
 // passes outright — the band's whole point is being under every threshold).
+// "NO CREDIT..." has no digits so this returns 0 too, but that path is
+// gated separately by isNoCreditAnswer_ above, not by this bound.
 function parseCreditRangeLowerBound_(rangeText) {
   var text = String(rangeText);
   if (/below/i.test(text)) return 0;

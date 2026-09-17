@@ -63,8 +63,11 @@ function buildPreScreenForm() {
   // there's no band straddling a threshold (600-624 / 625-649), matching how
   // computeScreeningResult_ (PreScreenSubmit.js) reads each property's actual
   // credit cutoff from the Requirements sheet rather than a hardcoded value.
+  // "NO CREDIT" is its own distinct option — a cosigner only ever rescues
+  // THIS answer, never an actual-but-insufficient score like "Below 600"
+  // (see computeScreeningResult_'s isNoCreditAnswer_ check).
   form.addMultipleChoiceItem().setTitle('Credit Score Range').setRequired(true)
-    .setChoiceValues(['650 or above', '625 - 649', '600 - 624', 'Below 600']);
+    .setChoiceValues(['650 or above', '625 - 649', '600 - 624', 'Below 600', 'NO CREDIT - ALLOWS COSIGNER']);
   form.addTextItem().setTitle('Monthly Gross Income (before taxes)').setRequired(true)
     .setValidation(FormApp.createTextValidation().requireNumber().build());
   form.addMultipleChoiceItem().setTitle('Do you have a cosigner?').setRequired(true)
