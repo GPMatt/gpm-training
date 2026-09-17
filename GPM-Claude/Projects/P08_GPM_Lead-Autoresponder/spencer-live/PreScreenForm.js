@@ -1,8 +1,10 @@
 // Builds/refreshes the shared pre-screening Google Form used across all three
 // Spencer properties. Run buildPreScreenForm() manually from the Apps Script
 // editor (select it in the function dropdown, click Run) whenever PROPERTIES
-// or the Units sheet changes — safe to re-run, it clears and rebuilds the
-// question list from scratch each time.
+// or the Units sheet changes — safe to re-run. Full Name / Email / Property
+// are reused, never recreated, so their entry IDs (and every already-sent
+// prefilled email link) stay valid forever; everything after them is cleared
+// and rebuilt from scratch each time.
 //
 // IMPORTANT — run this while logged into the Apps Script editor as
 // automation@greenpropertymgt.com, not a personal account. FormApp.create()
@@ -22,16 +24,17 @@ var UNITS_SHEET_ID_PROP = 'UNITS_SHEET_ID';
 
 function buildPreScreenForm() {
   var form = getOrCreatePreScreenForm_();
-  clearFormItems_(form);
 
-  // --- Section 0: identity + property -------------------------------------
-  // Property MUST be the last item added in this section — Forms silently
-  // ignores per-choice branching on any item that isn't the last one on its
-  // page, so Full Name / Email have to come first.
-  form.addTextItem().setTitle('Full Name').setRequired(true);
-  form.addTextItem().setTitle('Email Address').setRequired(true)
-    .setValidation(FormApp.createTextValidation().requireTextIsEmail().build());
-  var propertyItem = form.addMultipleChoiceItem().setTitle('Property').setRequired(true);
+  // Full Name / Email / Property are NEVER deleted+recreated on a rebuild —
+  // only reused. Every prior rebuild gave them fresh item IDs even though
+  // their content never changed, which silently broke every already-sent
+  // prefilled email link (Forms drops unmatched entry.* params instead of
+  // erroring, so it just LOOKS unprefilled). Keeping these three permanently
+  // stable means old links keep working no matter how many times the rest
+  // of the form gets rebuilt.
+  var identity = getOrCreateIdentityItems_(form);
+  clearNonIdentityItems_(form, identity);
+  var propertyItem = identity.propertyItem;
 
   // --- One page + unit-type question per property -------------------------
   // Each rejoins at pageCommon afterward via setGoToPage, so the shared
@@ -100,9 +103,9 @@ function buildPreScreenForm() {
   // ever opens the form). Store once here so autoResponder_run_ never has to
   // re-open the Form just to look them up on every send.
   var props = PropertiesService.getScriptProperties();
-  props.setProperty('PRESCREEN_ENTRY_NAME', String(form.getItems()[0].getId()));
-  props.setProperty('PRESCREEN_ENTRY_EMAIL', String(form.getItems()[1].getId()));
-  props.setProperty('PRESCREEN_ENTRY_PROPERTY', String(form.getItems()[2].getId()));
+  props.setProperty('PRESCREEN_ENTRY_NAME', String(identity.nameItem.getId()));
+  props.setProperty('PRESCREEN_ENTRY_EMAIL', String(identity.emailItem.getId()));
+  props.setProperty('PRESCREEN_ENTRY_PROPERTY', String(identity.propertyItem.getId()));
   // Cached so autoResponder_run_ (Code.js) never has to open the Form itself
   // on every 1-minute trigger tick just to read its URL.
   props.setProperty('PRESCREEN_PUBLISHED_URL', form.getPublishedUrl());
@@ -150,22 +153,53 @@ function getPreScreenResponsesSpreadsheetId_() {
   return sheetId;
 }
 
-function clearFormItems_(form) {
+// Returns the Full Name / Email / Property items, creating them only if they
+// don't already exist. These three are permanently stable across every
+// rebuild — see the comment in buildPreScreenForm() for why that matters.
+function getOrCreateIdentityItems_(form) {
   var items = form.getItems();
+  if (items.length >= 3 &&
+      items[0].getTitle() === 'Full Name' &&
+      items[1].getTitle() === 'Email Address' &&
+      items[2].getTitle() === 'Property') {
+    return {
+      nameItem: items[0],
+      emailItem: items[1],
+      propertyItem: items[2].asMultipleChoiceItem()
+    };
+  }
 
-  // Strip cross-item references FIRST. Forms refuses to delete an item that's
-  // still targeted by a choice's branching or a page break's setGoToPage —
-  // and reverse-order deletion alone doesn't avoid that here, because several
-  // items (e.g. the Property question) target page breaks created AFTER them,
-  // so the reference points forward, not back. Neutralizing every item to a
-  // plain, non-branching state before deleting anything sidesteps the
-  // ordering problem entirely instead of trying to compute a safe order.
+  // First-ever build (or someone deleted/renamed these in the Forms UI) —
+  // create fresh. Property MUST be the last item added here — Forms silently
+  // ignores per-choice branching on any item that isn't the last one on its
+  // page, so Full Name / Email have to come first.
+  var nameItem = form.addTextItem().setTitle('Full Name').setRequired(true);
+  var emailItem = form.addTextItem().setTitle('Email Address').setRequired(true)
+    .setValidation(FormApp.createTextValidation().requireTextIsEmail().build());
+  var propertyItem = form.addMultipleChoiceItem().setTitle('Property').setRequired(true);
+  return { nameItem: nameItem, emailItem: emailItem, propertyItem: propertyItem };
+}
+
+// Deletes every item EXCEPT the identity block (Full Name / Email /
+// Property), so their item IDs — and therefore every already-sent prefilled
+// email link — survive a rebuild.
+function clearNonIdentityItems_(form, identity) {
+  var items = form.getItems();
+  var keepIds = [identity.nameItem.getId(), identity.emailItem.getId(), identity.propertyItem.getId()];
+
+  // Strip cross-item references FIRST, on EVERY item including the ones
+  // we're keeping — Property's old choices target page breaks that are
+  // about to be deleted, and Forms refuses to delete an item that's still
+  // targeted by a choice's branching or a page break's setGoToPage. Reverse-
+  // order deletion alone doesn't avoid that, because several items (e.g.
+  // Property) target page breaks created AFTER them, so the reference points
+  // forward, not back.
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
     if (item.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
       var mc = item.asMultipleChoiceItem();
       var plainValues = mc.getChoices().map(function (c) { return c.getValue(); });
-      mc.setChoiceValues(plainValues);
+      if (plainValues.length > 0) mc.setChoiceValues(plainValues);
     } else if (item.getType() === FormApp.ItemType.PAGE_BREAK) {
       item.asPageBreakItem().setGoToPage(FormApp.PageNavigationType.SUBMIT);
     }
@@ -173,7 +207,9 @@ function clearFormItems_(form) {
 
   items = form.getItems();
   for (var j = items.length - 1; j >= 0; j--) {
-    form.deleteItem(items[j]);
+    if (keepIds.indexOf(items[j].getId()) === -1) {
+      form.deleteItem(items[j]);
+    }
   }
 }
 
