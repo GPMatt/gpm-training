@@ -65,13 +65,13 @@ function buildPreScreenForm() {
   form.addListItem().setTitle('How did you hear about us?').setRequired(false)
     .setChoiceValues([
       'Google Search',
+      'livegreenlocal.com',
       'Apartments.com / Zillow / other listing site',
       'Facebook / Instagram',
       'Drove by / saw the sign',
       'Referral — friend or family',
       'Referral — current GPM resident',
       'Property website',
-      'Craigslist',
       'Employer / school',
       'Other'
     ]);
