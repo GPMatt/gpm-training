@@ -30,7 +30,9 @@ SCENE = {
     "lead_unit": "33",                                    # 2150 Knapp St NE #204, vacant
     "maint": {"propertyID": "4", "unitID": "4", "leaseID": "4"},   # 615 Leonard St NW, Danielle Ortiz
     "notice_lease": "3",                                  # 2319 Breton Rd SE, Marcus Bennett
+    "ac": {"propertyID": "1", "unitID": "1", "leaseID": "1"},     # 1142 Lake Dr SE, owner Jon Smith
 }
+AC_MARK = "outdoor unit is humming but the fan isn't spinning"
 
 
 def _body(handler):
@@ -69,6 +71,17 @@ def api_fixie(b):
         body.pop("leaseID")
         s, r = rv.post("maintenance/work-orders", body)
         wo = (r or {}).get("workOrder", {}) if isinstance(r, dict) else {}
+    if wo.get("workOrderID"):
+        # The intake conversation, so opening the work order shows how it started.
+        said = b.get("tenantSaid") or summary
+        chat = [("Assistant", "Hi Danielle, this is GPM's maintenance assistant. What's going on at 615 Leonard St NW?"),
+                ("Danielle", said),
+                ("Assistant", "Thanks. Is water still running? If you can, turn the shut-off valve under the sink."),
+                ("Danielle", b.get("tenantFollowUp") or "I turned it off. The leak stopped but the cabinet is soaked."),
+                ("Assistant", "Got it. I'm filing this with your maintenance team now; you'll get a text with a time.")]
+        rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wo["workOrderID"]), "isSharedWithTenant": "1",
+                                  "message": "<p><b>Tenant intake chat</b></p><p>" + "<br>".join(
+                                      f"<b>{w}:</b> {t}" for w, t in chat) + "</p>"})
     return {"ok": bool(wo.get("workOrderID")), "workOrderID": wo.get("workOrderID"),
             "workOrderNumber": wo.get("workOrderNumber"), "http": s, "error": None if s == 200 else str(r)[:300]}
 
@@ -89,15 +102,44 @@ def api_complete(b):
     return {"ok": agents.get_wo(wid).get("workOrderStatusID") == agents.STATUS_COMPLETED, "http": s}
 
 
+def seed_ac_job():
+    """Prompt 5's job: an open A/C work order at Lake Dr, already dispatched to Jake this morning."""
+    agents.ensure_parts()
+    for r in rv.get("maintenance/work-orders?pageSize=500")[1]:
+        w = r["workOrder"]
+        if AC_MARK in (w.get("description") or "") and w.get("workOrderStatusID") == agents.STATUS_OPEN:
+            return w["workOrderID"]
+    m, today = SCENE["ac"], datetime.date.today()
+    s, r = rv.post("maintenance/work-orders", {
+        "propertyID": m["propertyID"], "unitID": m["unitID"], "leaseID": m["leaseID"], "isInternal": "0",
+        "priorityID": "3", "workOrderStatusID": agents.STATUS_OPEN, "technicianContactIDs": [agents.TECH["contactID"]],
+        "description": f"<p>A/C not cooling: warm air from the vents; the {AC_MARK}.</p>",
+        "scheduledStartDate": f"{today}", "scheduledEndDate": f"{today}",
+        "appointmentWindowStartDateTime": f"{today} 07:00:00", "appointmentWindowEndDateTime": f"{today} 08:00:00"})
+    wid = (r or {}).get("workOrder", {}).get("workOrderID") if isinstance(r, dict) else None
+    if wid:
+        agents.once("wo_created", wid, "seed")
+    return wid
+
+
+def api_invoice(b):
+    wid = b.get("workOrderID") or seed_ac_job()
+    parts = [(p["name"], float(p.get("qty", 1))) for p in b.get("parts") or []]
+    import threading
+    threading.Thread(target=agents.itemized_bill, args=(str(wid), float(b.get("hours") or 2), parts, b.get("notes", "")),
+                     daemon=True).start()
+    return {"ok": True, "workOrderID": wid}
+
+
 def api_reset(b):
-    # Clear the scene-3 notice so it can be recorded again, then forget handled events.
+    # Clear the scene-3 notice so it can be recorded again, forget handled events, seed prompt 5's job.
     rv.post(f"leases/{SCENE['notice_lease']}", {"noticeDate": None, "expectedMoveOutDate": None})
     agents.reset()
-    return {"ok": True}
+    return {"ok": True, "acWorkOrder": seed_ac_job()}
 
 
 ROUTES = {"/api/lead": api_lead, "/api/fixie": api_fixie, "/api/notice": api_notice,
-          "/api/complete": api_complete, "/api/reset": api_reset}
+          "/api/complete": api_complete, "/api/reset": api_reset, "/api/invoice": api_invoice}
 
 
 class Handler(BaseHTTPRequestHandler):

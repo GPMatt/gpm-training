@@ -214,6 +214,8 @@ def maintenance(wid, via="webhook"):
     desc = re.sub("<[^>]+>", " ", wo.get("description") or "").strip()
     if SKIP_TAG in desc or desc.startswith("Unit turn after"):   # test records; the Turn agent's own WO
         return
+    if wo.get("workOrderStatusID") == STATUS_OPEN and wo.get("technicianContactIDs"):
+        return   # already dispatched by a person: nothing to triage
     unit = unit_by_id(wo.get("unitID"))
     created = wo.get("dateTimeCreated")
     log("Maintenance", f"Work order #{wo.get('workOrderNumber')} received at {unit.get('name')}",
@@ -413,6 +415,87 @@ def billing(wid, via="webhook"):
         f"Linked to WO #{wo.get('workOrderNumber')}; {policy}; isApproved={back.get('isApproved')}",
         claims=("W06", "W07", "W08"), data={"billID": bid})
     log("Billing", "Waiting for a person to approve it in Rentvine",
+        "Accounting → Bills. The agent can't pay or release money (D01)", status="waiting", claims=("W09", "D01"),
+        data={"billID": bid})
+    threading.Thread(target=_watch_bill, args=(bid,), daemon=True).start()
+
+
+PARTS = {  # Price Book items the demo's A/C job uses (created at reset if missing); prices are demo values
+    "Run capacitor 45/5 MFD": ("38.00", "14.50"),
+    "R-410A refrigerant (per lb)": ("42.00", "18.00"),
+}
+
+
+def ensure_parts():
+    have = {m.get("material", m)["name"] for m in rv.get("maintenance/materials")[1]}
+    for name, (sell, cost) in PARTS.items():
+        if name not in have:
+            rv.post("maintenance/materials", {"name": name, "sellPrice": sell, "purchasePrice": cost})
+
+
+def itemized_bill(wid, hours, parts, notes=""):
+    """Prompt 5: close a job and turn it into an itemized owner bill, resolving the owner from the WO."""
+    once("wo_completed", wid)   # this path bills the job; keep the plain Billing agent off it
+    wo = get_wo(wid)
+    unit = unit_by_id(wo.get("unitID"))
+    pf = unwrap(rv.get(f"portfolios/{wo.get('portfolioID')}")[1], "portfolio")
+    owners = ", ".join(c["name"] for c in pf.get("contacts") or [])
+    ledger = ledger_for_unit(unit.get("name", ""))
+    log("Invoice", f"Work order #{wo.get('workOrderNumber')} → {unit.get('name')} → owner {owners}",
+        f"Resolved from the work order: property {wo.get('propertyID')} → portfolio \"{pf.get('name')}\" → "
+        f"ledger {ledger} (exact unit match, not substring)", claims=("R08", "W07"))
+    if wo.get("workOrderStatusID") != STATUS_COMPLETED:
+        rv.post(f"maintenance/work-orders/{wid}", {"workOrderStatusID": STATUS_COMPLETED})
+        log("Invoice", "Work order marked Completed", notes or "")
+    book = {m.get("material", m)["name"]: m.get("material", m) for m in rv.get("maintenance/materials")[1]}
+    month = datetime.date.today().strftime("%Y-%m")
+    calls = sum(1 for r in rv.get("maintenance/work-orders?pageSize=500")[1]
+                if r["workOrder"].get("unitID") == wo.get("unitID") and r["workOrder"].get("workOrderStatusID") != "3"
+                and (r["workOrder"].get("dateTimeCreated") or "").startswith(month)
+                and SKIP_TAG not in (r["workOrder"].get("description") or ""))
+    comped = 1.0 if calls <= 3 else 0.0
+    lines, total = [], 0.0
+    labor = round(max(0.0, hours - comped) * LABOR_RATE, 2)
+    lines.append({"ledgerID": ledger, "chargeAccountID": GL["hvac"], "amount": f"{labor:.2f}",
+                  "description": f"Labor, {TECH['name']}: {hours:g} h"
+                                 + (f", first hour comped (call {calls} of 3 this month)" if comped else "")
+                                 + f" x ${LABOR_RATE:g}/h"})
+    total += labor
+    for name, qty in parts:
+        m = book.get(name)
+        if not m:
+            log("Invoice", f"Part not in the Price Book: {name}", status="error")
+            return
+        amt = round(float(m["sellPrice"]) * qty, 2)
+        lines.append({"ledgerID": ledger, "chargeAccountID": GL["hvac"], "amount": f"{amt:.2f}",
+                      "description": f"{name} x {qty:g} @ ${float(m['sellPrice']):.2f} (Price Book)"})
+        total += amt
+    if not ensure_approval_gate():
+        log("Invoice", "Approval gate is OFF, refusing to create a bill", status="error", claims=("R07", "W09"))
+        return
+    s, b = rv.post("accounting/bills", {
+        "payeeContactID": GPM_PAYEE, "billDate": f"{datetime.date.today()}",
+        "dateDue": f"{datetime.date.today() + datetime.timedelta(days=10)}",
+        "reference": f"WO-{wo.get('workOrderNumber')}", "workOrderID": wid, "charges": lines})
+    bill = unwrap(b, "bill")
+    bid = bill.get("billID")
+    if s != 200 or not bid:
+        log("Invoice", "Bill creation failed", f"HTTP {s}: {str(b)[:200]}", status="error")
+        return
+    full = rv.get(f"accounting/bills/{bid}?includes=charges")[1]
+    back = unwrap(full, "bill")
+    saved = [c.get("transaction", c) for c in full.get("charges") or []]
+    saved_total = sum(float(c.get("amount") or 0) for c in saved)
+    log("Invoice", f"Itemized bill #{bid}: ${total:,.2f} to {owners} ({len(lines)} lines, HVAC)",
+        " | ".join(f"{l['description']}: ${float(l['amount']):,.2f}" for l in lines) +
+        f" | re-read from Rentvine: {len(saved)} lines, ${saved_total:,.2f}, isApproved={back.get('isApproved')}",
+        claims=("W06", "W07", "W08"), data={"billID": bid},
+        status="done" if len(saved) == len(lines) and abs(saved_total - total) < 0.01 else "error")
+    rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wid), "isSharedWithTenant": "0",
+                              "message": f"<p><b>Billed to owner ({owners}):</b> bill #{bid}, ${total:,.2f}, "
+                                         f"waiting for approval.</p><p>" + "<br>".join(
+                                             f"{l['description']}: ${float(l['amount']):,.2f}" for l in lines) + "</p>"})
+    log("Invoice", "Waiting for a person to approve it in Rentvine",
         "Accounting → Bills. The agent can't pay or release money (D01)", status="waiting", claims=("W09", "D01"),
         data={"billID": bid})
     threading.Thread(target=_watch_bill, args=(bid,), daemon=True).start()

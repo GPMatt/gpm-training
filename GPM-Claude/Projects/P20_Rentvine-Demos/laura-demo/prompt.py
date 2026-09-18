@@ -4,6 +4,7 @@
     python3 laura-demo/prompt.py leak "<what the tenant said>"
     python3 laura-demo/prompt.py notice 2026-10-30
     python3 laura-demo/prompt.py close          # completes the latest leak work order
+    python3 laura-demo/prompt.py invoice 2.5 "Run capacitor 45/5 MFD:1" "R-410A refrigerant (per lb):2"
 
 Needs laura-demo/server.py running (it hosts the agents).
 """
@@ -13,8 +14,9 @@ import time
 import urllib.request
 
 BASE = "http://localhost:8430"
-AGENT = {"lead": "Leads", "leak": "Maintenance", "notice": "Turn", "close": "Billing"}
-DONE = {"lead": "Text", "leak": "Text", "notice": "Listing drafted", "close": "Waiting for a person"}
+AGENT = {"lead": "Leads", "leak": "Maintenance", "notice": "Turn", "close": "Billing", "invoice": "Invoice"}
+DONE = {"lead": "Text", "leak": "Text", "notice": "Listing drafted", "close": "Waiting for a person",
+        "invoice": "Waiting for a person"}
 
 
 def call(path, body=None):
@@ -38,6 +40,9 @@ def main():
         wo = next((i["data"]["workOrderID"] for i in reversed(call("/api/feed")["items"])
                    if i["agent"] == "Maintenance" and i["data"].get("workOrderID")), None)
         r = call("/api/complete", {"workOrderID": wo}) if wo else {"ok": False, "error": "no leak work order yet"}
+    elif scene == "invoice":
+        parts = [{"name": a.rsplit(":", 1)[0], "qty": a.rsplit(":", 1)[1] if ":" in a else 1} for a in args[1:]]
+        r = call("/api/invoice", {"hours": args[0] if args else 2, "parts": parts})
     print("trigger:", json.dumps(r))
     if not r.get("ok"):
         return
