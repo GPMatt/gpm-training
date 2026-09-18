@@ -363,6 +363,51 @@ def _(ctx):
     return ("VERIFIED" if s == 200 and seen else "REFUTED"), f"POST -> {s}; message visible on WO thread: {seen}"
 
 
+@claim("W24", "Maintenance", "An agent can write diagnosticSummary (Fixie's assessment field) onto a work order",
+       "Laura visual plan 2026-09-18", "write")
+def _(ctx):
+    if not ctx.wo:
+        return "BLOCKED", "needs W01"
+    text = f"{TAG} Kitchen sink leaking under cabinet; water pooling, tenant shut supply valve."
+    s, b = rv.post(f"maintenance/work-orders/{ctx.wo}", {"diagnosticSummary": text})
+    got = wo_get(ctx.wo).get("diagnosticSummary")
+    if got == text:
+        return "VERIFIED", f"POST -> {s}; diagnosticSummary persisted on WO {ctx.wo}"
+    return "REFUTED", f"POST -> {s} but diagnosticSummary on re-fetch is {str(got)[:80]!r} (silent no-op). " \
+                      "Put the assessment in description or a WO chat post instead."
+
+
+@claim("W25", "Comms", "A tenant's phone number can be updated via API (so agents text the number Rentvine has on file)",
+       "Laura visual plan 2026-09-18", "write")
+def _(ctx):
+    s, b = rv.get("tenants")
+    t = unwrap(rows(b)[0], "contact") if rows(b) else {}
+    tid = t.get("contactID")
+    if not tid:
+        return "BLOCKED", f"no tenant to test on (HTTP {s})"
+    # The flat `phone` field is a read-only mirror (a flat update is a silent no-op, tested 2026-09-18).
+    # Numbers live in phones[] sub-records; send the whole list so no other number gets dropped.
+    def phones():
+        return [unwrap(p, "phone") for p in rv.get(f"tenants/{tid}?includes=phones")[1].get("phones") or []]
+    orig, test = phones(), "+16165550142"
+    if not orig:
+        return "BLOCKED", f"tenant {tid} has no phone records to edit"
+    keep = ("contactPhoneID", "phone", "isPrimary", "phoneTypeID", "description", "isActive")
+    base = [{k: p.get(k) for k in keep} for p in orig]
+    edited = [dict(p, phone=test) if p["isPrimary"] == "1" else p for p in base]
+    try:
+        s, b = rv.post(f"tenants/{tid}", {"name": t["name"], "phones": edited})  # name is required on update
+        after = unwrap(rv.get(f"tenants/{tid}")[1], "contact").get("phone")
+        count = len(phones())
+        ok = after == test and count == len(orig)
+        return ("VERIFIED" if ok else "REFUTED"), \
+            f"tenant {tid}: POST phones[] -> {s}; primary phone on re-fetch {after!r}; phone records {len(orig)} -> {count}" + \
+            ("" if ok else ". Flat `phone` and phones[] both silent no-ops, same pattern as owner email (W12): contact "
+                           "details are UI-only. Set tenant phones in the UI; agents still read them from Rentvine.")
+    finally:
+        rv.post(f"tenants/{tid}", {"name": t["name"], "phones": base})
+
+
 def ledger_and_payee():
     s, b = rv.get("accounting/ledgers/search?search=Hello1")
     led = next((unwrap(r, "ledger") for r in rows(b) if unwrap(r, "ledger").get("name", "").startswith("Hello1 ")), None)
