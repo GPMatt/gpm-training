@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPM on Rentvine</title>
+<link rel="icon" href="/assets/gpm-icon.png">
+<style>
+:root{
+  --bg:#f5efe3; --panel:#fffdf8; --ink:#2b2118; --muted:#7a6a58; --line:#e4d8c3;
+  --brown:#5a3e2b; --tan:#d9c7a7; --green:#2f6f45; --green-soft:#e3f0e6;
+  --amber:#a86a12; --amber-soft:#fbefd9; --red:#a8322a; --red-soft:#f8e1de;
+  --sim:#6d6377; --sim-soft:#eeeaf2; --human:#1f5f8b; --human-soft:#e1edf6;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:16px;padding:10px 24px;background:var(--brown);color:#fff}
+header img{height:34px;background:#fff;border-radius:6px;padding:3px 8px}
+header h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
+.chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.14);white-space:nowrap}
+.chip.ok{background:#3f8a57}.chip.bad{background:#b0473d}
+nav{display:flex;gap:6px;justify-content:center;padding:12px}
+nav button{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:6px 12px;border-radius:99px;font-size:13px;cursor:pointer}
+nav button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+main{max-width:1280px;margin:0 auto;padding:0 24px 40px}
+.scene{display:none}.scene.on{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.kicker{color:var(--green);font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:1.2px}
+h2{font-size:30px;margin:4px 0 6px;letter-spacing:-.3px}
+.lede{color:var(--muted);max-width:860px;margin:0 0 18px;font-size:17px}
+.grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 2px rgba(60,40,20,.06)}
+.panel h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.badge{font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.b-live{background:var(--green-soft);color:var(--green)}
+.b-sim{background:var(--sim-soft);color:var(--sim);border:1px dashed var(--sim)}
+.b-human{background:var(--human-soft);color:var(--human)}
+.b-pend{background:var(--amber-soft);color:var(--amber)}
+.note{font-size:13px;color:var(--muted);margin:10px 0 0}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input,textarea{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:9px;padding:10px 16px;font:inherit;font-weight:600;font-size:14px;cursor:pointer;background:var(--green);color:#fff;margin-top:12px;text-decoration:none}
+.btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* feed */
+.feed h3 .count{margin-left:auto;font-weight:400;color:var(--muted);font-size:12px}
+.items{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow:auto}
+.item{display:grid;grid-template-columns:14px 1fr auto;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;animation:fade .3s ease}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--green)}
+.item.working .dot{background:var(--amber);animation:pulse 1s infinite}
+.item.waiting .dot{background:var(--human)}.item.held .dot{background:var(--sim)}.item.error .dot{background:var(--red)}
+@keyframes pulse{50%{opacity:.3}}
+.step{font-weight:600;font-size:14px}
+.detail{font-size:12.5px;color:var(--muted);margin-top:2px;word-break:break-word}
+.meta{text-align:right;font-size:11.5px;color:var(--muted);white-space:nowrap}
+.elapsed{display:block;font-weight:700;color:var(--green);font-size:13px}
+.claims{margin-top:5px;display:flex;gap:4px;flex-wrap:wrap}
+.claim{font:600 10.5px ui-monospace,Menlo,monospace;padding:1px 6px;border-radius:4px;background:var(--green-soft);color:var(--green);cursor:help}
+.claim.PARTIAL{background:var(--amber-soft);color:var(--amber)}
+.empty{color:var(--muted);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+/* phone */
+.phone{width:280px;border:9px solid #1d1a17;border-radius:32px;background:#f2f2f5;padding:14px 12px 18px;margin:14px auto 0;min-height:250px}
+.phone .from{font-size:11px;color:#888;text-align:center;margin-bottom:10px}
+.sms{background:#e5e5ea;border-radius:16px;padding:9px 12px;font-size:13.5px;max-width:92%;animation:fade .3s}
+.sms.held{background:#fff;border:1px dashed var(--sim);color:var(--sim)}
+.phone .wait{color:#aaa;font-size:12px;text-align:center;margin-top:60px}
+/* chat */
+.chat{display:flex;flex-direction:column;gap:8px;min-height:260px;max-height:340px;overflow:auto;padding:4px}
+.msg{max-width:82%;padding:8px 12px;border-radius:14px;font-size:14px;animation:fade .3s}
+.msg.bot{background:#efe7d8;align-self:flex-start;border-bottom-left-radius:4px}
+.msg.me{background:var(--green);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.typing{color:var(--muted);font-size:12px}
+/* big stats */
+.stat{font-size:44px;font-weight:800;letter-spacing:-1px;color:var(--green);line-height:1}
+.statlbl{font-size:13px;color:var(--muted)}
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px}
+.lane{border-radius:14px;padding:18px;border:1px solid var(--line);background:var(--panel)}
+.lane h4{margin:0 0 6px;font-size:18px}
+.lane ul{margin:6px 0 0;padding-left:18px;font-size:14.5px}
+.lane.auto{border-top:5px solid var(--green)}.lane.appr{border-top:5px solid var(--human)}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}
+.card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;margin-top:12px;animation:fade .3s}
+.card h5{margin:0 0 6px;font-size:14px;display:flex;gap:8px;align-items:center}
+.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px}
+.pill.wait{background:var(--amber-soft);color:var(--amber)}.pill.ok{background:var(--green-soft);color:var(--green)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.flow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;margin:8px 0 2px}
+.flow span{background:#fff;border:1px solid var(--line);border-radius:7px;padding:3px 8px}
+.flow i{color:var(--muted);font-style:normal}
+footer{max-width:1280px;margin:0 auto;padding:0 24px 30px;color:var(--muted);font-size:12px;display:flex;gap:16px;justify-content:space-between}
+@media (max-width:900px){.grid,.lanes,.three{grid-template-columns:1fr}header{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header>
+  <img src="/assets/gpm-logo.png" alt="Green Property Management">
+  <h1>What GPM's work looks like on Rentvine, with agents</h1>
+  <div class="chips">
+    <span class="chip" id="c-hooks">webhooks …</span>
+    <span class="chip" id="c-sms">texts …</span>
+    <span class="chip">Rentvine sandbox · live</span>
+  </div>
+</header>
+<nav id="nav"></nav>
+<main>
+
+<!-- 0. Frame -->
+<section class="scene" data-title="Why">
+  <div class="kicker">The pitch</div>
+  <h2>More units per PM, without PMs doing more</h2>
+  <p class="lede">GPM manages about 1,000 units with 3 property managers, roughly 333 units each. The only way that works is if routine work happens without a PM touching it, and PMs handle the exceptions.</p>
+  <div class="three">
+    <div class="panel"><div class="stat">~1,000</div><div class="statlbl">units under management</div></div>
+    <div class="panel"><div class="stat">3</div><div class="statlbl">property managers</div></div>
+    <div class="panel"><div class="stat">~333</div><div class="statlbl">units per PM</div></div>
+  </div>
+  <div class="lanes">
+    <div class="lane auto"><h4>Lane 1 · Agents act on their own</h4>
+      <div class="note" style="margin:0">Anything that doesn't move money.</div>
+      <ul><li>Text new leads a showing link</li><li>Triage, schedule and assign repairs</li><li>Keep tenants updated</li><li>Start the turn when notice comes in</li></ul></div>
+    <div class="lane appr"><h4>Lane 2 · A person approves</h4>
+      <div class="note" style="margin:0">Anything that touches trust money.</div>
+      <ul><li>Agents prepare correctly coded owner bills</li><li>Rentvine holds every bill until a person approves it</li><li>A person releases payment. There's no API for it, by design</li></ul></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <h3>Why Rentvine and not AppFolio</h3>
+    <p style="margin:0">GPM already has a <b>read</b> API on AppFolio, so agents can report. Rentvine adds <b>write access and webhooks</b>, so agents can act the moment something happens: update the work order, text the tenant, post the bill. Everything on the next screens is running against a real Rentvine account right now.</p>
+    <div class="row" style="margin-top:10px">
+      <span class="badge b-live">Live</span><span class="note" style="margin:0">real Rentvine record or action</span>
+      <span class="badge b-sim">Simulated</span><span class="note" style="margin:0">a stand-in for an outside source</span>
+      <span class="badge b-human">Human</span><span class="note" style="margin:0">a person does this step</span>
+      <span class="badge b-pend">Pending Rentvine</span><span class="note" style="margin:0">not possible via Rentvine's API yet</span>
+    </div>
+  </div>
+</section>
+
+<!-- 1. Leads -->
+<section class="scene" data-title="1 · Leads" data-agent="Leads">
+  <div class="kicker">Scene 1 · Leasing</div>
+  <h2>A new lead gets a showing link in seconds</h2>
+  <p class="lede">A prospect asks about a vacant unit at Knapp's Corner Apartments. The Leads agent sees the new prospect in Rentvine and texts them a booking link, day or night.</p>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h3>Inquiry from Zillow <span class="badge b-sim">Simulated</span></h3>
+        <label>Name</label><input id="l-name" value="Jordan Rivera">
+        <label>Mobile (texts only go to allowlisted demo numbers)</label><input id="l-phone" placeholder="(616) 555-0100">
+        <label>Message</label><input id="l-msg" value="Is the 2-bed at Knapp's Corner still available?">
+        <button class="btn" id="l-go">Send inquiry</button>
+        <p class="note">In production, inquiries land in Rentvine from Zillow through the Tenant Turner sync or GPM's own inbox watcher. Here we create the same Rentvine prospect record directly. <span class="badge b-live">Live</span> from that point on.</p>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h3>What the prospect gets</h3>
+        <div class="phone"><div class="from">Text from GPM (via Rentvine)</div><div id="l-phonebox"><div class="wait">waiting for the agent…</div></div></div>
+      </div>
+    </div>
+    <div class="panel feed"><h3>Leads agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+  </div>
+</section>
+
+<!-- 2. Maintenance -->
+<section class="scene" data-title="2 · Maintenance" data-agent="Maintenance">
+  <div class="kicker">Scene 2 · Maintenance</div>
+  <h2>A leak is reported, triaged and scheduled with no PM involved</h2>
+  <p class="lede">Danielle Ortiz at 615 Leonard St NW reports a leak through the tenant chat. The moment the work order exists, Rentvine notifies our agent. Claude grades the urgency, then the agent schedules the tech, sets the arrival window, leaves a note for the team and texts Danielle.</p>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h3>Tenant chat <span class="badge b-sim">Simulated</span></h3>
+        <div class="chat" id="m-chat"></div>
+        <button class="btn" id="m-go">Start the chat</button>
+        <p class="note">Rentvine's own tenant chat AI (Fixie) is free and does this intake for real, but we can't script it in the sandbox, so this chat stands in for it. The work order it files is <span class="badge b-live">Live</span>.</p>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h3>What Danielle gets</h3>
+        <div class="phone"><div class="from">Text from GPM (via Rentvine)</div><div id="m-phonebox"><div class="wait">waiting for the agent…</div></div></div>
+      </div>
+    </div>
+    <div class="panel feed"><h3>Maintenance agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+  </div>
+</section>
+
+<!-- 3. Turn -->
+<section class="scene" data-title="3 · Notice → Turn" data-agent="Turn">
+  <div class="kicker">Scene 3 · Leasing + turns</div>
+  <h2>Notice comes in, and the turn and the listing start themselves</h2>
+  <p class="lede">Marcus Bennett at 2319 Breton Rd SE gives notice. As soon as the PM records it in Rentvine, the Turn agent opens the turn work order, holds the move-out inspection on the PM's calendar and drafts the listing. The PM reviews it and clicks publish.</p>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h3>Record the notice <span class="badge b-human">Human</span></h3>
+        <p style="margin:0 0 4px">In Rentvine: Leases → 2319 Breton Rd SE → Notice date + expected move-out. That's the only step a person takes.</p>
+        <div class="row"><button class="btn" id="t-go">Record notice now</button><span class="note" style="margin:12px 0 0">(the same two fields, written for you)</span></div>
+      </div>
+      <div id="t-out"></div>
+    </div>
+    <div class="panel feed"><h3>Turn agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+  </div>
+</section>
+
+<!-- 4. Billing -->
+<section class="scene" data-title="4 · Owner billing" data-agent="Billing">
+  <div class="kicker">Scene 4 · Accounting</div>
+  <h2>The owner bill is posted automatically, and a person releases the money</h2>
+  <p class="lede">When Jake closes the leak job, the Billing agent posts a correctly coded bill to the owner's ledger, linked to the work order, applying GPM's first-hour policy. Rentvine holds it until a person approves it. Paying it is a person's job, and Rentvine's API can't do it.</p>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h3>Tech closes the job <span class="badge b-human">Human</span></h3>
+        <p style="margin:0">Work order <b id="b-wo">from scene 2</b> at 615 Leonard St NW. In real life, Jake marks it Completed from the field.</p>
+        <button class="btn" id="b-go">Mark job Completed</button>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h3>Trust money stays two-lane</h3>
+        <div class="flow"><span>Agent: code + post bill</span><i>→</i><span style="border-color:var(--human)">Person: approve</span><i>→</i><span style="border-color:var(--human)">Person: pay (UI only)</span></div>
+        <div id="b-out"><div class="empty">The bill appears here when the job is closed.</div></div>
+      </div>
+    </div>
+    <div class="panel feed"><h3>Billing agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+  </div>
+</section>
+
+<!-- 5. Close -->
+<section class="scene" data-title="What's real">
+  <div class="kicker">What you just saw</div>
+  <h2>What's live today, and what we'd need from Rentvine</h2>
+  <p class="lede">Every live step above was tested against Rentvine's API and re-read to confirm it stuck. The claim IDs on each step point to that test.</p>
+  <div class="grid">
+    <div class="panel"><h3>Live now <span class="badge b-live">Live</span></h3>
+      <table>
+        <tr><td>Text a new lead a showing link</td><td>R06 W13 W14</td></tr>
+        <tr><td>Grade, schedule, assign a repair; note + tenant text</td><td>W02-W05 W14 W21 W26</td></tr>
+        <tr><td>Notice → turn work order + listing draft</td><td>W01 W23</td></tr>
+        <tr><td>Owner bill linked to the job, held for approval</td><td>W06-W09</td></tr>
+        <tr><td>Money can't move without a person</td><td>D01 W09</td></tr>
+      </table>
+    </div>
+    <div class="panel"><h3>Honest caveats</h3>
+      <table>
+        <tr><td><span class="badge b-sim">Simulated</span></td><td>Zillow inquiry and tenant chat stand in for outside sources.</td></tr>
+        <tr><td><span class="badge b-pend">Pending</span></td><td>Publishing a listing: Rentvine's listing API is read-only (asked 2026-09-18).</td></tr>
+        <tr><td><span class="badge b-pend">Pending</span></td><td>Email from Rentvine is blocked for API keys, so email goes through GPM's Gmail (W15).</td></tr>
+        <tr><td><span class="badge b-human">Ask rep</span></td><td>Does the production account behave like the sandbox (H08)? What do texts cost at scale (H10)?</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+<footer><span>Sandbox data dressed as GPM's West Michigan portfolio. No real tenants or owners.</span><span>← → to move · Shift+R resets the demo</span></footer>
+
+<script>
+const CLAIMS = {
+  R06:["VERIFIED","New prospects can be polled from Rentvine"], R07:["VERIFIED","Approval settings are readable"],
+  R08:["VERIFIED","Ledger search is substring; agent matches exactly"], H07:["VERIFIED","Prospects are Rentvine's official lead path (confirmed by a Rentvine developer)"],
+  W01:["VERIFIED","Work orders can be created via API"], W02:["VERIFIED","Schedule + arrival window written back and persisted"],
+  W03:["VERIFIED","Partial updates don't wipe other fields"], W04:["VERIFIED","Priority can be rewritten"],
+  W05:["VERIFIED","Agent can post on the work order's thread"], W06:["VERIFIED","Owner bills can be created via API"],
+  W07:["VERIFIED","A bill can carry the work order ID"], W08:["VERIFIED","Rentvine doesn't dedupe; the agent guards against doubles"],
+  W09:["VERIFIED","Approval gate holds new bills until approved"], W13:["VERIFIED","Prospects link to a unit"],
+  W14:["VERIFIED","Rentvine can text a real phone"], W21:["VERIFIED","Signed work-order webhooks arrive in ~1s with a change diff"],
+  W23:["PARTIAL","Notice write verified; the lease webhook is being confirmed"], W26:["VERIFIED","Technician can be assigned to the work order"],
+  D01:["VERIFIED","No API can release a payment; payout is UI-only"],
+};
+const $ = (s, el=document) => el.querySelector(s);
+const scenes = [...document.querySelectorAll(".scene")];
+const byAgent = {}; scenes.forEach((s, i) => s.dataset.agent && (byAgent[s.dataset.agent] = i));
+const t0 = {};           // agent -> trigger time (ms) for the elapsed stopwatch
+let cur = 0, last = 0, woID = null, woNum = null;
+
+// ---- navigation
+const nav = $("#nav");
+scenes.forEach((s, i) => { const b = document.createElement("button"); b.textContent = s.dataset.title; b.onclick = () => go(i); nav.append(b); });
+function go(i){ cur = Math.max(0, Math.min(scenes.length-1, i)); scenes.forEach((s,j)=>s.classList.toggle("on", j===cur)); [...nav.children].forEach((b,j)=>b.classList.toggle("on", j===cur)); scrollTo(0,0); }
+addEventListener("keydown", e => {
+  if (e.target.matches("input,textarea")) return;
+  if (e.key === "ArrowRight") go(cur+1);
+  if (e.key === "ArrowLeft") go(cur-1);
+  if (e.key === "R" && e.shiftKey && confirm("Reset the demo? (clears the feed and the scene-3 notice)")) post("/api/reset").then(()=>location.reload());
+});
+go(0);
+
+async function post(url, body={}){
+  const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  return r.json();
+}
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---- live feed
+function render(item){
+  const idx = byAgent[item.agent]; if (idx === undefined) return;
+  const box = $(".items", scenes[idx]);
+  $(".empty", box)?.remove();
+  let el = box.querySelector(`[data-working="${item.agent}"]`);
+  if (el && item.status !== "working") { el.remove(); }
+  el = document.createElement("div");
+  el.className = `item ${item.status}`;
+  if (item.status === "working") el.dataset.working = item.agent;
+  const secs = t0[item.agent] ? Math.round((Date.now() - t0[item.agent]) / 1000) : null;
+  const claims = item.claims.map(c => `<span class="claim ${CLAIMS[c]?.[0]||""}" title="${esc(c+": "+(CLAIMS[c]?.[1]||"")+" ("+(CLAIMS[c]?.[0]||"?")+")")}">${c}</span>`).join("");
+  el.innerHTML = `<span class="dot"></span><div><div class="step">${esc(item.step)}</div>${item.detail?`<div class="detail">${esc(item.detail)}</div>`:""}${claims?`<div class="claims">${claims}</div>`:""}</div>
+    <div class="meta">${secs!==null&&item.status!=="working"?`<span class="elapsed">+${secs}s</span>`:""}${item.t}</div>`;
+  box.append(el); box.scrollTop = box.scrollHeight;
+  $("[data-count]", scenes[idx]).textContent = `${box.querySelectorAll(".item:not(.working)").length} steps`;
+  hooks(item, secs);
+}
+
+function phone(boxSel, item){
+  const text = item.detail.replace(/^to [^:]+: /, "");
+  $(boxSel).innerHTML = `<div class="sms ${item.status==="held"?"held":""}">${esc(text)}</div>` +
+    (item.status==="held" ? `<div class="note">Held: that number isn't on the demo allowlist, so nothing was sent.</div>` : "");
+}
+
+function hooks(item, secs){
+  if (item.agent === "Leads" && /^Text/.test(item.step)) phone("#l-phonebox", item);
+  if (item.agent === "Maintenance" && /^Text/.test(item.step)) phone("#m-phonebox", item);
+  if (item.agent === "Maintenance" && item.data.workOrderID) { woID = item.data.workOrderID; }
+  if (item.agent === "Turn" && item.data.gcal) {
+    $("#t-out").insertAdjacentHTML("beforeend", `<div class="card"><h5>Move-out inspection <span class="badge b-live">Ready</span></h5>
+      <div class="detail">${esc(item.step)}. Rentvine has no API to create inspections, so the hold goes on the PM's Google Calendar.</div>
+      <a class="btn secondary" target="_blank" href="${esc(item.data.gcal)}">Add to Google Calendar</a></div>`);
+  }
+  if (item.agent === "Turn" && item.data.listing) {
+    const l = item.data.listing;
+    $("#t-out").insertAdjacentHTML("beforeend", `<div class="card"><h5>Listing draft <span class="badge b-live">Drafted by Claude</span></h5>
+      <div style="font-weight:700;margin:4px 0">${esc(l.headline)}</div><div style="font-size:14px">${esc(l.body)}</div>
+      <div class="row"><button class="btn" disabled>Publish listing</button><span class="badge b-pend">Pending Rentvine</span></div>
+      <p class="note">Rentvine's listing API is read-only today, so a PM reviews this and clicks publish in Rentvine. We've asked Rentvine to open it up.</p></div>`);
+  }
+  if (item.agent === "Billing" && item.data.billID && /created/.test(item.step)) {
+    $("#b-out").innerHTML = `<div class="card"><h5>${esc(item.step.replace(/^Owner bill #\d+ created: /,"Owner bill: "))}</h5>
+      <div class="detail">${esc(item.detail)}</div>
+      <div class="row" style="margin-top:8px"><span class="pill wait" id="b-state">Awaiting approval</span><span class="note" style="margin:0">Approve it in Rentvine: Accounting → Bills</span></div></div>`;
+  }
+  if (item.agent === "Billing" && /approved by a person/.test(item.step)) { const p = $("#b-state"); if (p) { p.className = "pill ok"; p.textContent = "Approved by a person"; } }
+  if (item.agent === "Billing" && /paid/.test(item.step)) { const p = $("#b-state"); if (p) { p.className = "pill ok"; p.textContent = "Paid, released by a person"; } }
+}
+
+async function poll(){
+  try {
+    const r = await (await fetch(`/api/feed?since=${last}`)).json();
+    for (const it of r.items) { last = Math.max(last, it.id); render(it); }
+    const h = $("#c-hooks"), s = $("#c-sms");
+    h.textContent = r.config.webhooks ? "webhooks on" : "webhooks off"; h.className = "chip " + (r.config.webhooks ? "ok" : "bad");
+    s.textContent = `texts to ${r.config.allowlisted} allowlisted #`; s.className = "chip " + (r.config.allowlisted ? "ok" : "bad");
+  } catch (e) { $("#c-hooks").textContent = "server offline"; $("#c-hooks").className = "chip bad"; }
+  setTimeout(poll, 1200);
+}
+scenes.forEach(s => { const b = $(".items", s); if (b) b.innerHTML = `<div class="empty">Waiting for the trigger…</div>`; });
+poll();
+
+// ---- scene 1: lead
+$("#l-go").onclick = async e => {
+  e.target.disabled = true; t0.Leads = Date.now();
+  const r = await post("/api/lead", {name:$("#l-name").value, phone:$("#l-phone").value, message:$("#l-msg").value});
+  e.target.textContent = r.ok ? `Prospect #${r.prospectID} created in Rentvine` : "Couldn't create the prospect";
+};
+
+// ---- scene 2: simulated tenant chat -> live work order
+const SCRIPT = [
+  ["bot","Hi Danielle, this is GPM's maintenance assistant. What's going on at 615 Leonard St NW?"],
+  ["me","Water is leaking under my kitchen sink. It's pooling on the floor."],
+  ["bot","Sorry about that. Is it still running? If you can, turn the shut-off valve under the sink clockwise."],
+  ["me","OK, I turned the valve off. It stopped, but the cabinet floor is soaked."],
+  ["bot","Thanks, that helps a lot. I'm filing this with your maintenance team right now."],
+];
+$("#m-go").onclick = async e => {
+  e.target.disabled = true; const chat = $("#m-chat");
+  for (const [who, text] of SCRIPT) {
+    const t = document.createElement("div"); t.className = "typing"; t.textContent = who==="bot" ? "assistant is typing…" : "Danielle is typing…"; chat.append(t);
+    await new Promise(r => setTimeout(r, who==="bot" ? 900 : 1300)); t.remove();
+    chat.insertAdjacentHTML("beforeend", `<div class="msg ${who}">${esc(text)}</div>`); chat.scrollTop = chat.scrollHeight;
+  }
+  t0.Maintenance = Date.now();
+  const r = await post("/api/fixie", {summary:"Water leaking under the kitchen sink and pooling on the floor. Tenant shut off the supply valve under the sink; the leak stopped but the cabinet base is soaked."});
+  if (r.ok) { woID = r.workOrderID; woNum = r.workOrderNumber; $("#b-wo").textContent = `#${woNum}`; }
+  chat.insertAdjacentHTML("beforeend", r.ok
+    ? `<div class="msg bot">Done. Work order <b>#${esc(r.workOrderNumber)}</b> is filed. You'll get a text with your arrival window.</div>`
+    : `<div class="msg bot">Couldn't file the work order: ${esc(r.error||"error")}</div>`);
+  chat.scrollTop = chat.scrollHeight; e.target.textContent = r.ok ? `Work order #${r.workOrderNumber} filed in Rentvine` : "Retry";
+  e.target.disabled = !r.ok ? false : true;
+};
+
+// ---- scene 3: notice
+$("#t-go").onclick = async e => {
+  e.target.disabled = true; t0.Turn = Date.now();
+  const r = await post("/api/notice");
+  e.target.textContent = r.ok ? `Notice recorded · move-out ${r.moveOut}` : "Couldn't record the notice";
+};
+
+// ---- scene 4: complete the job
+$("#b-go").onclick = async e => {
+  if (!woID) { alert("Run scene 2 first: the bill is for that work order."); return; }
+  e.target.disabled = true; t0.Billing = Date.now();
+  const r = await post("/api/complete", {workOrderID: woID});
+  e.target.textContent = r.ok ? "Job marked Completed in Rentvine" : "Couldn't update the work order";
+};
+</script>
+</body>
+</html>
