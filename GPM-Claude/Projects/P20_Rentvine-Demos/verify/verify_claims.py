@@ -31,6 +31,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -180,12 +181,16 @@ def _(ctx):
 @claim("R08", "Accounting", "GET /accounting/ledgers/search?search=X is substring match, not exact "
        "(resolvers must filter for exact name)", "P20 README quirk #8", "read")
 def _(ctx):
-    s, b = rv.get("accounting/ledgers/search?search=Hello1")
+    # Search a fragment from the middle of a real property name ("1142 Lake Dr SE" -> "Lake Dr SE").
+    # An exact-match search would return nothing; a substring search returns the full name.
+    name = unwrap(rv.get("properties/1")[1], "property").get("name") or ""
+    frag = name.split(" ", 1)[-1]
+    s, b = rv.get(f"accounting/ledgers/search?search={urllib.parse.quote(frag)}")
     names = [unwrap(r, "ledger").get("name", "") for r in rows(b)]
-    loose = [n for n in names if not n.startswith("Hello1 ")]
+    loose = [n for n in names if not n.startswith(frag)]
     if s != 200 or not names:
         return "ERROR", f"HTTP {s}, {len(names)} results (sandbox-specific data; skip on other accounts)"
-    return ("VERIFIED" if loose else "REFUTED"), f"search=Hello1 returned {len(names)}: {names[:5]}"
+    return ("VERIFIED" if loose else "REFUTED"), f"search={frag!r} returned {len(names)}: {names[:5]}"
 
 
 @claim("R09", "Inventory", "Rentvine has a materials catalog (Price Book) but no quantity-on-hand, so van "
@@ -409,8 +414,10 @@ def _(ctx):
 
 
 def ledger_and_payee():
-    s, b = rv.get("accounting/ledgers/search?search=Hello1")
-    led = next((unwrap(r, "ledger") for r in rows(b) if unwrap(r, "ledger").get("name", "").startswith("Hello1 ")), None)
+    # Property 1 (renamed from Hello1 for the Laura demo); look its name up instead of hardcoding it.
+    name = unwrap(rv.get("properties/1")[1], "property").get("name") or ""
+    s, b = rv.get(f"accounting/ledgers/search?search={urllib.parse.quote(name)}")
+    led = next((unwrap(r, "ledger") for r in rows(b) if unwrap(r, "ledger").get("name", "").startswith(name + " ")), None)
     s, v = rv.get("vendors")
     payee = next((unwrap(r, "contact")["contactID"] for r in rows(v)
                   if "Green Property" in (unwrap(r, "contact").get("name") or "")), None)
@@ -794,7 +801,7 @@ static("H03", "AI", "Rentvine 'Pro Skills' agents will do autonomous work", "Ren
 static("H04", "AI", "The Rentvine AI Assistant (voice/type to record receipts, bills, charges) is included",
        "rentvine.com/ai-assistant", "vendor",
        "PARTIAL", "An 'Assistant' button is visible in the sandbox top bar (screenshots). Its capabilities are untested. "
-                  "Try it: 'add a $40 bill from Royal Pest Control to Hello1'.")
+                  "Try it: 'add a $40 bill from Royal Pest Control to 1142 Lake Dr SE'.")
 static("H05", "Pricing", "Rentvine costs $2.50/unit/mo, $199 minimum, ~$1.50 negotiated at scale, everything included",
        "rentvine.com/pricing + third-party review", "external",
        "EXTERNAL", "Get a written quote at GPM's door count, including setup fee, payments/screening fees, "
