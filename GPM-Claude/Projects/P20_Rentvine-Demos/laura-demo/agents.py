@@ -45,6 +45,7 @@ PRIORITY = {"low": "1", "normal": "2", "high": "3", "emergency": "3"}
 SKIP_TAG = "[CLAIMS-TEST]"
 
 FEED = []
+LAST_HOOK = [None]   # time of the last webhook delivery seen this run
 _lock = threading.Lock()
 _state = None
 
@@ -204,11 +205,11 @@ Request from the tenant:
 Reply with ONLY this JSON, no prose:
 {{"priority": "emergency|high|normal|low", "trade": "plumbing|hvac|painting|general",
   "reason": "<15 words on why this priority>",
-  "tenant_text": "<one friendly SMS under 220 chars to {first}: we're on it, {tech} is coming; write the literal text WINDOW where the arrival time goes>"}}
+  "tenant_text": "<one friendly SMS under 220 chars to {first}: we're on it and {tech} will come by; put the bare word WINDOW (no brackets) where the arrival time goes; don't say "on the way" or "heading over">"}}
 Emergency = active water/gas/fire/no heat in winter/security. High = could cause damage within a day."""
 
 
-def maintenance(wid):
+def maintenance(wid, via="webhook"):
     wo = get_wo(wid)
     desc = re.sub("<[^>]+>", " ", wo.get("description") or "").strip()
     if SKIP_TAG in desc or desc.startswith("Unit turn after"):   # test records; the Turn agent's own WO
@@ -216,7 +217,8 @@ def maintenance(wid):
     unit = unit_by_id(wo.get("unitID"))
     created = wo.get("dateTimeCreated")
     log("Maintenance", f"Work order #{wo.get('workOrderNumber')} received at {unit.get('name')}",
-        f"Work Order Created webhook, signed; created {created}. Request: {desc[:160]}", claims=("W21", "W01"),
+        (f"Work Order Created webhook (signed, ~1s)" if via == "webhook" else "Seen by polling Rentvine (webhook fallback)")
+        + f"; created {created}. Request: {desc[:160]}", claims=("W21", "W01") if via == "webhook" else ("W01",),
         data={"workOrderID": wid})
     lease_id = wo.get("leaseID") or lease_for_unit(wo.get("unitID"))
     tenant = primary_tenant(lease_id)
@@ -249,11 +251,26 @@ def maintenance(wid):
     window = (("today" if day == now.date() else f"{start:%a %b %-d}") +
               f", {start:%-I%p}-{end:%-I%p}").replace("AM", "am").replace("PM", "pm")
 
-    update = {"priorityID": prio, "workOrderStatusID": STATUS_OPEN, "technicianContactIDs": [TECH["contactID"]],
-              "scheduledStartDate": f"{day}", "scheduledEndDate": f"{day}",
-              "appointmentWindowStartDateTime": f"{start:%Y-%m-%d %H:%M:%S}",
-              "appointmentWindowEndDateTime": f"{end:%Y-%m-%d %H:%M:%S}"}
-    s, b = rv.post(f"maintenance/work-orders/{wid}", update)
+    # Rentvine refuses to double-book a technician, so walk forward to the next open 2-hour window.
+    s, b, tried = None, None, []
+    for _ in range(8):
+        update = {"priorityID": prio, "workOrderStatusID": STATUS_OPEN, "technicianContactIDs": [TECH["contactID"]],
+                  "scheduledStartDate": f"{start.date()}", "scheduledEndDate": f"{start.date()}",
+                  "appointmentWindowStartDateTime": f"{start:%Y-%m-%d %H:%M:%S}",
+                  "appointmentWindowEndDateTime": f"{end:%Y-%m-%d %H:%M:%S}"}
+        s, b = rv.post(f"maintenance/work-orders/{wid}", update)
+        if not (s == 400 and "another work order scheduled" in json.dumps(b)):
+            break
+        tried.append(f"{start:%-I%p}".lower())
+        start += datetime.timedelta(hours=2)
+        if start.hour > 19:
+            start = datetime.datetime.combine(business_day(start.date(), 1), datetime.time(8))
+        end = start + datetime.timedelta(hours=2)
+    window = (("today" if start.date() == now.date() else f"{start:%a %b %-d}") +
+              f", {start:%-I%p}-{end:%-I%p}").replace("AM", "am").replace("PM", "pm")
+    if tried:
+        log("Maintenance", f"{TECH['name']} already booked at {', '.join(tried)}, took the next opening",
+            "Rentvine rejects double-booking a technician, so the agent checks the calendar for it", claims=("W30",))
     back = get_wo(wid)
     missed = [k for k in ("priorityID", "workOrderStatusID", "appointmentWindowStartDateTime")
               if str(back.get(k)) != str(update[k])]
@@ -261,14 +278,15 @@ def maintenance(wid):
         log("Maintenance", f"Scheduled {TECH['name']} for {window}, priority set, status Open",
             "Written to the work order in Rentvine and re-read to confirm", claims=("W02", "W03", "W04", "W26"))
     else:
-        log("Maintenance", "Work order update did not stick", f"HTTP {s}; mismatched {missed}", status="error")
+        log("Maintenance", "Work order update did not stick", f"HTTP {s}: {str(b)[:200]}; mismatched {missed}",
+            status="error")
     note = (f"<p><b>Agent triage:</b> {triage.get('priority')} / {triage.get('trade')}: {triage.get('reason')}<br>"
             f"Scheduled {TECH['name']}, {window}" + (" (EMERGENCY; stored as High, this account's top priority)"
             if grade == "emergency" else "") + ". Tenant notified by text.</p>")
     s, _ = rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wid), "message": note,
                                      "isSharedWithTenant": "0"})
     log("Maintenance", "Posted triage note on the work order", claims=("W05",), status="done" if s == 200 else "error")
-    send_text("Maintenance", tenant.get("phone"), str(triage.get("tenant_text")).replace("WINDOW", window))
+    send_text("Maintenance", tenant.get("phone"), re.sub(r"[\[({]?WINDOW[\])}]?", window, str(triage.get("tenant_text"))))
 
 
 # ----------------------------------------------------------------------------------------- 3. Turn
@@ -278,12 +296,13 @@ Facts: {facts}. Available {available}.
 Reply with ONLY JSON: {{"headline": "<under 70 chars>", "body": "<90-130 words, warm and concrete, no invented amenities, end with: Book a showing at {link}>"}}"""
 
 
-def turn(lease_id, notice_date):
+def turn(lease_id, notice_date, via="webhook"):
     lease = unwrap(rv.get(f"leases/{lease_id}")[1], "lease")
     unit = unit_by_id(lease.get("unitID"))
     move_out = lease.get("expectedMoveOutDate")
     log("Turn", f"Notice recorded at {unit.get('name')}: move-out {move_out or 'TBD'}",
-        f"Lease Updated webhook with noticeDate {notice_date} in the change diff", claims=("W23",),
+        (f"Lease Updated webhook with noticeDate {notice_date} in the change diff" if via == "webhook"
+         else f"Seen by polling Rentvine (webhook fallback); noticeDate {notice_date}"), claims=("W23",),
         data={"leaseID": lease_id})
     mo = datetime.date.fromisoformat(move_out) if move_out else business_day(datetime.date.today(), 30)
     turn_start = business_day(mo, 1)
@@ -332,13 +351,15 @@ def ensure_approval_gate():
     return ok
 
 
-def billing(wid):
+def billing(wid, via="webhook"):
     wo = get_wo(wid)
     if SKIP_TAG in (wo.get("description") or ""):
         return
     unit = unit_by_id(wo.get("unitID"))
     log("Billing", f"Work order #{wo.get('workOrderNumber')} marked Completed",
-        "Work Order Updated webhook, status diff Open → Completed", claims=("W21",), data={"workOrderID": wid})
+        "Work Order Updated webhook, status diff → Completed" if via == "webhook"
+        else "Seen by polling Rentvine (webhook fallback)", claims=("W21",) if via == "webhook" else (),
+        data={"workOrderID": wid})
     a, e = wo.get("actualStartDate"), wo.get("actualEndDate")
     hours = DEFAULT_HOURS
     try:
@@ -436,6 +457,36 @@ def dispatch(d):
             threading.Thread(target=turn, args=(lid, nd), daemon=True).start()
 
 
+# Polling fallback: the demo must not stall if webhooks aren't configured or a delivery is late.
+# once() is shared with the webhook path, so whichever trigger arrives first handles the event.
+_known = {"wo": None, "notice": None}
+
+
+def rentvine_poll():
+    wos = {r["workOrder"]["workOrderID"]: r["workOrder"] for r in rv.get("maintenance/work-orders")[1]}
+    s, b = rv.get("leases/export?pageSize=500")
+    # /leases/export has expectedMoveOutDate but not noticeDate, so watch the move-out date.
+    notices = {r["lease"]["leaseID"]: r["lease"].get("expectedMoveOutDate") for r in (b if s == 200 else [])}
+    if _known["wo"] is None:   # baseline on the first pass: only react to changes from now on
+        _known["wo"] = {k: w.get("workOrderStatusID") for k, w in wos.items()}
+        _known["notice"] = notices
+        return
+    for wid, w in wos.items():
+        before = _known["wo"].get(wid, "new")
+        if before == "new" and once("wo_created", wid):
+            threading.Thread(target=maintenance, args=(wid, "poll"), daemon=True).start()
+        elif w.get("workOrderStatusID") == STATUS_COMPLETED and before not in (STATUS_COMPLETED, "new") \
+                and once("wo_completed", wid):
+            threading.Thread(target=billing, args=(wid, "poll"), daemon=True).start()
+        _known["wo"][wid] = w.get("workOrderStatusID")
+    for lid, nd in notices.items():
+        if nd and nd != _known["notice"].get(lid):
+            notice = unwrap(rv.get(f"leases/{lid}")[1], "lease").get("noticeDate")
+            if notice and once("notice", f"{lid}:{notice}"):
+                threading.Thread(target=turn, args=(lid, notice, "poll"), daemon=True).start()
+    _known["notice"] = notices
+
+
 def webhook_poll(first=False):
     url = f"https://webhook.site/token/{TOKEN}/requests?sorting=newest&per_page=50"
     reqs = json.loads(urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": "application/json"}),
@@ -446,6 +497,7 @@ def webhook_poll(first=False):
             continue
         state()["seen_hooks"].append(r["uuid"])
         if not first:
+            LAST_HOOK[0] = time.time()
             try:
                 dispatch(json.loads(r.get("content") or "{}"))
             except (ValueError, KeyError) as e:
@@ -469,6 +521,7 @@ def start():
         webhook_poll(first=True)   # skip deliveries from before this run
         threading.Thread(target=_loop, args=(webhook_poll, 2, "Webhook"), daemon=True).start()
     threading.Thread(target=_loop, args=(leads_poll, 4, "Leads"), daemon=True).start()
+    threading.Thread(target=_loop, args=(rentvine_poll, 4, "Rentvine"), daemon=True).start()
     log("Runner", "Agents running",
         f"webhooks: {'on' if TOKEN else 'OFF (no WEBHOOK_TOKEN)'}; texts allowed to {len(ALLOWLIST)} number(s)")
 

@@ -61,11 +61,29 @@ input,textarea{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1p
 .claim.PARTIAL{background:var(--amber-soft);color:var(--amber)}
 .empty{color:var(--muted);font-size:13px;padding:22px;text-align:center;border:1px dashed var(--line);border-radius:10px}
 /* phone */
-.phone{width:280px;border:9px solid #1d1a17;border-radius:32px;background:#f2f2f5;padding:14px 12px 18px;margin:14px auto 0;min-height:250px}
-.phone .from{font-size:11px;color:#888;text-align:center;margin-bottom:10px}
-.sms{background:#e5e5ea;border-radius:16px;padding:9px 12px;font-size:13.5px;max-width:92%;animation:fade .3s}
-.sms.held{background:#fff;border:1px dashed var(--sim);color:var(--sim)}
-.phone .wait{color:#aaa;font-size:12px;text-align:center;margin-top:60px}
+.phone{width:300px;margin:6px auto 0;border-radius:34px;background:#1d1a17;padding:10px;box-shadow:0 10px 30px rgba(40,25,10,.18)}
+.screen{background:#fff;border-radius:26px;overflow:hidden;min-height:300px;display:flex;flex-direction:column}
+.screen .top{padding:14px 12px 10px;text-align:center;border-bottom:1px solid #eee;background:#fafafa}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--green);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;margin:0 auto 4px}
+.screen .who{font-size:12px;font-weight:600}.screen .num{font-size:10.5px;color:#999}
+.thread{padding:12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.sms{background:#e9e9eb;color:#111;border-radius:18px;border-bottom-left-radius:5px;padding:8px 12px;font-size:13.5px;line-height:1.35;max-width:86%;overflow-wrap:anywhere;animation:fade .3s}
+.sms a{color:#0a66d8;text-decoration:none}
+.sms.them{align-self:flex-end;background:#2f7d4f;color:#fff;border-radius:18px;border-bottom-right-radius:5px}
+.stamp{font-size:10px;color:#aaa;text-align:center;margin:6px 0 2px}
+.heldtag{align-self:center;margin-top:6px;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--sim);background:var(--sim-soft);border:1px dashed var(--sim);padding:3px 8px;border-radius:6px}
+.thread .wait{color:#bbb;font-size:12px;text-align:center;margin:auto}
+/* see it in Rentvine */
+.rv{margin-top:16px;border-left:4px solid var(--brown)}
+.rv ol{margin:4px 0 0;padding-left:20px;font-size:14px}.rv li{margin:6px 0}
+.rv .id{font:600 12.5px ui-monospace,Menlo,monospace;background:#f1e9da;padding:1px 6px;border-radius:4px}
+.rv a{color:var(--brown);font-weight:600}
+/* lead-up timeline */
+.timeline{display:flex;flex-direction:column;gap:0;margin:6px 0 4px}
+.tl{display:grid;grid-template-columns:86px 14px 1fr;gap:10px;align-items:start;opacity:.25;transition:opacity .4s}
+.tl.on{opacity:1}.tl .when{font-size:12px;color:var(--muted);text-align:right;padding-top:2px}
+.tl .bul{width:12px;height:12px;border-radius:50%;background:var(--tan);margin-top:4px;position:relative}
+.tl.on .bul{background:var(--green)}.tl .what{font-size:14px;padding-bottom:12px}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:8px;min-height:260px;max-height:340px;overflow:auto;padding:4px}
 .msg{max-width:82%;padding:8px 12px;border-radius:14px;font-size:14px;animation:fade .3s}
@@ -155,10 +173,12 @@ footer{max-width:1280px;margin:0 auto;padding:0 24px 30px;color:var(--muted);fon
       </div>
       <div class="panel" style="margin-top:16px">
         <h3>What the prospect gets</h3>
-        <div class="phone"><div class="from">Text from GPM (via Rentvine)</div><div id="l-phonebox"><div class="wait">waiting for the agent…</div></div></div>
+        <div class="phone"><div class="screen"><div class="top"><div class="avatar">GPM</div><div class="who">Green Property Management</div><div class="num">via Rentvine · +1 (239) 842-7953</div></div><div class="thread" id="l-phonebox"><div class="wait">waiting for the agent…</div></div></div></div>
       </div>
     </div>
-    <div class="panel feed"><h3>Leads agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+    <div><div class="panel feed"><h3>Leads agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div><div class="panel rv"><h3>See it in Rentvine</h3><ol>
+  <li>Leasing → Prospects: <b id="rv-l-name">the new prospect</b> <span class="id" id="rv-l-id">#…</span> is there, tied to <b>2150 Knapp St NE #204</b>, with the inquiry message.</li>
+  <li>Nobody at GPM touched it. The text went out on its own (check your phone).</li></ol></div></div>
   </div>
 </section>
 
@@ -177,10 +197,13 @@ footer{max-width:1280px;margin:0 auto;padding:0 24px 30px;color:var(--muted);fon
       </div>
       <div class="panel" style="margin-top:16px">
         <h3>What Danielle gets</h3>
-        <div class="phone"><div class="from">Text from GPM (via Rentvine)</div><div id="m-phonebox"><div class="wait">waiting for the agent…</div></div></div>
+        <div class="phone"><div class="screen"><div class="top"><div class="avatar">GPM</div><div class="who">Green Property Management</div><div class="num">via Rentvine · +1 (239) 842-7953</div></div><div class="thread" id="m-phonebox"><div class="wait">waiting for the agent…</div></div></div></div>
       </div>
     </div>
-    <div class="panel feed"><h3>Maintenance agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+    <div><div class="panel feed"><h3>Maintenance agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div><div class="panel rv"><h3>See it in Rentvine</h3><ol>
+  <li>Maintenance → Work Orders → <span class="id" id="rv-m-id">#…</span> at 615 Leonard St NW.</li>
+  <li>Status <b>Open</b>, priority <b>High</b>, technician <b>Jake Morales</b>, and the arrival window all filled in by the agent.</li>
+  <li>The work order's message thread has the agent's triage note.</li></ol></div></div>
   </div>
 </section>
 
@@ -192,13 +215,28 @@ footer{max-width:1280px;margin:0 auto;padding:0 24px 30px;color:var(--muted);fon
   <div class="grid">
     <div>
       <div class="panel">
+        <h3>The lead-up <span class="badge b-sim">Illustrative</span></h3>
+        <div class="timeline" id="t-tl">
+          <div class="tl"><div class="when">60 days out</div><div class="bul"></div><div class="what">Agent texts Marcus: renew, or let us know your plans?</div></div>
+          <div class="tl"><div class="when">45 days out</div><div class="bul"></div><div class="what">No reply, so the agent sends a friendly reminder.</div></div>
+          <div class="tl"><div class="when">40 days out</div><div class="bul"></div><div class="what">Reminder 2. Marcus replies that he's moving out.</div></div>
+          <div class="tl"><div class="when">Today</div><div class="bul"></div><div class="what"><b>PM records the notice</b>, and everything after this is live.</div></div>
+        </div>
+        <div class="phone"><div class="screen"><div class="top"><div class="avatar">GPM</div><div class="who">Green Property Management</div><div class="num">to Marcus Bennett</div></div><div class="thread" id="t-thread"><div class="wait">press play</div></div></div></div>
+        <button class="btn secondary" id="t-play">Play the lead-up</button>
+        <p class="note">Renewal reminders run on the same verified texting as the other scenes, but these weren't sent. Marcus's sandbox number isn't ours.</p>
+      </div>
+      <div class="panel" style="margin-top:16px">
         <h3>Record the notice <span class="badge b-human">Human</span></h3>
         <p style="margin:0 0 4px">In Rentvine: Leases → 2319 Breton Rd SE → Notice date + expected move-out. That's the only step a person takes.</p>
         <div class="row"><button class="btn" id="t-go">Record notice now</button><span class="note" style="margin:12px 0 0">(the same two fields, written for you)</span></div>
       </div>
       <div id="t-out"></div>
     </div>
-    <div class="panel feed"><h3>Turn agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+    <div><div class="panel feed"><h3>Turn agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div><div class="panel rv"><h3>See it in Rentvine</h3><ol>
+  <li>Leases → 2319 Breton Rd SE: notice date and expected move-out are set.</li>
+  <li>Maintenance → Work Orders → <span class="id" id="rv-t-id">#…</span>: the unit-turn work order, scheduled for the day after move-out.</li>
+  <li>The inspection hold and listing draft are below the agent feed. Publishing stays a click in Rentvine.</li></ol></div></div>
   </div>
 </section>
 
@@ -220,35 +258,13 @@ footer{max-width:1280px;margin:0 auto;padding:0 24px 30px;color:var(--muted);fon
         <div id="b-out"><div class="empty">The bill appears here when the job is closed.</div></div>
       </div>
     </div>
-    <div class="panel feed"><h3>Billing agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div>
+    <div><div class="panel feed"><h3>Billing agent <span class="badge b-live">Live</span><span class="count" data-count></span></h3><div class="items"></div></div><div class="panel rv"><h3>See it in Rentvine, and approve it there</h3><ol>
+  <li>Accounting → Bills → bill <span class="id" id="rv-b-id">#…</span>, reference <span class="id" id="rv-b-ref">WO-…</span>: unapproved, coded to 615 Leonard St NW, linked to the work order.</li>
+  <li><b>Approve it there.</b> This page picks up the approval within seconds.</li>
+  <li>Paying it goes through the normal bill-pay screens. Only a person can do that.</li></ol></div></div>
   </div>
 </section>
 
-<!-- 5. Close -->
-<section class="scene" data-title="What's real">
-  <div class="kicker">What you just saw</div>
-  <h2>What's live today, and what we'd need from Rentvine</h2>
-  <p class="lede">Every live step above was tested against Rentvine's API and re-read to confirm it stuck. The claim IDs on each step point to that test.</p>
-  <div class="grid">
-    <div class="panel"><h3>Live now <span class="badge b-live">Live</span></h3>
-      <table>
-        <tr><td>Text a new lead a showing link</td><td>R06 W13 W14</td></tr>
-        <tr><td>Grade, schedule, assign a repair; note + tenant text</td><td>W02-W05 W14 W21 W26</td></tr>
-        <tr><td>Notice → turn work order + listing draft</td><td>W01 W23</td></tr>
-        <tr><td>Owner bill linked to the job, held for approval</td><td>W06-W09</td></tr>
-        <tr><td>Money can't move without a person</td><td>D01 W09</td></tr>
-      </table>
-    </div>
-    <div class="panel"><h3>Honest caveats</h3>
-      <table>
-        <tr><td><span class="badge b-sim">Simulated</span></td><td>Zillow inquiry and tenant chat stand in for outside sources.</td></tr>
-        <tr><td><span class="badge b-pend">Pending</span></td><td>Publishing a listing: Rentvine's listing API is read-only (asked 2026-09-18).</td></tr>
-        <tr><td><span class="badge b-pend">Pending</span></td><td>Email from Rentvine is blocked for API keys, so email goes through GPM's Gmail (W15).</td></tr>
-        <tr><td><span class="badge b-human">Ask rep</span></td><td>Does the production account behave like the sandbox (H08)? What do texts cost at scale (H10)?</td></tr>
-      </table>
-    </div>
-  </div>
-</section>
 </main>
 <footer><span>Sandbox data dressed as GPM's West Michigan portfolio. No real tenants or owners.</span><span>← → to move · Shift+R resets the demo</span></footer>
 
@@ -263,6 +279,7 @@ const CLAIMS = {
   W09:["VERIFIED","Approval gate holds new bills until approved"], W13:["VERIFIED","Prospects link to a unit"],
   W14:["VERIFIED","Rentvine can text a real phone"], W21:["VERIFIED","Signed work-order webhooks arrive in ~1s with a change diff"],
   W23:["PARTIAL","Notice write verified; the lease webhook is being confirmed"], W26:["VERIFIED","Technician can be assigned to the work order"],
+  W30:["VERIFIED","Rentvine blocks double-booking a technician"],
   D01:["VERIFIED","No API can release a payment; payout is UI-only"],
 };
 const $ = (s, el=document) => el.querySelector(s);
@@ -308,16 +325,38 @@ function render(item){
   hooks(item, secs);
 }
 
+function linkify(t){ return esc(t).replace(/https?:\/\/(\S+)/g, (m, rest) => `<a href="${m}" target="_blank">${rest.replace(/^(.{22}).+$/, "$1…")}</a>`); }
 function phone(boxSel, item){
   const text = item.detail.replace(/^to [^:]+: /, "");
-  $(boxSel).innerHTML = `<div class="sms ${item.status==="held"?"held":""}">${esc(text)}</div>` +
-    (item.status==="held" ? `<div class="note">Held: that number isn't on the demo allowlist, so nothing was sent.</div>` : "");
+  $(boxSel).innerHTML = `<div class="stamp">Today ${item.t.slice(0,5)}</div><div class="sms">${linkify(text)}</div>` +
+    (item.status==="held" ? `<div class="heldtag">Preview · not sent (number not allowlisted)</div>` : "");
 }
+const LEADUP = [
+  [0,"GPM","Hi Marcus, your lease at 2319 Breton Rd SE is coming up for renewal. Planning to stay? Reply RENEW or let us know your plans."],
+  [1,"GPM","Friendly reminder, Marcus: we'd love to know your plans for 2319 Breton Rd SE so we can hold your renewal rate."],
+  [2,"GPM","Last check-in on your renewal. Just reply here and we'll take care of the rest."],
+  [2,"them","Thanks for the reminders. We're buying a house, so we'll be moving out at the end of October."],
+];
+$("#t-play").onclick = async e => {
+  e.target.disabled = true; const box = $("#t-thread"); box.innerHTML = ""; const tl = [...document.querySelectorAll("#t-tl .tl")];
+  const stamps = ["60 days out","45 days out","40 days out"]; let shown = -1;
+  for (const [step, who, text] of LEADUP) {
+    if (step !== shown) { tl[step].classList.add("on"); box.insertAdjacentHTML("beforeend", `<div class="stamp">${stamps[step]}</div>`); shown = step; }
+    await new Promise(r => setTimeout(r, 1100));
+    box.insertAdjacentHTML("beforeend", `<div class="sms ${who==="them"?"them":""}">${esc(text)}</div>`);
+  }
+  tl[3].classList.add("on"); e.target.textContent = "Now the PM records the notice ↓";
+};
 
 function hooks(item, secs){
   if (item.agent === "Leads" && /^Text/.test(item.step)) phone("#l-phonebox", item);
   if (item.agent === "Maintenance" && /^Text/.test(item.step)) phone("#m-phonebox", item);
   if (item.agent === "Maintenance" && item.data.workOrderID) { woID = item.data.workOrderID; }
+  const num = (item.step.match(/#(\d{5,})/) || [])[1];
+  if (item.agent === "Leads" && item.data.prospectID) { $("#rv-l-id").textContent = "#" + item.data.prospectID; $("#rv-l-name").textContent = item.step.replace(/^New lead: (.+) on .*/, "$1"); }
+  if (item.agent === "Maintenance" && num) $("#rv-m-id").textContent = "#" + num;
+  if (item.agent === "Turn" && /Turn work order/.test(item.step) && num) $("#rv-t-id").textContent = "#" + num;
+  if (item.agent === "Billing" && item.data.billID) { $("#rv-b-id").textContent = "#" + item.data.billID; const r = (item.detail.match(/WO #(\d+)/)||[])[1]; if (r) $("#rv-b-ref").textContent = "WO-" + r; }
   if (item.agent === "Turn" && item.data.gcal) {
     $("#t-out").insertAdjacentHTML("beforeend", `<div class="card"><h5>Move-out inspection <span class="badge b-live">Ready</span></h5>
       <div class="detail">${esc(item.step)}. Rentvine has no API to create inspections, so the hold goes on the PM's Google Calendar.</div>
@@ -344,7 +383,9 @@ async function poll(){
     const r = await (await fetch(`/api/feed?since=${last}`)).json();
     for (const it of r.items) { last = Math.max(last, it.id); render(it); }
     const h = $("#c-hooks"), s = $("#c-sms");
-    h.textContent = r.config.webhooks ? "webhooks on" : "webhooks off"; h.className = "chip " + (r.config.webhooks ? "ok" : "bad");
+    const ago = r.config.lastHookAgo;
+    h.textContent = ago === null ? "webhooks: none yet · polling" : `webhook ${ago < 90 ? ago + "s" : Math.round(ago/60) + "m"} ago`;
+    h.className = "chip " + (ago === null ? "" : "ok");
     s.textContent = `texts to ${r.config.allowlisted} allowlisted #`; s.className = "chip " + (r.config.allowlisted ? "ok" : "bad");
   } catch (e) { $("#c-hooks").textContent = "server offline"; $("#c-hooks").className = "chip bad"; }
   setTimeout(poll, 1200);

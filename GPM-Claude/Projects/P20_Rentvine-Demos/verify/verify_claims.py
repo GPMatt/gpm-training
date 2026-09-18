@@ -375,6 +375,29 @@ def _(ctx):
     return "REFUTED", f"no payload shape persisted: {tries}"
 
 
+@claim("W30", "Maintenance", "Rentvine rejects double-booking a technician in overlapping appointment windows "
+       "(so a scheduling agent must search for an open slot)", "found by the Laura demo agent 2026-09-18", "write")
+def _(ctx):
+    s, b = rv.get("maintenance-technicians")
+    tech = unwrap(rows(b)[0], "contact").get("contactID") if rows(b) else None
+    unit = unwrap(rows(rv.get("properties/units")[1])[0], "unit")
+    # A fresh far-future day each run, so an earlier run's test booking can't occupy the slot.
+    day = (datetime.date(2027, 1, 1) + datetime.timedelta(days=int(time.time()) // 60 % 3000)).isoformat()
+    slot = {"technicianContactIDs": [tech], "scheduledStartDate": day, "scheduledEndDate": day,
+            "appointmentWindowStartDateTime": f"{day} 06:00:00", "appointmentWindowEndDateTime": f"{day} 07:00:00"}
+    codes = []
+    for n in (1, 2):
+        s, b = rv.post("maintenance/work-orders", {"propertyID": unit["propertyID"], "unitID": unit["unitID"],
+                                                   "isInternal": "1", "description": f"{TAG} double-booking test {n}",
+                                                   "priorityID": "2", "workOrderStatusID": "1"})
+        wid = unwrap(b, "workOrder").get("workOrderID")
+        created("work order", wid, "(double-booking test)")
+        codes.append(rv.post(f"maintenance/work-orders/{wid}", slot))
+    (s1, _), (s2, b2) = codes
+    ok = s1 == 200 and s2 == 400 and "another work order" in json.dumps(b2)
+    return ("VERIFIED" if ok else "REFUTED"), f"first booking -> {s1}; overlapping second -> {s2}: {str(b2)[:160]}"
+
+
 @claim("W05", "Comms", "Agents can post on a work order's chat thread", "API docs PDF", "write")
 def _(ctx):
     if not ctx.wo:

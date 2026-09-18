@@ -16,6 +16,7 @@ import json
 import os
 import re
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -119,7 +120,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/feed":
             since = int((re.search(r"since=(\d+)", query) or [0, 0])[1])
             self._send(200, {"items": [i for i in agents.FEED if i["id"] > since],
-                             "config": {"webhooks": bool(agents.TOKEN), "allowlisted": len(agents.ALLOWLIST)}})
+                             "config": {"webhooks": bool(agents.TOKEN), "allowlisted": len(agents.ALLOWLIST),
+                                        "lastHookAgo": round(time.time() - agents.LAST_HOOK[0])
+                                        if agents.LAST_HOOK[0] else None}})
         elif path.startswith("/assets/") and re.fullmatch(r"/assets/[\w.-]+\.png", path):
             f = os.path.join(ASSETS, path.split("/")[-1])
             self._send(200, open(f, "rb").read(), "image/png") if os.path.exists(f) else self._send(404, {})
