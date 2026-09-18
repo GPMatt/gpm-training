@@ -1,0 +1,4 @@
+.env
+*_state.json
+__pycache__/
+verify/results/
