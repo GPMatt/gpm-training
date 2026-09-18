@@ -52,7 +52,19 @@ PORTFOLIOS = {
     "9": "Cascade Ridge Investments LLC",
 }
 
-ADDR_FIELDS = ("name", "address", "address2", "city", "stateID", "postalCode")
+# Tenant contacts with joke/celebrity names that show up on the demo's leases and work orders.
+# Names are API-writable; phones are NOT (W25), and many on file are real third-party numbers, which
+# is why the agents text only allowlisted numbers.
+TENANTS = {
+    "10": ("Marcus", "Bennett"),       # Gary Player, lease 3 (scene 3: notice)
+    "12": ("Danielle", "Ortiz"),       # Marty McFly, lease 4 (scenes 2 + 4: maintenance, billing)
+    "16": ("Priya", "Shah"),           # Boris DaLoris
+    "17": ("Rachel", "VanderMolen"),   # Victor E. Lapp
+    "18": ("Tom", "Kowalski"),         # Anne Chovies
+    "19": ("Kevin", "Huizenga"),       # Jeff Bridges
+    "20": ("Lauren", "DeVries"),       # David Rose
+    "21": ("Chris", "Meyer"),          # Johnny Rose
+}
 
 
 def load_state():
@@ -104,6 +116,10 @@ def plan():
             cid = pf["contacts"][0]["contactID"]
             owner = unwrap(rv.get(f"owners/{cid}")[1], "contact")
             yield f"owner/{cid}", f"owners/{cid}", owner, {"name": name}
+    for tid, (first, last) in TENANTS.items():
+        tenant = unwrap(rv.get(f"tenants/{tid}")[1], "contact")
+        yield f"tenant/{tid}", f"tenants/{tid}", tenant, \
+            {"name": f"{first} {last}", "firstName": first, "lastName": last}
 
 
 def apply(live):
@@ -122,7 +138,7 @@ def apply(live):
         state["original"].setdefault(key, {"path": path, "fields": {k: cur.get(k) for k in target}})
         save_state(state)  # record the original before writing, so a crash can still be reverted
         s, b = rv.post(path, target)
-        back = unwrap(rv.get(path)[1], key.split("/")[0] if key.split("/")[0] != "owner" else "contact")
+        back = unwrap(rv.get(path)[1], "contact" if key.split("/")[0] in ("owner", "tenant") else key.split("/")[0])
         if key.startswith("unit/"):
             back = next((u for u in all_units() if u["unitID"] == key.split("/")[1]), {})
         missed = {k: back.get(k) for k in diff if (back.get(k) or None) != (target[k] or None)}
