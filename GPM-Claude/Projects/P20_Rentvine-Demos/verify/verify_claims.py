@@ -834,12 +834,16 @@ def _(ctx):
         ev = f"lease {lid}: POST -> {s}; saved on re-fetch: {saved}"
         if ctx.args.webhook_token:
             time.sleep(10)
+            # The payload carries the full lease record; Rentvine's change diff has NOT listed noticeDate
+            # (seen 2026-09-18: only tenants/dateTimeModified), so agents must read data.noticeDate.
             hits = [d for d in webhook_deliveries(ctx.args.webhook_token)
                     if (d.get("event") or {}).get("eventType", "").startswith("lease")
-                    and str((d.get("event") or {}).get("objectID")) == str(lid)
-                    and "noticeDate" in json.dumps((d.get("event") or {}).get("changes"))]
-            ev += f"; lease webhook with noticeDate diff: {bool(hits)}" + \
-                  (f" ({hits[0]['event']['eventType']})" if hits else "")
+                    and str((d.get("data") or {}).get("leaseID")) == str(lid)
+                    and (d.get("data") or {}).get("noticeDate") == TODAY]
+            in_diff = any("noticeDate" in json.dumps((d.get("event") or {}).get("changes")) for d in hits)
+            ev += f"; Lease Updated webhook carrying noticeDate={TODAY}: {bool(hits)}" + \
+                  (f" ({hits[0]['event']['eventType']}); noticeDate in the change diff: {in_diff}, so read "
+                   f"data.noticeDate, not the diff" if hits else "")
             return ("VERIFIED" if saved and hits else "PARTIAL"), ev
         # The claim includes the webhook, so a write-only pass is PARTIAL, never VERIFIED.
         return ("PARTIAL" if saved else "REFUTED"), ev + " (webhook not checked: no --webhook-token)"

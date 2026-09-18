@@ -451,8 +451,10 @@ def dispatch(d):
         elif et.endswith("updated") and str(_current(ch.get("workOrderStatusID"))) == STATUS_COMPLETED \
                 and once("wo_completed", wid):
             threading.Thread(target=billing, args=(wid,), daemon=True).start()
-    elif et.startswith("lease") and "noticeDate" in ch and _current(ch["noticeDate"]):
-        lid, nd = str(data.get("leaseID") or ev.get("objectID")), _current(ch["noticeDate"])
+    elif et.startswith("lease") and data.get("noticeDate"):
+        # The payload is the full lease record; Rentvine's diff doesn't list noticeDate (W23), so read it here.
+        # Leases that already had a notice at startup are baselined, so only a new notice fires.
+        lid, nd = str(data.get("leaseID") or ev.get("objectID")), data["noticeDate"]
         if once("notice", f"{lid}:{nd}"):
             threading.Thread(target=turn, args=(lid, nd), daemon=True).start()
 
@@ -515,8 +517,19 @@ def _loop(fn, every, name):
         time.sleep(every)
 
 
+def baseline_notices():
+    s, b = rv.get("leases/export?pageSize=500")
+    for r in b if s == 200 else []:
+        if r["lease"].get("expectedMoveOutDate"):
+            lid = r["lease"]["leaseID"]
+            nd = unwrap(rv.get(f"leases/{lid}")[1], "lease").get("noticeDate")
+            if nd:
+                once("notice", f"{lid}:{nd}", "baseline")
+
+
 def start():
     baseline_prospects()
+    baseline_notices()
     if TOKEN:
         webhook_poll(first=True)   # skip deliveries from before this run
         threading.Thread(target=_loop, args=(webhook_poll, 2, "Webhook"), daemon=True).start()
