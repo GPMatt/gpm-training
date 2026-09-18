@@ -737,7 +737,7 @@ def _(ctx):
                       f"rejected on {tries}; endpoint exists, needs the right object type mapping"
 
 
-@claim("W24", "Maintenance", "Permission to enter lives on the WO as vendorAccessTypeID (1 Permission Required, "
+@claim("W27", "Maintenance", "Permission to enter lives on the WO as vendorAccessTypeID (1 Permission Required, "
        "2 Permission Not Required, 3 Do Not Enter) plus tenant/vendor entry-instruction text, all writable via API",
        "Matt question 2026-09-18 + API docs PDF", "write")
 def _(ctx):
