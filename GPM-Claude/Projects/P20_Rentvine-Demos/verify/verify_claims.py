@@ -737,6 +737,26 @@ def _(ctx):
                       f"rejected on {tries}; endpoint exists, needs the right object type mapping"
 
 
+@claim("W24", "Maintenance", "Permission to enter lives on the WO as vendorAccessTypeID (1 Permission Required, "
+       "2 Permission Not Required, 3 Do Not Enter) plus tenant/vendor entry-instruction text, all writable via API",
+       "Matt question 2026-09-18 + API docs PDF", "write")
+def _(ctx):
+    if not ctx.wo:
+        return "BLOCKED", "needs W01"
+    default = wo_get(ctx.wo).get("vendorAccessTypeID")
+    body = {"vendorAccessTypeID": "1", "entryInstructions": f"{TAG} dog in unit, call 30 min ahead",
+            "residentProvidedEntryInstructions": f"{TAG} text me before entering"}
+    rv.post(f"maintenance/work-orders/{ctx.wo}", body)
+    rv.post(f"maintenance/work-orders/{ctx.wo}", {"isTenantPresenceRequired": "1"})
+    wo = wo_get(ctx.wo)
+    saved = all(wo.get(k) == v for k, v in body.items())
+    return ("VERIFIED" if saved else "REFUTED"), \
+        f"API-created WO defaults to vendorAccessTypeID={default} (3 = Do Not Enter), so set it explicitly. " \
+        f"Access type + both instruction fields saved: {saved}. isTenantPresenceRequired=1 -> " \
+        f"{wo.get('isTenantPresenceRequired')} (silent no-op seen 2026-09-18). Note GET /maintenance/work-orders " \
+        f"pages at 15 rows, newest first; agents must paginate."
+
+
 def webhook_deliveries(tok):
     req = urllib.request.Request(f"https://webhook.site/token/{tok}/requests?sorting=newest&per_page=50",
                                  headers={"Accept": "application/json"})
