@@ -316,7 +316,7 @@ def turn(lease_id, notice_date, via="webhook"):
     if s == 200 and tw.get("workOrderID"):
         once("wo_created", tw["workOrderID"], "agent-created turn")   # don't let Maintenance re-triage it
         log("Turn", f"Turn work order #{tw.get('workOrderNumber')} created, starts {turn_start:%b %-d}",
-            claims=("W01", "W02"), data={"workOrderID": tw["workOrderID"]})
+            claims=("W01", "W02"), data={"workOrderID": tw["workOrderID"], "inspection": f"{mo}T10:00:00"})
     else:
         log("Turn", "Turn work order failed", f"HTTP {s}: {str(b)[:200]}", status="error")
     insp = datetime.datetime.combine(mo, datetime.time(10))
@@ -332,8 +332,13 @@ def turn(lease_id, notice_date, via="webhook"):
     listing, used = ask_claude(LISTING_PROMPT.format(facts=facts, available=f"{turn_start:%B %-d}", link=BOOKING_LINK),
                                {"headline": f"{unit.get('beds')}BR/{unit.get('fullBaths')}BA at {unit.get('name')}",
                                 "body": f"{facts}. Available {turn_start:%B %-d}. Book a showing at {BOOKING_LINK}"})
+    if tw.get("workOrderID"):   # put the draft where the PM will see it: the turn work order's thread
+        rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(tw["workOrderID"]), "isSharedWithTenant": "0",
+                                  "message": f"<p><b>Listing draft (ready to publish):</b> {listing.get('headline')}</p>"
+                                             f"<p>{listing.get('body')}</p><p>Move-out inspection: "
+                                             f"{insp:%a %b %-d, %-I%p} (on the PM's calendar).</p>"})
     log("Turn", f"Listing drafted: {listing.get('headline')}",
-        ("Claude" if used else "Template") + " draft, waiting for a PM to publish. Rentvine's listing API is "
+        ("Claude" if used else "Template") + " draft, posted on the turn work order's thread, waiting for a PM to publish. Rentvine's listing API is "
         "read-only, so publishing stays a click (asked Rentvine 2026-09-18)", status="waiting",
         data={"listing": listing})
 
@@ -369,9 +374,10 @@ def billing(wid, via="webhook"):
         pass
     # GPM policy: the first hour is comped on a unit's first 3 calls each month (tech still paid).
     month = datetime.date.today().strftime("%Y-%m")
-    calls = sum(1 for r in rv.get("maintenance/work-orders")[1]
+    calls = sum(1 for r in rv.get("maintenance/work-orders?pageSize=500")[1]
                 if r["workOrder"].get("unitID") == wo.get("unitID")
                 and (r["workOrder"].get("dateTimeCreated") or "").startswith(month)
+                and r["workOrder"].get("workOrderStatusID") != "3"          # cancelled calls don't count
                 and SKIP_TAG not in (r["workOrder"].get("description") or ""))
     comped = 1.0 if calls <= 3 else 0.0
     billable = max(0.0, hours - comped)
@@ -465,7 +471,7 @@ _known = {"wo": None, "notice": None}
 
 
 def rentvine_poll():
-    wos = {r["workOrder"]["workOrderID"]: r["workOrder"] for r in rv.get("maintenance/work-orders")[1]}
+    wos = {r["workOrder"]["workOrderID"]: r["workOrder"] for r in rv.get("maintenance/work-orders?pageSize=500")[1]}
     s, b = rv.get("leases/export?pageSize=500")
     # /leases/export has expectedMoveOutDate but not noticeDate, so watch the move-out date.
     notices = {r["lease"]["leaseID"]: r["lease"].get("expectedMoveOutDate") for r in (b if s == 200 else [])}
