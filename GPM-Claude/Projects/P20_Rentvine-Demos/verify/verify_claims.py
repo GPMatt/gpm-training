@@ -539,8 +539,9 @@ def _(ctx):
     if "fromEmailConversationRecipient" in json.dumps(b):
         return "BLOCKED", "the API key's user has no sender identity ('Failed to find email conversation " \
                           "recipient'). Also needs templateObjectTypeID even though the docs call it optional. " \
-                          "Unblock by attaching the key to a user with an email (Settings > Users, Roles and API) " \
-                          "or ask Rentvine how API email senders are configured."
+                          "The UI gives keys no user or email: New API Key has only Name + Role, and Edit Key " \
+                          "offers only Update Secret / Edit Pods / Delete (screenshots 2026-09-18). Asked Rentvine " \
+                          "2026-09-18. Until then, send email from GPM's own Gmail instead."
     return "REFUTED", f"HTTP {s}: {str(b)[:250]}"
 
 
@@ -708,10 +709,14 @@ static("H05", "Pricing", "Rentvine costs $2.50/unit/mo, $199 minimum, ~$1.50 neg
        "rentvine.com/pricing + third-party review", "external",
        "EXTERNAL", "Get a written quote at GPM's door count, including setup fee, payments/screening fees, "
                    "and whether the API, MCP, Fixie and SMS are included at that tier.")
-static("H06", "Pricing", "AppFolio API needs Plus/Max; Max is ~$5/unit with a $7,500/mo minimum",
-       "third-party pricing sites (AppFolio de-listed prices in 2026)", "external",
-       "EXTERNAL", "Pull GPM's five current AppFolio invoices and ask the AppFolio rep in writing what API/Database "
-                   "access costs across the five accounts.")
+static("H06", "Pricing", "AppFolio gates API access behind Plus/Max, so an API costs GPM ~$70k/yr more on AppFolio",
+       "this project's own vision pitch 2026-09-17, from third-party pricing sites", "external",
+       "REFUTED", "GPM already pays a per-unit READ-API add-on on part of its portfolio, on top of its base AppFolio rate "
+                  "(Matt, 2026-09-18). Exact contract pricing is kept out of this public repo. AppFolio's real gap is WRITE "
+                  "access, not API access; pitch the difference as read/write + webhooks, not 'API vs no API'.")
+static("H10", "Pricing", "Rentvine texting (POST /messages/texts/send) is free at scale", "open question 2026-09-18",
+       "vendor", "VENDOR", "Unknown. Sends come from a Rentvine-owned number (+12398427953). Asked Rentvine in writing "
+                           "2026-09-18. Market rate for app-sent SMS is ~$0.01-0.05/message if they bill it.")
 static("H07", "Leasing", "/screening/prospects is Rentvine's official lead-capture path", "Rentvine developer email to Matt 2026-09-18",
        "vendor", "VERIFIED", "Confirmed in writing by a Rentvine developer. Behavior tested live in W13.")
 static("H08", "Platform", "Sandbox API behavior matches a production account on GPM's plan", "assumed everywhere",
