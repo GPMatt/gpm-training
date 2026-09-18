@@ -356,6 +356,25 @@ def _(ctx):
     return ("VERIFIED" if ok else "REFUTED"), f"assignedToUserID -> {wo.get('assignedToUserID')} (wanted {uid}), priority -> {wo.get('priorityID')}"
 
 
+@claim("W26", "Maintenance", "A maintenance technician (a contact, not a user) can be assigned to a WO via "
+       "technicianContactIDs", "Laura visual plan 2026-09-18", "write")
+def _(ctx):
+    if not ctx.wo:
+        return "BLOCKED", "needs W01"
+    s, b = rv.get("maintenance-technicians")
+    tech = unwrap(rows(b)[0], "contact").get("contactID") if rows(b) else None
+    if not tech:
+        return "BLOCKED", f"no maintenance technicians in this account (HTTP {s})"
+    tries = {}
+    for value in ([tech], [int(tech)], tech):
+        s, _ = rv.post(f"maintenance/work-orders/{ctx.wo}", {"technicianContactIDs": value})
+        got = wo_get(ctx.wo).get("technicianContactIDs")
+        tries[repr(value)] = (s, got)
+        if str(tech) in json.dumps(got):
+            return "VERIFIED", f"technicianContactIDs={value!r} -> HTTP {s}; on re-fetch {got!r}"
+    return "REFUTED", f"no payload shape persisted: {tries}"
+
+
 @claim("W05", "Comms", "Agents can post on a work order's chat thread", "API docs PDF", "write")
 def _(ctx):
     if not ctx.wo:
