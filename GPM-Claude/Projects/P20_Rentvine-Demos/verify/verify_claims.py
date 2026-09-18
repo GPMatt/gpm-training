@@ -727,7 +727,8 @@ def _(ctx):
             ev += f"; lease webhook with noticeDate diff: {bool(hits)}" + \
                   (f" ({hits[0]['event']['eventType']})" if hits else "")
             return ("VERIFIED" if saved and hits else "PARTIAL"), ev
-        return ("VERIFIED" if saved else "REFUTED"), ev + " (webhook not checked: no --webhook-token)"
+        # The claim includes the webhook, so a write-only pass is PARTIAL, never VERIFIED.
+        return ("PARTIAL" if saved else "REFUTED"), ev + " (webhook not checked: no --webhook-token)"
     finally:
         rv.post(f"leases/{lid}", orig)
 
