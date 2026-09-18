@@ -666,26 +666,70 @@ def _(ctx):
                       f"rejected on {tries}; endpoint exists, needs the right object type mapping"
 
 
-@claim("W21", "Webhooks", "Rentvine fires signed webhooks when a work order is created/updated",
-       "help.rentvine.com/how-to-add-webhooks", "write")
+def webhook_deliveries(tok):
+    req = urllib.request.Request(f"https://webhook.site/token/{tok}/requests?sorting=newest&per_page=50",
+                                 headers={"Accept": "application/json"})
+    out = []
+    for r in json.loads(urllib.request.urlopen(req, timeout=30).read()).get("data", []):
+        try:
+            out.append(json.loads(r.get("content") or "{}"))
+        except ValueError:
+            pass
+    return out
+
+
+@claim("W21", "Webhooks", "Rentvine fires signed webhooks within seconds of a work order being created/updated, "
+       "with a field-level change diff and the acting userID", "help.rentvine.com/how-to-add-webhooks", "write")
 def _(ctx):
     tok = ctx.args.webhook_token
     if not tok:
-        return "HUMAN", "run --webhook-setup, paste the URL into Rentvine Settings > Other > Webhooks " \
-                        "(Work Orders create/update), then re-run with --writes --webhook-token <token>"
+        return "HUMAN", "run --webhook-setup, add the URL in Rentvine Settings > Other > Webhooks (one webhook per " \
+                        "event: Work Order Created/Updated, Lease Created/Updated), then re-run with --webhook-token"
     if not ctx.wo:
         return "BLOCKED", "needs W01"
-    time.sleep(15)
-    req = urllib.request.Request(f"https://webhook.site/token/{tok}/requests?sorting=newest",
-                                 headers={"Accept": "application/json"})
-    data = json.loads(urllib.request.urlopen(req, timeout=30).read())
-    hits = [r for r in data.get("data", []) if str(ctx.wo) in (r.get("content") or "")]
-    if hits:
-        h = hits[0]
-        sig = [k for k in (h.get("headers") or {}) if "sign" in k.lower()]
-        return "VERIFIED", f"{len(hits)} deliveries mention WO {ctx.wo}; signature headers: {sig}; " \
-                           f"sample: {(h.get('content') or '')[:250]}"
-    return "REFUTED", f"no delivery mentioning WO {ctx.wo} within 15s ({len(data.get('data', []))} total requests on token)"
+    time.sleep(10)
+    hits = [d for d in webhook_deliveries(tok) if str((d.get("data") or {}).get("workOrderID")) == str(ctx.wo)]
+    if not hits:
+        return "REFUTED", f"no delivery for WO {ctx.wo} within 10s"
+    types = sorted({(d.get("event") or {}).get("eventType") for d in hits})
+    signed = all((d.get("auth") or {}).get("signature") for d in hits)
+    diff = any((d.get("event") or {}).get("changes") for d in hits)
+    who = {(d.get("event") or {}).get("userID") for d in hits}
+    ok = signed and diff
+    return ("VERIFIED" if ok else "PARTIAL"), \
+        f"{len(hits)} deliveries for WO {ctx.wo}: {types}. Signature in BODY auth.signature/token/timestamp " \
+        f"(not headers): {signed}. Change diff (previous/current per field): {diff}. Acting userID: {who}, so " \
+        f"agents can skip their own writes. Note event.options.sendVendorNotification=true on API writes. " \
+        f"~1s latency observed 2026-09-18."
+
+
+@claim("W23", "Leasing", "Recording a tenant's notice (noticeDate/expectedMoveOutDate) on a lease works via API and "
+       "fires a Lease Updated webhook with the diff (the trigger for listing + turn automation)",
+       "API docs PDF + session 2026-09-18", "write")
+def _(ctx):
+    s, b = rv.get("leases")
+    lease = next((unwrap(r, "lease") for r in rows(b) if unwrap(r, "lease").get("primaryLeaseStatusID") == "2"),
+                 unwrap(rows(b)[0], "lease"))
+    lid = lease["leaseID"]
+    before = unwrap(rv.get(f"leases/{lid}")[1], "lease")
+    orig = {k: before.get(k) for k in ("noticeDate", "expectedMoveOutDate")}
+    try:
+        s, b = rv.post(f"leases/{lid}", {"noticeDate": TODAY, "expectedMoveOutDate": "2026-10-31"})
+        after = unwrap(rv.get(f"leases/{lid}")[1], "lease")
+        saved = after.get("noticeDate") == TODAY and after.get("expectedMoveOutDate") == "2026-10-31"
+        ev = f"lease {lid}: POST -> {s}; saved on re-fetch: {saved}"
+        if ctx.args.webhook_token:
+            time.sleep(10)
+            hits = [d for d in webhook_deliveries(ctx.args.webhook_token)
+                    if (d.get("event") or {}).get("eventType", "").startswith("lease")
+                    and str((d.get("event") or {}).get("objectID")) == str(lid)
+                    and "noticeDate" in json.dumps((d.get("event") or {}).get("changes"))]
+            ev += f"; lease webhook with noticeDate diff: {bool(hits)}" + \
+                  (f" ({hits[0]['event']['eventType']})" if hits else "")
+            return ("VERIFIED" if saved and hits else "PARTIAL"), ev
+        return ("VERIFIED" if saved else "REFUTED"), ev + " (webhook not checked: no --webhook-token)"
+    finally:
+        rv.post(f"leases/{lid}", orig)
 
 
 # ----------------------------------------------------------------------------------------------
