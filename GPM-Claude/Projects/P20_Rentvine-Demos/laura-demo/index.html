@@ -384,8 +384,8 @@ async function poll(){
     for (const it of r.items) { last = Math.max(last, it.id); render(it); }
     const h = $("#c-hooks"), s = $("#c-sms");
     const ago = r.config.lastHookAgo;
-    h.textContent = ago === null ? "webhooks: none yet · polling" : `webhook ${ago < 90 ? ago + "s" : Math.round(ago/60) + "m"} ago`;
-    h.className = "chip " + (ago === null ? "" : "ok");
+    h.textContent = ago === null ? "watching Rentvine · every 4s" : `webhook ${ago < 90 ? ago + "s" : Math.round(ago/60) + "m"} ago`;
+    h.className = "chip ok";
     s.textContent = `texts to ${r.config.allowlisted} allowlisted #`; s.className = "chip " + (r.config.allowlisted ? "ok" : "bad");
   } catch (e) { $("#c-hooks").textContent = "server offline"; $("#c-hooks").className = "chip bad"; }
   setTimeout(poll, 1200);
