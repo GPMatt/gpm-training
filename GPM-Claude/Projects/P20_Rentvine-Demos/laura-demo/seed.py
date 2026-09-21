@@ -57,7 +57,7 @@ PORTFOLIOS = {
 # is why the agents text only allowlisted numbers.
 TENANTS = {
     "10": ("Marcus", "Bennett"),       # Gary Player, lease 3 (scene 3: notice)
-    "12": ("Danielle", "Ortiz"),       # Marty McFly, lease 4 (scenes 2 + 4: maintenance, billing)
+    "12": ("Emma", "Ortiz"),       # Marty McFly, lease 4 (scenes 2 + 4: maintenance, billing)
     "16": ("Priya", "Shah"),           # Boris DaLoris
     "17": ("Rachel", "VanderMolen"),   # Victor E. Lapp
     "18": ("Tom", "Kowalski"),         # Anne Chovies

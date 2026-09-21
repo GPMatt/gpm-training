@@ -32,7 +32,7 @@ PORT = 8430
 ASSETS = os.path.join(HERE, "..", "vendor-ap-demo", "assets")
 SCENE = {
     "lead_unit": "33",                                    # 2150 Knapp St NE #204, vacant
-    "maint": {"propertyID": "4", "unitID": "4", "leaseID": "4"},   # 615 Leonard St NW, Danielle Ortiz
+    "maint": {"propertyID": "4", "unitID": "4", "leaseID": "4"},   # 615 Leonard St NW, Emma Ortiz
     "notice_lease": "3",                                  # 2319 Breton Rd SE, Marcus Bennett
     "ac": {"propertyID": "1", "unitID": "1", "leaseID": "1"},     # 1142 Lake Dr SE, owner Jon Smith
 }
@@ -80,10 +80,10 @@ def api_fixie(b):
     if wo.get("workOrderID"):
         # The intake conversation, so opening the work order shows how it started.
         said = b.get("tenantSaid") or summary
-        chat = [("Assistant", "Hi Danielle, this is GPM's maintenance assistant. What's going on at 615 Leonard St NW?"),
-                ("Danielle", said),
+        chat = [("Assistant", "Hi Emma, this is GPM's maintenance assistant. What's going on at 615 Leonard St NW?"),
+                ("Emma", said),
                 ("Assistant", "Thanks. Is water still running? If you can, turn the shut-off valve under the sink."),
-                ("Danielle", b.get("tenantFollowUp") or "I turned it off. The leak stopped but the cabinet is soaked."),
+                ("Emma", b.get("tenantFollowUp") or "I turned it off. The leak stopped but the cabinet is soaked."),
                 ("Assistant", "Got it. I'm filing this with your maintenance team now; you'll get a text with a time.")]
         rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wo["workOrderID"]), "isSharedWithTenant": "1",
                                   "message": "<p><b>Tenant intake chat</b></p><p>" + "<br>".join(
