@@ -46,6 +46,10 @@ SKIP_TAG = "[CLAIMS-TEST]"
 
 FEED = []
 LAST_HOOK = [None]   # time of the last webhook delivery seen this run
+CONVO = {}           # phone -> the agent conversation a reply belongs to (who texted last, and about what)
+MAX_AUTO_REPLIES = 4 # per conversation, so a chatty thread can't loop the agent
+TRADE_RX = {"plumbing": r"leak|sink|faucet|drain|toilet|pipe|water", "hvac": r"a/?c\b|furnace|heat|cool|hvac",
+            "painting": r"paint|wall|ceiling"}
 _lock = threading.Lock()
 _state = None
 
@@ -58,7 +62,7 @@ def state():
         _state = json.load(open(STATE_PATH)) if os.path.exists(STATE_PATH) else {}
         for k in ("seen_hooks", "handled"):
             _state.setdefault(k, {} if k == "handled" else [])
-        for k in ("prospects", "wo_created", "wo_completed", "notice"):
+        for k in ("prospects", "wo_created", "wo_completed", "notice", "texts"):
             _state["handled"].setdefault(k, {})
     return _state
 
@@ -126,7 +130,8 @@ def ledger_for_unit(unit_name):
     return next((r["ledger"]["ledgerID"] for r in (b if s == 200 else []) if (r.get("unit") or {}).get("name") == unit_name), None)
 
 
-def send_text(agent, phone, message, claims=("W14",)):
+def send_text(agent, phone, message, claims=("W14",), ctx=None):
+    """ctx (facts about the conversation) lets the Texting agent answer a reply in context."""
     to = rv.to_e164(phone)
     if not to or to not in ALLOWLIST:
         log(agent, "Text held (number not on the demo allowlist)", f"to {phone or 'no number'}: {message}",
@@ -135,6 +140,8 @@ def send_text(agent, phone, message, claims=("W14",)):
     s, b = rv.post("messages/texts/send", {"to": to, "message": message})
     tid = (b or {}).get("textMessage", {}).get("textMessageID") if s == 200 else None
     if tid:
+        if ctx is not None:
+            CONVO[to] = {"agent": agent, "since": int(tid), "replies": 0, **ctx}
         log(agent, "Text sent from Rentvine", f"to {to}: {message}", claims=claims, data={"textMessageID": tid})
     else:
         log(agent, "Text failed", f"HTTP {s}: {str(b)[:200]}", status="error", claims=claims)
@@ -186,7 +193,11 @@ def leads_poll():
             claims=("R06", "W13", "H07"), data={"prospectID": pid})
         msg = (f"Hi {first}, thanks for your interest in {unit.get('name')}, {unit.get('city')}! "
                f"Pick a showing time here: {BOOKING_LINK} - Green Property Management")
-        send_text("Leads", p.get("phone"), msg)
+        send_text("Leads", p.get("phone"), msg, ctx={
+            "who": f"{p.get('name')}, a prospective renter", "facts":
+            f"Unit {unit.get('name')}, {unit.get('city')}: {unit.get('beds')} bed / {unit.get('fullBaths')} bath, "
+            f"{unit.get('size')} sq ft, ${float(unit.get('rent') or 0):,.0f}/month. Showings are self-booked at "
+            f"{BOOKING_LINK} (the calendar there shows every open slot; you don't know which slots are open)."})
 
 
 def baseline_prospects():
@@ -216,6 +227,8 @@ def maintenance(wid, via="webhook"):
         return
     if wo.get("workOrderStatusID") == STATUS_OPEN and wo.get("technicianContactIDs"):
         return   # already dispatched by a person: nothing to triage
+    if wo.get("workOrderStatusID") in (STATUS_COMPLETED, "3"):
+        return   # history (completed/cancelled), not a new request
     unit = unit_by_id(wo.get("unitID"))
     created = wo.get("dateTimeCreated")
     log("Maintenance", f"Work order #{wo.get('workOrderNumber')} received at {unit.get('name')}",
@@ -240,6 +253,7 @@ def maintenance(wid, via="webhook"):
     save()
     log("Maintenance", f"Graded {grade.upper()} ({triage.get('trade')})",
         f"{'Claude' if used else 'Fallback rules'}: {triage.get('reason')}")
+    repeat = repeat_history(wo, str(triage.get("trade") or "").lower(), unit)
 
     # The window follows the grade: emergency = on-call within the hour, high = next business morning.
     now = datetime.datetime.now()
@@ -284,11 +298,98 @@ def maintenance(wid, via="webhook"):
             status="error")
     note = (f"<p><b>Agent triage:</b> {triage.get('priority')} / {triage.get('trade')}: {triage.get('reason')}<br>"
             f"Scheduled {TECH['name']}, {window}" + (" (EMERGENCY; stored as High, this account's top priority)"
-            if grade == "emergency" else "") + ". Tenant notified by text.</p>")
+            if grade == "emergency" else "") + ". Tenant notified by text.</p>"
+            + (f"<p><b>Repeat issue:</b> {repeat}</p>" if repeat else ""))
     s, _ = rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wid), "message": note,
                                      "isSharedWithTenant": "0"})
     log("Maintenance", "Posted triage note on the work order", claims=("W05",), status="done" if s == 200 else "error")
-    send_text("Maintenance", tenant.get("phone"), re.sub(r"[\[({]?WINDOW[\])}]?", window, str(triage.get("tenant_text"))))
+    send_text("Maintenance", tenant.get("phone"), re.sub(r"[\[({]?WINDOW[\])}]?", window, str(triage.get("tenant_text"))),
+              ctx={"who": f"{tenant.get('name')}, the tenant at {unit.get('name')}", "workOrderID": wid, "facts":
+                   f"Work order #{wo.get('workOrderNumber')}: {desc[:200]}. Graded {grade}. {TECH['name']} is "
+                   f"scheduled {window}. Only the maintenance team can change the time."})
+
+
+def repeat_history(wo, trade, unit, days=90):
+    """Same-trade calls at this unit in the last 90 days: a repeat is worth a deeper look, not another patch."""
+    rx = TRADE_RX.get(trade)
+    if not rx:
+        return None
+    cutoff = str(datetime.date.today() - datetime.timedelta(days=days))
+    hits = []
+    for r in rv.get("maintenance/work-orders?pageSize=500")[1]:
+        w = r["workOrder"]
+        d = re.sub("<[^>]+>", " ", w.get("description") or "")
+        when = w.get("scheduledStartDate") or (w.get("dateTimeCreated") or "")[:10]
+        if (w["workOrderID"] != wo["workOrderID"] and w.get("unitID") == wo.get("unitID")
+                and w.get("workOrderStatusID") != "3" and SKIP_TAG not in d and not d.strip().startswith("Unit turn")
+                and when >= cutoff and re.search(rx, d, re.I)):
+            hits.append((when, w.get("workOrderNumber"), d.strip()))
+    if not hits:
+        log("Maintenance", f"History check: no {trade} calls at this unit in {days} days", claims=("R15",))
+        return None
+    when, num, d = max(hits)
+    msg = (f"call #{len(hits) + 1} for {trade} at {unit.get('name')} in {days} days (last: WO #{num}, "
+           f"{datetime.date.fromisoformat(when):%b %-d}: {d[:80]}). Recommend Jake inspect the supply lines "
+           f"and shut-off while on site, not only patch today's leak.")
+    log("Maintenance", f"Repeat issue: {msg.split(' (')[0]}", msg, claims=("R15",))
+    return msg[0].upper() + msg[1:]
+
+
+# ---------------------------------------------------------------------------------------- 2b. Texting
+
+REPLY_PROMPT = """You text on behalf of Green Property Management (Grand Rapids, MI) with {who}.
+What you know: {facts}
+Conversation so far (oldest first):
+{thread}
+Write the next reply. Reply with ONLY this JSON:
+{{"reply": "<one friendly SMS under 300 chars, first name only, sign as GPM>",
+  "needs_human": <true if they asked for something you can't confirm from the facts (a new time, money, a
+  decision), else false>, "note": "<one line for the property manager>"}}
+Never invent availability, prices or promises. If they ask for a change, say the team will confirm shortly."""
+
+
+def texts_poll():
+    for phone in ALLOWLIST:
+        s, b = rv.get(f"messages/texts/phone/{phone.lstrip('+')}")
+        for m in sorted(b if s == 200 else [], key=lambda m: int(m["textMessageID"])):
+            if m.get("isInbound") == "1" and once("texts", m["textMessageID"]):
+                threading.Thread(target=reply, args=(phone, m, b), daemon=True).start()
+
+
+def baseline_texts():
+    for phone in ALLOWLIST:
+        s, b = rv.get(f"messages/texts/phone/{phone.lstrip('+')}")
+        for m in b if s == 200 else []:
+            once("texts", m["textMessageID"], "baseline")
+
+
+def reply(phone, msg, thread):
+    said = msg["message"].strip('"')
+    c = CONVO.get(phone)
+    log("Texting", f"Reply received: \"{said}\"",
+        f"Inbound text read from Rentvine (textMessage {msg['textMessageID']})" +
+        (f"; belongs to the {c['agent']} conversation" if c else "; no open conversation"), claims=("R14",))
+    if not c or c["replies"] >= MAX_AUTO_REPLIES:
+        log("Texting", "Left for a person", "No agent conversation to answer in" if not c
+            else f"{MAX_AUTO_REPLIES} auto-replies already; a person takes it from here", status="waiting")
+        return
+    c["replies"] += 1
+    lines = [f"{'Them' if m['isInbound'] == '1' else 'GPM'}: {m['message'].strip(chr(34))}"
+             for m in sorted(thread, key=lambda m: int(m["textMessageID"])) if int(m["textMessageID"]) >= c["since"]]
+    log("Texting", "Claude is writing a reply…", status="working")
+    out, used = ask_claude(REPLY_PROMPT.format(who=c["who"], facts=c["facts"], thread="\n".join(lines[-10:])),
+                           {"reply": "Thanks! A member of our team will follow up shortly. - GPM",
+                            "needs_human": True, "note": "Claude unavailable; sent a holding reply"})
+    needs = bool(out.get("needs_human"))
+    send_text("Texting", phone, str(out.get("reply")))
+    if c.get("workOrderID"):
+        rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(c["workOrderID"]), "isSharedWithTenant": "0",
+                                  "message": f"<p><b>Tenant texted:</b> {said}<br><b>Agent replied:</b> "
+                                             f"{out.get('reply')}</p>" + (f"<p><b>Needs a person:</b> {out.get('note')}</p>"
+                                                                          if needs else "")})
+    log("Texting", "Needs a person: " + str(out.get("note")) if needs else "Answered, nothing for a person to do",
+        ("Claude" if used else "Fallback") + (" · logged on the work order thread" if c.get("workOrderID") else ""),
+        status="waiting" if needs else "done")
 
 
 # ----------------------------------------------------------------------------------------- 3. Turn
@@ -378,7 +479,7 @@ def billing(wid, via="webhook"):
     month = datetime.date.today().strftime("%Y-%m")
     calls = sum(1 for r in rv.get("maintenance/work-orders?pageSize=500")[1]
                 if r["workOrder"].get("unitID") == wo.get("unitID")
-                and (r["workOrder"].get("dateTimeCreated") or "").startswith(month)
+                and (r["workOrder"].get("scheduledStartDate") or r["workOrder"].get("dateTimeCreated") or "").startswith(month)
                 and r["workOrder"].get("workOrderStatusID") != "3"          # cancelled calls don't count
                 and SKIP_TAG not in (r["workOrder"].get("description") or ""))
     comped = 1.0 if calls <= 3 else 0.0
@@ -414,6 +515,8 @@ def billing(wid, via="webhook"):
     log("Billing", f"Owner bill #{bid} created: ${amount:,.2f} to {unit.get('name')}",
         f"Linked to WO #{wo.get('workOrderNumber')}; {policy}; isApproved={back.get('isApproved')}",
         claims=("W06", "W07", "W08"), data={"billID": bid})
+    pf = unwrap(rv.get(f"portfolios/{wo.get('portfolioID')}")[1], "portfolio")
+    reserve_check(pf, ", ".join(c["name"] for c in pf.get("contacts") or []), amount, "Billing")
     log("Billing", "Waiting for a person to approve it in Rentvine",
         "Accounting → Bills. The agent can't pay or release money (D01)", status="waiting", claims=("W09", "D01"),
         data={"billID": bid})
@@ -451,7 +554,7 @@ def itemized_bill(wid, hours, parts, notes=""):
     month = datetime.date.today().strftime("%Y-%m")
     calls = sum(1 for r in rv.get("maintenance/work-orders?pageSize=500")[1]
                 if r["workOrder"].get("unitID") == wo.get("unitID") and r["workOrder"].get("workOrderStatusID") != "3"
-                and (r["workOrder"].get("dateTimeCreated") or "").startswith(month)
+                and (r["workOrder"].get("scheduledStartDate") or r["workOrder"].get("dateTimeCreated") or "").startswith(month)
                 and SKIP_TAG not in (r["workOrder"].get("description") or ""))
     comped = 1.0 if calls <= 3 else 0.0
     lines, total = [], 0.0
@@ -491,14 +594,32 @@ def itemized_bill(wid, hours, parts, notes=""):
         f" | re-read from Rentvine: {len(saved)} lines, ${saved_total:,.2f}, isApproved={back.get('isApproved')}",
         claims=("W06", "W07", "W08"), data={"billID": bid},
         status="done" if len(saved) == len(lines) and abs(saved_total - total) < 0.01 else "error")
+    reserve = reserve_check(pf, owners, total)
     rv.post("chat/messages", {"chatObjectTypeID": 1, "objectID": int(wid), "isSharedWithTenant": "0",
                               "message": f"<p><b>Billed to owner ({owners}):</b> bill #{bid}, ${total:,.2f}, "
                                          f"waiting for approval.</p><p>" + "<br>".join(
-                                             f"{l['description']}: ${float(l['amount']):,.2f}" for l in lines) + "</p>"})
+                                             f"{l['description']}: ${float(l['amount']):,.2f}" for l in lines)
+                                         + f"</p><p><b>Reserve check:</b> {reserve}</p>"})
     log("Invoice", "Waiting for a person to approve it in Rentvine",
         "Accounting → Bills. The agent can't pay or release money (D01)", status="waiting", claims=("W09", "D01"),
         data={"billID": bid})
     threading.Thread(target=_watch_bill, args=(bid,), daemon=True).start()
+
+
+def reserve_check(pf, owners, total, agent="Invoice"):
+    """The call a PM makes by hand: is this within what the owner lets us spend without asking?"""
+    reserve = float(pf.get("reserveAmount") or 0)
+    if not reserve:
+        msg = f"no reserve on file for {owners}, so the owner approves this one"
+        log(agent, "Owner approval needed: no reserve on file", msg, status="waiting", claims=("R16",))
+    elif total <= reserve:
+        msg = f"${total:,.2f} is within {owners}'s ${reserve:,.0f} reserve: GPM approves it, no owner call needed"
+        log(agent, f"Within the owner's ${reserve:,.0f} reserve, no owner call needed", msg, claims=("R16",))
+    else:
+        msg = f"${total:,.2f} is over {owners}'s ${reserve:,.0f} reserve: get the owner's OK before approving"
+        log(agent, f"Over the owner's ${reserve:,.0f} reserve: owner approval needed", msg, status="waiting",
+            claims=("R16",))
+    return msg[0].upper() + msg[1:]
 
 
 def _watch_bill(bid, minutes=45):
@@ -624,6 +745,8 @@ def start():
         threading.Thread(target=_loop, args=(webhook_poll, 2, "Webhook"), daemon=True).start()
     threading.Thread(target=_loop, args=(leads_poll, 4, "Leads"), daemon=True).start()
     threading.Thread(target=_loop, args=(rentvine_poll, 4, "Rentvine"), daemon=True).start()
+    baseline_texts()
+    threading.Thread(target=_loop, args=(texts_poll, 4, "Texts"), daemon=True).start()
     log("Runner", "Agents running",
         f"webhooks: {'on' if TOKEN else 'OFF (no WEBHOOK_TOKEN)'}; texts allowed to {len(ALLOWLIST)} number(s)")
 
@@ -636,6 +759,8 @@ def reset():
         st["handled"][k] = {}
     save()
     baseline_prospects()
+    baseline_texts()
+    CONVO.clear()
     with _lock:
         FEED.clear()
     log("Runner", "Reset for a fresh run")

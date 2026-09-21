@@ -241,6 +241,44 @@ def _(ctx):
         ", ".join(f"/{k} -> {v}" for k, v in got.items()) + f"; 'webhook' appears {in_docs}x in the API docs PDF"
 
 
+@claim("R14", "Comms", "Replies to Rentvine texts are captured and readable: GET /messages/texts/phone/{digits} "
+       "returns the thread with isInbound", "session 2026-09-21 (Matt replied from his phone)", "read")
+def _(ctx):
+    phone = next(iter(os.environ.get("SMS_ALLOWLIST", "").split(",")), "").strip()
+    if not phone:
+        return "HUMAN", "set SMS_ALLOWLIST in .env to the phone that texts the sandbox"
+    s, b = rv.get(f"messages/texts/phone/{re.sub(r'[^0-9]', '', rv.to_e164(phone) or phone)}")
+    inbound = [m for m in rows(b) if m.get("isInbound") == "1"]
+    if s != 200:
+        return "ERROR", f"HTTP {s}"
+    return ("VERIFIED" if inbound else "HUMAN"), \
+        f"{len(rows(b))} messages, {len(inbound)} inbound" + (f"; latest inbound {inbound[0]['dateTimeSent']} UTC"
+                                                             if inbound else "; reply to a sandbox text to test")
+
+
+@claim("R15", "Maintenance", "Work orders carry unitID and dates, so per-unit repair history (and repeat "
+       "issues) can be read from GET /maintenance/work-orders", "session 2026-09-21", "read")
+def _(ctx):
+    s, b = rv.get("maintenance/work-orders?pageSize=500")
+    wos = [unwrap(r, "workOrder") for r in rows(b)]
+    unit_level = [w for w in wos if w.get("unitID") and w.get("dateTimeCreated")]
+    prop_only = [w["workOrderID"] for w in wos if not w.get("unitID") and w.get("propertyID")]
+    ok = s == 200 and unit_level and len(unit_level) + len(prop_only) == len(wos)
+    units = {w.get("unitID") for w in unit_level}
+    return ("VERIFIED" if ok else "REFUTED"), \
+        f"{len(wos)} work orders: {len(unit_level)} unit-level across {len(units)} units; {len(prop_only)} property-level " \
+        f"only (no unitID, e.g. common areas): {prop_only[:5]}"
+
+
+@claim("R16", "Accounting", "Owner portfolios expose reserveAmount, so an agent can check a bill against the "
+       "owner's reserve", "session 2026-09-21", "read")
+def _(ctx):
+    s, b = rv.get("portfolios/1")
+    p = unwrap(b, "portfolio")
+    return ("VERIFIED" if s == 200 and "reserveAmount" in p else "REFUTED"), \
+        f"portfolio 1 reserveAmount={p.get('reserveAmount')}, additionalReserveAmount={p.get('additionalReserveAmount')}"
+
+
 # ----------------------------------------------------------------------------------------------
 # DOCS claims: what the official API reference does / doesn't offer
 # ----------------------------------------------------------------------------------------------

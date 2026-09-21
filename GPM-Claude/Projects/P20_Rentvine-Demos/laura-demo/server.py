@@ -10,6 +10,10 @@ own webhook or poll, never to the page directly):
   POST /api/fixie     simulated Fixie chat     -> real work order in Rentvine      -> Maintenance agent (webhook)
   POST /api/notice    notice on the scene lease (same fields a PM fills in the UI) -> Turn agent (webhook)
   POST /api/complete  mark the scene WO Completed (same as the tech closing it)   -> Billing agent (webhook)
+  POST /api/invoice   finish the A/C job at Lake Dr                                -> itemized owner bill
+  POST /api/recap     what the agents did this run, re-read from Rentvine
+  POST /api/reset     cancel earlier runs' WOs, clear the notice, seed history + the A/C job
+Replies to agent texts are picked up by polling the text thread (agents.texts_poll).
 """
 import datetime
 import json
@@ -33,6 +37,8 @@ SCENE = {
     "ac": {"propertyID": "1", "unitID": "1", "leaseID": "1"},     # 1142 Lake Dr SE, owner Jon Smith
 }
 AC_MARK = "outdoor unit is humming but the fan isn't spinning"
+HIST_MARK = "Kitchen faucet leaking at the base"          # prompt 2's history: an earlier plumbing call at Leonard
+INTAKE_MARK = "Intake: tenant chat assistant"
 
 
 def _body(handler):
@@ -64,7 +70,7 @@ def api_fixie(b):
     m = SCENE["maint"]
     body = {"propertyID": m["propertyID"], "unitID": m["unitID"], "leaseID": m["leaseID"], "isInternal": "0",
             "priorityID": "2", "workOrderStatusID": agents.STATUS_REQUESTED,
-            "description": f"<p>{summary}</p><p><i>Intake: tenant chat assistant (simulated for the demo)</i></p>"}
+            "description": f"<p>{summary}</p><p><i>{INTAKE_MARK} (simulated for the demo)</i></p>"}
     s, r = rv.post("maintenance/work-orders", body)
     wo = (r or {}).get("workOrder", {}) if isinstance(r, dict) else {}
     if s != 200:  # fall back to the verified minimal payload (W01)
@@ -122,6 +128,75 @@ def seed_ac_job():
     return wid
 
 
+def seed_history():
+    """An earlier plumbing call at 615 Leonard (Aug), so prompt 2's repeat-issue check has real history to find."""
+    m = SCENE["maint"]
+    for r in rv.get("maintenance/work-orders?pageSize=500")[1]:
+        w = r["workOrder"]
+        if HIST_MARK in (w.get("description") or "") and w.get("workOrderStatusID") != "3":
+            return w["workOrderID"]
+    day = datetime.date.today() - datetime.timedelta(days=40)
+    s, r = rv.post("maintenance/work-orders", {
+        "propertyID": m["propertyID"], "unitID": m["unitID"], "leaseID": m["leaseID"], "isInternal": "0",
+        "priorityID": "2", "workOrderStatusID": agents.STATUS_COMPLETED,
+        "description": f"<p>{HIST_MARK}; replaced the cartridge and the supply line.</p>",
+        "scheduledStartDate": f"{day}", "scheduledEndDate": f"{day}"})
+    wid = (r or {}).get("workOrder", {}).get("workOrderID") if isinstance(r, dict) else None
+    if wid:
+        agents.once("wo_created", wid, "seed")
+    return wid
+
+
+def release_and_cancel(w):
+    """Rentvine keeps a tech's slot on closed WOs and won't unassign a closed one: reopen, unassign, cancel."""
+    wid = w["workOrderID"]
+    if w.get("technicianContactIDs") and w.get("workOrderStatusID") != agents.STATUS_OPEN:
+        rv.post(f"maintenance/work-orders/{wid}", {"workOrderStatusID": agents.STATUS_OPEN})
+    if w.get("technicianContactIDs"):
+        rv.post(f"maintenance/work-orders/{wid}", {"technicianContactIDs": []})
+    rv.post(f"maintenance/work-orders/{wid}", {"workOrderStatusID": "3"})
+    back = agents.get_wo(wid)
+    return back.get("workOrderStatusID") == "3" and not back.get("technicianContactIDs")
+
+
+def cleanup_runs():
+    """Cancel the work orders earlier runs created (leak, turn, finished A/C) so each run starts clean."""
+    done = []
+    for r in rv.get("maintenance/work-orders?pageSize=500")[1]:
+        w = r["workOrder"]
+        d = w.get("description") or ""
+        mine = (INTAKE_MARK in d or d.startswith("Unit turn after") or
+                (AC_MARK in d and w.get("workOrderStatusID") != agents.STATUS_OPEN))
+        if mine and (w.get("workOrderStatusID") != "3" or w.get("technicianContactIDs")):
+            done.append((w["workOrderID"], release_and_cancel(w)))
+    return done
+
+
+def api_recap(b):
+    """Prompt 6: what the agents did this run, with each record re-read from Rentvine for its current state."""
+    out = {}
+    for i in agents.FEED:
+        if i["agent"] == "Runner":
+            continue
+        a = out.setdefault(i["agent"], {"first": i["t"], "last": i["t"], "steps": 0, "records": []})
+        a["last"], a["steps"] = i["t"], a["steps"] + 1
+        d = i["data"]
+        if d.get("billID"):
+            bill = agents.unwrap(rv.get(f"accounting/bills/{d['billID']}")[1], "bill")
+            rec = f"bill #{d['billID']}: approved={bill.get('isApproved')}, paid=${float(bill.get('amountPaid') or 0):,.2f}"
+        elif d.get("workOrderID") and i["step"][:1] in "WT":
+            w = agents.get_wo(d["workOrderID"])
+            rec = f"WO #{w.get('workOrderNumber')}: status {w.get('workOrderStatusID')}"
+        elif d.get("textMessageID"):
+            rec = f"text {d['textMessageID']}"
+        else:
+            continue
+        if rec not in a["records"]:
+            a["records"].append(rec)
+    return {"ok": True, "agents": out, "headlines": [i["step"] for i in agents.FEED
+                                                   if i["agent"] != "Runner" and i["status"] in ("done", "waiting")]}
+
+
 def api_invoice(b):
     wid = b.get("workOrderID") or seed_ac_job()
     parts = [(p["name"], float(p.get("qty", 1))) for p in b.get("parts") or []]
@@ -134,12 +209,15 @@ def api_invoice(b):
 def api_reset(b):
     # Clear the scene-3 notice so it can be recorded again, forget handled events, seed prompt 5's job.
     rv.post(f"leases/{SCENE['notice_lease']}", {"noticeDate": None, "expectedMoveOutDate": None})
+    cleaned = cleanup_runs()
     agents.reset()
-    return {"ok": True, "acWorkOrder": seed_ac_job()}
+    return {"ok": all(ok for _, ok in cleaned), "cancelled": cleaned, "history": seed_history(),
+            "acWorkOrder": seed_ac_job()}
 
 
 ROUTES = {"/api/lead": api_lead, "/api/fixie": api_fixie, "/api/notice": api_notice,
-          "/api/complete": api_complete, "/api/reset": api_reset, "/api/invoice": api_invoice}
+          "/api/complete": api_complete, "/api/reset": api_reset, "/api/invoice": api_invoice,
+          "/api/recap": api_recap}
 
 
 class Handler(BaseHTTPRequestHandler):
