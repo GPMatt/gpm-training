@@ -1,7 +1,7 @@
 // Builds/refreshes the shared pre-screening Google Form used across all three
 // Spencer properties. Run buildPreScreenForm() manually from the Apps Script
 // editor (select it in the function dropdown, click Run) whenever PROPERTIES
-// or the Units sheet changes — safe to re-run. Full Name / Email / Property
+// (Code.js) or the questions below change — safe to re-run. Full Name / Email / Property
 // are reused, never recreated, so their entry IDs (and every already-sent
 // prefilled email link) stay valid forever; everything after them is cleared
 // and rebuilt from scratch each time.
@@ -36,44 +36,29 @@ function buildPreScreenForm() {
   clearNonIdentityItems_(form, identity);
   var propertyItem = identity.propertyItem;
 
-  // --- One page + unit-type question per property -------------------------
-  // Each rejoins at pageCommon afterward via setGoToPage, so the shared
-  // questions below are only ever asked once regardless of which property
-  // branch the prospect took.
-  var pageIndianVillage = form.addPageBreakItem().setTitle('Indian Village Apartments');
-  addUnitTypeQuestion_(form, 'INDIAN_VILLAGE');
+  // --- Screening questions (single page, no branching) --------------------
+  // Redesigned 2026-09-23 for the booking-first flow: the prospect already
+  // picked a specific unit when they booked, so the per-property unit-type
+  // pages are gone, and pets are no longer asked. Bedrooms drives the rent
+  // used in the income check (Requirements tab, read live at scoring time).
+  // Titles are the contract with PreScreenSubmit.js — see the Q_* constants.
+  propertyItem.setChoiceValues(PROPERTIES.map(function (p) { return p.displayName; }));
 
-  var pageEaglebrook = form.addPageBreakItem().setTitle('Eaglebrook Apartments');
-  addUnitTypeQuestion_(form, 'EAGLEBROOK');
-
-  var pageGrandCentral = form.addPageBreakItem().setTitle('Grand Central Lofts');
-  addUnitTypeQuestion_(form, 'GRAND_CENTRAL_LOFTS');
-
-  // --- Shared section: move-in date + pets (pets branches on pet details) -
-  var pageCommon = form.addPageBreakItem().setTitle('A Bit More About You');
-  form.addDateItem().setTitle('Anticipated Move-In Date').setRequired(true);
-  var petsItem = form.addMultipleChoiceItem().setTitle('Do you have any pets?').setRequired(true);
-
-  var pagePetDetails = form.addPageBreakItem().setTitle('Pet Details');
-  form.addTextItem().setTitle('Pet type/breed and approximate weight').setRequired(true);
-
-  // --- Shared final section: financial pre-screen + wrap-up ---------------
-  var pageRest = form.addPageBreakItem().setTitle('Almost Done');
-  // Bands match Matt's live edit in the Forms UI — split exactly at 625 so
-  // there's no band straddling a threshold (600-624 / 625-649), matching how
-  // computeScreeningResult_ (PreScreenSubmit.js) reads each property's actual
-  // credit cutoff from the Requirements sheet rather than a hardcoded value.
-  // "NO CREDIT" is its own distinct option — a cosigner only ever rescues
-  // THIS answer, never an actual-but-insufficient score like "Below 600"
-  // (see computeScreeningResult_'s isNoCreditAnswer_ check).
-  form.addMultipleChoiceItem().setTitle('Credit Score Range').setRequired(true)
+  form.addPageBreakItem().setTitle('A Few Quick Questions');
+  form.addMultipleChoiceItem().setTitle(Q_BEDROOMS).setRequired(true)
+    .setChoiceValues(BEDROOM_CHOICES.map(function (b) { return b.label; }));
+  form.addDateItem().setTitle(Q_MOVE_IN).setRequired(true);
+  // Bands split exactly at 625 so no band straddles the current threshold.
+  // "NO CREDIT" is its own option — a cosigner only ever rescues THIS answer,
+  // never an actual-but-insufficient score (see computeScreeningResult_).
+  form.addMultipleChoiceItem().setTitle(Q_CREDIT).setRequired(true)
     .setChoiceValues(['650 or above', '625 - 649', '600 - 624', 'Below 600', 'NO CREDIT - ALLOWS COSIGNER']);
-  form.addTextItem().setTitle('Monthly Gross Income (before taxes)').setRequired(true)
+  form.addTextItem().setTitle(Q_INCOME).setRequired(true)
+    .setHelpText('Add together the monthly income of everyone who will sign the lease.')
     .setValidation(FormApp.createTextValidation().requireNumber().build());
-  form.addMultipleChoiceItem().setTitle('Do you have a cosigner?').setRequired(true)
+  form.addMultipleChoiceItem().setTitle(Q_COSIGNER).setRequired(true)
     .setChoiceValues(['Yes', 'No', 'If needed']);
-  // Matches Matt's live edit — condensed from the original 10 options.
-  form.addListItem().setTitle('How did you hear about us?').setRequired(false)
+  form.addListItem().setTitle(Q_REFERRAL).setRequired(false)
     .setChoiceValues([
       'Google Search',
       'LiveGreenLocal.com',
@@ -82,34 +67,17 @@ function buildPreScreenForm() {
       'Drove by',
       'Referral'
     ]);
-  form.addParagraphTextItem().setTitle('Anything else we should know?').setRequired(false);
-
-  // --- Wire up branching now that every target page break exists ----------
-  propertyItem.setChoices([
-    propertyItem.createChoice('Indian Village Apartments', pageIndianVillage),
-    propertyItem.createChoice('Eaglebrook Apartments', pageEaglebrook),
-    propertyItem.createChoice('Grand Central Lofts', pageGrandCentral)
-  ]);
-  pageIndianVillage.setGoToPage(pageCommon);
-  pageEaglebrook.setGoToPage(pageCommon);
-  pageGrandCentral.setGoToPage(pageCommon);
-
-  petsItem.setChoices([
-    petsItem.createChoice('Yes', pagePetDetails),
-    petsItem.createChoice('No', pageRest)
-  ]);
-  // pagePetDetails has no explicit setGoToPage — natural document order
-  // already continues into pageRest next, which is what "Yes" needs too.
+  form.addParagraphTextItem().setTitle(Q_NOTES).setRequired(false);
 
   // Entry IDs are needed by Code.js to build prefilled links (name/email/
   // property filled in from the lead we already have before the prospect
-  // ever opens the form). Store once here so autoResponder_run_ never has to
+  // ever opens the form). Store once here so showingWatcher (Code.js) never has to
   // re-open the Form just to look them up on every send.
   var props = PropertiesService.getScriptProperties();
   props.setProperty('PRESCREEN_ENTRY_NAME', String(identity.nameItem.getId()));
   props.setProperty('PRESCREEN_ENTRY_EMAIL', String(identity.emailItem.getId()));
   props.setProperty('PRESCREEN_ENTRY_PROPERTY', String(identity.propertyItem.getId()));
-  // Cached so autoResponder_run_ (Code.js) never has to open the Form itself
+  // Cached so showingWatcher (Code.js) never has to open the Form itself
   // on every 1-minute trigger tick just to read its URL.
   props.setProperty('PRESCREEN_PUBLISHED_URL', form.getPublishedUrl());
 
@@ -216,52 +184,9 @@ function clearNonIdentityItems_(form, identity) {
   }
 }
 
-// Builds the "Which unit type interests you?" question for one property,
-// with sqft/price/availability baked into each choice label (pulled fresh
-// from the Units sheet at build time — see getOrCreateUnitsSheet_ below).
-// Rebuild the form (re-run buildPreScreenForm) after editing that sheet so
-// stale prices don't sit live on an already-published form.
-function addUnitTypeQuestion_(form, propertyKey) {
-  var units = getActiveUnitsForProperty_(propertyKey);
-  var item = form.addMultipleChoiceItem().setTitle('Which unit type interests you?').setRequired(true);
-
-  if (units.length === 0) {
-    item.setChoiceValues(['Not sure yet — show me what’s available']);
-    return item;
-  }
-
-  item.setChoiceValues(units.map(function (u) {
-    return u.unitType + ' — ' + u.sqft + ' sqft — $' + u.price + '/mo — ' + u.availability;
-  }));
-  return item;
-}
-
-function getActiveUnitsForProperty_(propertyKey) {
-  var sheet = getOrCreateUnitsSheet_();
-  var rows = sheet.getDataRange().getValues();
-  var header = rows[0];
-  var col = {};
-  for (var c = 0; c < header.length; c++) col[header[c]] = c;
-
-  var result = [];
-  for (var r = 1; r < rows.length; r++) {
-    var row = rows[r];
-    if (row[col['PropertyKey']] !== propertyKey) continue;
-    if (row[col['Active']] === false) continue;
-    result.push({
-      unitType: row[col['UnitType']],
-      sqft: row[col['SqFt']],
-      price: row[col['Price']],
-      availability: row[col['Availability']]
-    });
-  }
-  return result;
-}
-
-// Creates the property/unit source-of-truth sheet on first run. This is the
-// sheet the PM edits by hand (roughly weekly) to keep availability/pricing
-// current — re-run buildPreScreenForm() afterward to push those changes into
-// the form's question labels.
+// Opens the "GPM Spencer — Property & Unit Details" spreadsheet (creating it
+// on a first-ever run). Only its Requirements tab is used now — the Units tab
+// fed the old unit-type question and is no longer read.
 function getOrCreateUnitsSheet_() {
   var props = PropertiesService.getScriptProperties();
   var sheetId = props.getProperty(UNITS_SHEET_ID_PROP);

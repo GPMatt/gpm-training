@@ -1,57 +1,67 @@
-// Handles a pre-screen form submission end to end: scores it against GPM's
-// screening criteria and, if it passes, immediately sends the tour-booking
-// email (SHOWING_LINK, defined in Code.js) with no human in the loop.
+// Handles a pre-screen form submission end to end (booking-first flow,
+// redesigned 2026-09-23 — see the overview at the top of Code.js):
 //
-// Deliberately asymmetric: a PASS is fully automated because it's applying
-// the same objective bar to everyone, every time — the safe direction to
-// automate. A prospect who doesn't clear the bar is NEVER sent an automated
-// rejection; they're only logged to the Leads tab as "Needs Review" for a
-// human to follow up with. Self-reported credit/income can't be verified
-// anyway, so treat a fail as "needs a human look," not "denied."
+//   1. Score the answers against the Requirements tab, read LIVE on every
+//      submission (the numbers in that sheet change — never cache them).
+//   2. Tie the submission back to the prospect's open showing (Showings tab,
+//      matched by email, same property preferred).
+//   3. Email Spencer a summary every time: answers, each rule and its result,
+//      and what the prospect was sent.
+//   4. Email the prospect — PASS: confirmation + calendar invite (automation@
+//      calendar, prospect + Spencer as guests). FAIL: cancellation (the
+//      showing itself still has to be cancelled in AppFolio by Spencer; we
+//      only have read access there). Submitted after the showing time:
+//      Spencer only, nothing to the prospect.
 //
-// Screening criteria are PER-PROPERTY, read live from the "Requirements" tab
-// (same spreadsheet as Units — see getRequirementsForProperty_ below) rather
-// than hardcoded, so a PM can change a property's bar without a code change:
-//   - A credit-range answer passes outright if its LOWER bound is >= that
-//     property's Credit threshold (e.g. threshold 625 means "625 - 649" and
-//     "650 or above" both pass outright, "600 - 624" and "Below 600" don't).
-//   - A cosigner can ONLY rescue an applicant who selected "NO CREDIT —
-//     ALLOWS COSIGNER" (no credit file at all). An applicant with an actual
-//     but insufficient credit score (e.g. "600 - 624", "Below 600") is NEVER
-//     rescued by a cosigner — that combination always needs human review.
-//     (Fixed 2026-09-17 — the prior version let cosigner=Yes rescue ANY
-//     below-threshold credit score, which is not the policy.)
-//   - Cosigner = "If needed" is always treated as undecided, never an
-//     auto-pass, regardless of the credit answer.
-//   - Monthly gross income must ALSO be >= that property's Income multiplier
-//     (e.g. "3x") times the rent of the unit type they selected (rent is
-//     parsed straight from that answer's own label, e.g. "Studio — 410 sqft —
-//     $1,225/mo — Immediate", so it always matches what the prospect was
-//     actually quoted, not a possibly-since-changed sheet price) — income is
-//     required on top of a passing credit/cosigner path, not an alternative
-//     to it.
+// Rules (same for all three properties today, but read per property + bedroom
+// count from the Requirements tab, so each can diverge without a code change):
+//   - Credit: the chosen range's LOWER bound must be >= that row's Credit
+//     value ("625 - 649" and "650 or above" pass at 625). "NO CREDIT" passes
+//     only with cosigner Yes / If needed ("If needed" adds a cosigner note to
+//     the confirmation). A cosigner never rescues an actual score below the
+//     threshold.
+//   - Income: combined monthly gross income >= Income multiplier ("3x") x the
+//     "Min Rent by Bedroom" for the bedroom count they asked for.
+//   - Move-in: no more than 90 days after the submission date.
+// If the Requirements tab has no row for that property + bedroom count, the
+// submission is NOT auto-failed — Spencer gets it as NEEDS REVIEW and the
+// prospect gets nothing yet.
 
-var LEADS_SHEET_NAME = 'Leads';
+// Question titles — the contract with buildPreScreenForm() (PreScreenForm.js).
+var Q_BEDROOMS = 'How many bedrooms are you looking for?';
+var Q_MOVE_IN = 'Anticipated Move-In Date';
+var Q_CREDIT = 'Credit Score Range';
+var Q_INCOME = 'Combined Monthly Gross Income (before taxes)';
+var Q_COSIGNER = 'Do you have a cosigner?';
+var Q_REFERRAL = 'How did you hear about us?';
+var Q_NOTES = 'Anything else we should know?';
+
+var BEDROOM_CHOICES = [
+  { label: 'Studio', beds: 0 },
+  { label: '1 Bedroom', beds: 1 },
+  { label: '2 Bedrooms', beds: 2 },
+  { label: '3 Bedrooms', beds: 3 }
+];
+
+var MAX_MOVE_IN_DAYS = 90;
+
+var SCREENINGS_SHEET_NAME = 'Screenings';
 var REQUIREMENTS_SHEET_NAME = 'Requirements';
 var PRESCREEN_ERRORS_SHEET_NAME = 'Errors';
 
 function onPreScreenSubmit_(e) {
-  // getScriptLock() is shared across the WHOLE script, including the every-
-  // 1-minute autoResponder trigger in Code.js — not scoped to this function.
-  // A submission arriving during contention used to vanish with zero trace;
-  // now it's at least logged instead of silently dropped.
+  // Shared script lock with the every-minute showingWatcher (Code.js). Wait
+  // longer than the watcher does — a submission must never be dropped just
+  // because a watcher run happened to be mid-flight.
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(5000)) {
-    logPreScreenError_('Could not acquire script lock within 5s — submission dropped (see LockService note in onPreScreenSubmit_)', e);
+  if (!lock.tryLock(60000)) {
+    logPreScreenError_('Could not acquire script lock within 60s — submission dropped', e);
     return;
   }
 
   try {
     onPreScreenSubmit_run_(e);
   } catch (err) {
-    // Catch-all so an exception anywhere in the scoring/logging path (a
-    // transient Sheets API error, an unexpected null, etc.) leaves a trace
-    // instead of failing the trigger invisibly.
     logPreScreenError_('Uncaught exception in onPreScreenSubmit_run_: ' + err + (err && err.stack ? ' | ' + err.stack : ''), e);
   } finally {
     lock.releaseLock();
@@ -59,32 +69,58 @@ function onPreScreenSubmit_(e) {
 }
 
 function onPreScreenSubmit_run_(e) {
-  var answers = parsePreScreenResponse_(e);
-  if (!answers) return; // malformed submission — already logged to Errors tab
+  var a = parsePreScreenResponse_(e);
+  if (!a) return; // malformed submission — already logged to Errors tab
 
-  if (alreadyPassed_(answers.email)) {
-    // Deliberate no-op, not a failure — but it looks exactly like a silent
-    // drop from the outside (no Leads row, no Errors row) unless it's
-    // logged. This is the actual explanation behind several "submission
-    // didn't go through" reports during testing: repeat submissions from the
-    // same email after an earlier one already passed.
-    logPreScreenError_('Skipped — ' + answers.email + ' already has a Passed row (repeat submission, not resent)', e);
+  var result = computeScreeningResult_(a);
+  var open = findOpenShowingForEmail_(a.email, a.property);
+  var now = new Date();
+
+  if (!open) {
+    logScreening_(a, result, 'NO_OPEN_SHOWING');
+    notifySpencer_(resultEmoji_(result) + ' ' + result.verdict + ' (no showing on file) — ' + a.fullName + ' — ' + a.property,
+      'This pre-screen came in, but there is no open showing for ' + a.email + ' (already decided, or booked outside ' +
+      'the automation). Nothing was sent to the prospect.',
+      { ProspectName: a.fullName, Email: a.email, Property: a.property },
+      screeningDetailsHtml_(a, result));
     return;
   }
 
-  var result = computeScreeningResult_(answers);
-  logLead_(answers, result);
+  var showing = open.record;
+  var start = showing.ShowingStart instanceof Date ? showing.ShowingStart : null;
+  var late = start && now >= start;
+  var action, status, updates = { Result: result.verdict, Reason: result.reason };
 
-  if (result.passed) {
-    sendTourEmail_(answers, result);
+  if (late) {
+    status = 'LATE_' + result.verdict;
+    action = 'Submitted AFTER the showing time — nothing was sent to the prospect.';
+  } else if (result.verdict === 'REVIEW') {
+    status = 'NEEDS_REVIEW';
+    action = 'Could not score automatically (' + result.reason + '). Nothing was sent to the prospect — your call.';
+  } else if (result.verdict === 'PASS') {
+    var eventId = createShowingEvent_(showing, a);
+    sendConfirmationEmail_(showing, a, result);
+    status = 'PASSED';
+    updates.CalendarEventId = eventId;
+    action = 'Prospect was sent a confirmation email + calendar invite (you\'re on the invite too).';
+  } else {
+    sendCancellationEmail_(showing, a);
+    status = 'FAILED';
+    action = 'Prospect was sent a cancellation email. 👉 Please cancel this showing in AppFolio.';
   }
+
+  updates.Status = status;
+  updateShowingRow_(open.rowNumber, updates);
+  logScreening_(a, result, status);
+
+  notifySpencer_(resultEmoji_(result) + ' ' + (late ? 'LATE ' : '') + result.verdict + ' — ' + a.fullName + ' — ' +
+      showing.Property + (start ? ' ' + formatShowingTime_(start) : ''),
+    action, showing, screeningDetailsHtml_(a, result));
 }
 
-// Reads every answer off the FormResponse by question title (not by column
-// index/position) so a reordered question in buildPreScreenForm() can't
-// silently misalign fields. Returns null — after logging what went wrong —
-// if a field this scoring logic actually depends on is missing or unparsable,
-// so one bad submission can't throw and take down every submission after it.
+// Reads every answer by question title (not position) so reordering questions
+// in buildPreScreenForm() can't misalign fields. Returns null (after logging)
+// if a field the scoring depends on is missing or unparsable.
 function parsePreScreenResponse_(e) {
   if (!e || !e.response) {
     logPreScreenError_('onFormSubmit fired with no e.response', e);
@@ -99,90 +135,110 @@ function parsePreScreenResponse_(e) {
 
   var fullName = map['Full Name'];
   var email = map['Email Address'];
-  var unitAnswer = map['Which unit type interests you?'];
-  var creditRange = map['Credit Score Range'];
-  var cosigner = map['Do you have a cosigner?'];
-  var incomeRaw = map['Monthly Gross Income (before taxes)'];
+  var bedroomsAnswer = map[Q_BEDROOMS];
+  var moveInRaw = map[Q_MOVE_IN];
+  var creditRange = map[Q_CREDIT];
+  var incomeRaw = map[Q_INCOME];
+  var cosigner = map[Q_COSIGNER];
 
-  if (!fullName || !email || !unitAnswer || !creditRange || !cosigner || !incomeRaw) {
+  if (!fullName || !email || !bedroomsAnswer || !moveInRaw || !creditRange || !incomeRaw || !cosigner) {
     logPreScreenError_('Missing a required field this scoring logic depends on', e);
     return null;
   }
 
-  var rentMatch = String(unitAnswer).match(/\$([\d,]+)\/mo/);
-  var monthlyRent = rentMatch ? parseFloat(rentMatch[1].replace(/,/g, '')) : null;
+  var bedroomChoice = BEDROOM_CHOICES.filter(function (b) { return b.label === bedroomsAnswer; })[0];
   var monthlyIncome = parseFloat(String(incomeRaw).replace(/[^0-9.]/g, ''));
+  var moveIn = parseFormDate_(moveInRaw);
 
-  if (!monthlyRent || isNaN(monthlyIncome)) {
-    logPreScreenError_('Could not parse rent from unit answer or income as a number', e);
+  if (!bedroomChoice || isNaN(monthlyIncome) || !moveIn) {
+    logPreScreenError_('Could not parse bedrooms / income / move-in date', e);
     return null;
   }
 
   return {
     fullName: fullName,
-    email: email,
+    email: String(email).trim(),
     property: map['Property'] || '',
-    unitAnswer: unitAnswer,
-    monthlyRent: monthlyRent,
-    moveInDate: map['Anticipated Move-In Date'] || '',
-    pets: map['Do you have any pets?'] || '',
-    petDetails: map['Pet type/breed and approximate weight'] || '', // absent when Pets = No, that page is skipped entirely
+    bedroomsLabel: bedroomsAnswer,
+    beds: bedroomChoice.beds,
+    moveInRaw: moveInRaw,
+    moveIn: moveIn,
     creditRange: creditRange,
     monthlyIncome: monthlyIncome,
     cosigner: cosigner,
-    referralSource: map['How did you hear about us?'] || '',
-    notes: map['Anything else we should know?'] || ''
+    referralSource: map[Q_REFERRAL] || '',
+    notes: map[Q_NOTES] || ''
   };
 }
 
+// Date items come back as "YYYY-MM-DD".
+function parseFormDate_(raw) {
+  var m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)) : null;
+}
+
+// Returns { verdict: 'PASS' | 'FAIL' | 'REVIEW', reason, checks: [{label, ok, detail}], needsCosignerFollowup }.
 function computeScreeningResult_(a) {
-  var req = getRequirementsForProperty_(a.property);
-  var isNoCredit = isNoCreditAnswer_(a.creditRange);
-  var creditLowerBound = parseCreditRangeLowerBound_(a.creditRange);
-  var creditOkOutright = !isNoCredit && creditLowerBound >= req.creditThreshold;
-  var incomeOk = a.monthlyIncome >= req.incomeMultiplier * a.monthlyRent;
-  var incomeShortfallNote = 'income below ' + req.incomeMultiplier + 'x rent';
+  var req = getRequirements_(getPropertyKeyByDisplayName_(a.property), a.beds);
+  var checks = [];
 
-  // "If needed" means the applicant doesn't have a cosigner lined up yet but
-  // is willing to get one if required — that still clears the NO CREDIT gate
-  // (same as "Yes"), it just isn't confirmed yet, so the tour email has to
-  // flag the requirement rather than staying silent about it.
-  var needsCosignerFollowup = false;
+  // Move-in never depends on the Requirements tab, so it's scored even when
+  // the tab is missing a row.
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var daysOut = Math.round((a.moveIn - today) / 86400000);
+  checks.push({
+    label: 'Move-in within ' + MAX_MOVE_IN_DAYS + ' days',
+    ok: daysOut <= MAX_MOVE_IN_DAYS,
+    detail: a.moveInRaw + ' (' + daysOut + ' days out)'
+  });
 
-  var creditOk;
-  var reason;
-  if (creditOkOutright) {
-    creditOk = true;
-    reason = incomeOk ? 'meets credit + income criteria' : ('credit OK, ' + incomeShortfallNote);
-  } else if (isNoCredit && (a.cosigner === 'Yes' || a.cosigner === 'If needed')) {
-    // Cosigner only ever substitutes for a genuine NO CREDIT answer — never
-    // for an actual (just insufficient) credit score.
-    creditOk = true;
-    needsCosignerFollowup = a.cosigner === 'If needed';
-    reason = (a.cosigner === 'If needed' ? 'no credit, cosigner needed (applicant said "if needed")' : 'no credit, cosigner confirmed')
-      + (incomeOk ? ', income OK' : (', ' + incomeShortfallNote));
-  } else if (isNoCredit) {
-    creditOk = false;
-    reason = 'no credit, no cosigner';
-  } else {
-    // Has an actual credit score below threshold — a cosigner does NOT apply
-    // here regardless of what was selected; only a NO CREDIT answer does.
-    creditOk = false;
-    reason = 'credit below ' + req.creditThreshold + ' threshold (cosigner only applies to NO CREDIT applicants)';
+  if (!req) {
+    return {
+      verdict: 'REVIEW',
+      reason: 'no Requirements row for ' + a.property + ' / ' + a.bedroomsLabel,
+      checks: checks,
+      needsCosignerFollowup: false
+    };
   }
 
-  return { passed: creditOk && incomeOk, reason: reason, needsCosignerFollowup: needsCosignerFollowup };
+  // Credit — cosigner only ever substitutes for a genuine NO CREDIT answer.
+  var isNoCredit = /no credit/i.test(String(a.creditRange));
+  var lowerBound = parseCreditRangeLowerBound_(a.creditRange);
+  var needsCosignerFollowup = false;
+  var creditOk, creditDetail;
+  if (isNoCredit) {
+    creditOk = a.cosigner === 'Yes' || a.cosigner === 'If needed';
+    needsCosignerFollowup = a.cosigner === 'If needed';
+    creditDetail = 'No credit, cosigner: ' + a.cosigner + (creditOk ? '' : ' (no credit requires a cosigner)');
+  } else {
+    creditOk = lowerBound >= req.creditThreshold;
+    creditDetail = a.creditRange + ' vs ' + req.creditThreshold + ' needed' +
+      (!creditOk && a.cosigner !== 'No' ? ' (a cosigner only applies to NO CREDIT applicants)' : '');
+  }
+  checks.push({ label: 'Credit ' + req.creditThreshold + '+', ok: creditOk, detail: creditDetail });
+
+  var incomeNeeded = req.incomeMultiplier * req.minRent;
+  checks.push({
+    label: 'Income ' + req.incomeMultiplier + 'x rent',
+    ok: a.monthlyIncome >= incomeNeeded,
+    detail: formatMoney_(a.monthlyIncome) + ' vs ' + formatMoney_(incomeNeeded) + ' needed (' +
+      req.incomeMultiplier + ' x ' + formatMoney_(req.minRent) + ' min rent, ' + a.bedroomsLabel + ')'
+  });
+
+  var failed = checks.filter(function (c) { return !c.ok; });
+  return {
+    verdict: failed.length === 0 ? 'PASS' : 'FAIL',
+    reason: failed.length === 0
+      ? 'meets all criteria' + (needsCosignerFollowup ? ' (cosigner required — applicant said "if needed")' : '')
+      : failed.map(function (c) { return c.label + ': ' + c.detail; }).join('; '),
+    checks: checks,
+    needsCosignerFollowup: needsCosignerFollowup
+  };
 }
 
-function isNoCreditAnswer_(rangeText) {
-  return /no credit/i.test(String(rangeText));
-}
-
-// "700 or above" -> 700, "625 - 649" -> 625 (the band's own lower edge is
-// what has to clear the property's threshold), "Below 600" -> 0 (never
-// passes outright — the band's whole point is being under every threshold).
-// "NO CREDIT..." has no digits so this returns 0 too, but that path is
-// gated separately by isNoCreditAnswer_ above, not by this bound.
+// "650 or above" -> 650, "625 - 649" -> 625, "Below 600" -> 0 (never passes
+// outright). "NO CREDIT..." is gated separately, not by this bound.
 function parseCreditRangeLowerBound_(rangeText) {
   var text = String(rangeText);
   if (/below/i.test(text)) return 0;
@@ -190,28 +246,48 @@ function parseCreditRangeLowerBound_(rangeText) {
   return match ? parseInt(match[1], 10) : 0;
 }
 
-// Reads the per-property screening bar from the "Requirements" tab (same
-// spreadsheet as Units). Falls back to a conservative default if a property
-// is somehow missing a row there, rather than letting scoring throw.
-function getRequirementsForProperty_(propertyDisplayName) {
-  var key = getPropertyKeyByDisplayName_(propertyDisplayName);
-  var sheet = getOrCreateRequirementsSheet_();
+// Reads the Requirements tab LIVE (no caching) and returns the row for this
+// property + bedroom count: { creditThreshold, incomeMultiplier, minRent }, or
+// null if there's no such row. Columns are found by header name; the rent
+// column is whichever header mentions "rent" (currently "Min Rent by Bedroom").
+function getRequirements_(propertyKey, beds) {
+  if (!propertyKey) return null;
+  var ss = SpreadsheetApp.openById(getPropertyUnitsSpreadsheetId_());
+  var sheet = ss.getSheetByName(REQUIREMENTS_SHEET_NAME);
+  if (!sheet) {
+    logPreScreenError_('Requirements tab is missing from the Property & Unit Details spreadsheet', null);
+    return null;
+  }
+
   var rows = sheet.getDataRange().getValues();
-  var header = rows[0];
-  var col = {};
-  for (var c = 0; c < header.length; c++) col[header[c]] = c;
+  var header = rows[0].map(function (h) { return String(h).trim(); });
+  var cKey = header.indexOf('PropertyKey');
+  var cCredit = header.indexOf('Credit');
+  var cIncome = header.indexOf('Income');
+  var cBeds = header.indexOf('Beds');
+  var cRent = -1;
+  for (var h = 0; h < header.length; h++) if (/rent/i.test(header[h])) { cRent = h; break; }
+
+  if (cKey < 0 || cCredit < 0 || cIncome < 0 || cBeds < 0 || cRent < 0) {
+    logPreScreenError_('Requirements tab header changed — need PropertyKey, Credit, Income, Beds and a Rent column; got: ' + header.join(', '), null);
+    return null;
+  }
 
   for (var r = 1; r < rows.length; r++) {
-    if (rows[r][col['PropertyKey']] === key) {
-      var incomeMatch = String(rows[r][col['Income']]).match(/([\d.]+)/);
-      return {
-        creditThreshold: Number(rows[r][col['Credit']]),
-        incomeMultiplier: incomeMatch ? parseFloat(incomeMatch[1]) : 3
-      };
+    var row = rows[r];
+    if (String(row[cKey]).trim() !== propertyKey) continue;
+    if (Number(row[cBeds]) !== beds || row[cBeds] === '') continue;
+
+    var incomeMatch = String(row[cIncome]).match(/([\d.]+)/);
+    var minRent = Number(String(row[cRent]).replace(/[^0-9.]/g, ''));
+    var credit = Number(row[cCredit]);
+    if (!incomeMatch || !minRent || !credit) {
+      logPreScreenError_('Requirements row ' + (r + 1) + ' has a blank/unreadable Credit, Income or Rent', null);
+      return null;
     }
+    return { creditThreshold: credit, incomeMultiplier: parseFloat(incomeMatch[1]), minRent: minRent };
   }
-  logPreScreenError_('No Requirements row for property "' + propertyDisplayName + '" (key "' + key + '") — using default 625/3x', null);
-  return { creditThreshold: 625, incomeMultiplier: 3 };
+  return null;
 }
 
 function getPropertyKeyByDisplayName_(displayName) {
@@ -221,75 +297,146 @@ function getPropertyKeyByDisplayName_(displayName) {
   return null;
 }
 
-function getOrCreateRequirementsSheet_() {
-  var ss = SpreadsheetApp.openById(getPropertyUnitsSpreadsheetId_());
-  var sheet = ss.getSheetByName(REQUIREMENTS_SHEET_NAME);
-  if (sheet) return sheet;
+// ---------------------------------------------------------------------------
+// Prospect emails + calendar
+// ---------------------------------------------------------------------------
 
-  sheet = ss.insertSheet(REQUIREMENTS_SHEET_NAME);
-  sheet.appendRow(['PropertyKey', 'Credit', 'Income']);
-  for (var i = 0; i < PROPERTIES.length; i++) {
-    sheet.appendRow([PROPERTIES[i].key, 625, '3x']);
+function createShowingEvent_(showing, a) {
+  try {
+    var start = showing.ShowingStart;
+    var end = new Date(start.getTime() + SHOWING_DURATION_MIN * 60000);
+    var event = CalendarApp.getDefaultCalendar().createEvent(
+      'Showing: ' + a.fullName + ' — ' + showing.Property,
+      start, end, {
+        location: showing.Unit,
+        description: 'Apartment showing at ' + showing.Property + ' (' + showing.Unit + ').\n' +
+          'Questions or need to reschedule? Reply to the confirmation email or contact ' + REPLY_TO_EMAIL + '.',
+        guests: a.email + ',' + getNotifyEmail_(),
+        sendInvites: true
+      });
+    return event.getId();
+  } catch (err) {
+    // The confirmation email still goes out — a calendar hiccup shouldn't cost
+    // a qualified prospect their confirmation.
+    logPreScreenError_('Calendar invite failed for ' + a.email + ': ' + err, null);
+    return 'FAILED: ' + err;
   }
-  sheet.setFrozenRows(1);
-  return sheet;
 }
 
-// Guards against sending a second tour email if the same prospect fills out
-// the form twice after already passing once (e.g. clicking the emailed link
-// again). A repeat submission that DIDN'T pass the first time is allowed to
-// re-score — their answers may have genuinely changed.
-function alreadyPassed_(email) {
-  var sheet = getOrCreateLeadsSheet_();
-  var rows = sheet.getDataRange().getValues();
-  var header = rows[0];
-  var emailCol = header.indexOf('Email');
-  var statusCol = header.indexOf('Status');
-  for (var r = 1; r < rows.length; r++) {
-    if (rows[r][emailCol] === email && String(rows[r][statusCol]).indexOf('Passed') === 0) {
-      return true;
-    }
-  }
-  return false;
+function sendConfirmationEmail_(showing, a, result) {
+  var firstName = firstNameOf_(a.fullName);
+  var when = formatShowingTime_(showing.ShowingStart);
+  var cosignerNote = result.needsCosignerFollowup
+    ? 'One note: since you don\'t have credit history on file yet, a cosigner will be required to move forward ' +
+      'with an application — it helps to have them ready by the time you apply.<br><br>'
+    : '';
+
+  GmailApp.sendEmail(a.email, 'You\'re confirmed: ' + showing.Property + ' showing — ' + when, '', {
+    htmlBody: `
+      Hi ${firstName},<br><br>
+      Great news — you're all set! We're excited to show you around ${showing.Property}.<br><br>
+      📅 ${when}<br>
+      📍 ${escapeHtml_(showing.Unit)}<br><br>
+      A calendar invite is on its way so it's on your schedule. ${cosignerNote}If anything changes, just reply to this email.<br><br>
+      See you soon,<br>
+      ${SENDER_SIGNATURE}<br>
+      Green Property Management
+    `,
+    name: SENDER_NAME, replyTo: REPLY_TO_EMAIL
+  });
 }
 
-function logLead_(a, result) {
-  var sheet = getOrCreateLeadsSheet_();
-  sheet.appendRow([
-    new Date(),
-    a.fullName,
-    a.email,
-    a.property,
-    a.unitAnswer,
-    a.monthlyRent,
-    a.moveInDate,
-    a.pets,
-    a.petDetails,
-    a.creditRange,
-    a.monthlyIncome,
-    a.cosigner,
-    a.referralSource,
-    a.notes,
-    result.passed,
-    result.passed ? 'Passed — Tour Email Sent' : 'Needs Review',
-    result.reason
-  ]);
+function sendCancellationEmail_(showing, a) {
+  var firstName = firstNameOf_(a.fullName);
+  var when = formatShowingTime_(showing.ShowingStart);
+
+  GmailApp.sendEmail(a.email, 'Update on your ' + showing.Property + ' showing', '', {
+    htmlBody: `
+      Hi ${firstName},<br><br>
+      Thank you for your interest in ${showing.Property} and for taking the time to fill out our pre-screening.
+      Based on your answers, we aren't able to move forward with your showing on ${when}, so it has been cancelled.<br><br>
+      If anything changes, or if you think we got something wrong, just reply to this email and we'll take another look.<br><br>
+      Best,<br>
+      ${SENDER_SIGNATURE}<br>
+      Green Property Management
+    `,
+    name: SENDER_NAME, replyTo: REPLY_TO_EMAIL
+  });
 }
 
-function getOrCreateLeadsSheet_() {
+// ---------------------------------------------------------------------------
+// Spencer emails (also used by Code.js for flags)
+// ---------------------------------------------------------------------------
+
+// rec: a Showings-row-shaped object (ProspectName, Email, Property, Unit, ShowingStart).
+function notifySpencer_(subject, message, rec, detailsHtml) {
+  var start = rec && rec.ShowingStart instanceof Date ? formatShowingTime_(rec.ShowingStart) : '';
+  var line = function (label, value) { return value ? '<b>' + label + ':</b> ' + escapeHtml_(value) + '<br>' : ''; };
+
+  var htmlBody =
+    '<p>' + escapeHtml_(message) + '</p>' +
+    '<p>' +
+      line('Prospect', rec && rec.ProspectName) +
+      line('Email', rec && rec.Email) +
+      line('Property', rec && rec.Property) +
+      line('Unit', rec && rec.Unit) +
+      line('Showing', start) +
+    '</p>' +
+    (detailsHtml || '') +
+    '<p style="color:#888;font-size:12px">Sent by the Spencer showing pre-screen automation (automation@).</p>';
+
+  GmailApp.sendEmail(getNotifyEmail_(), subject, '', { htmlBody: htmlBody, name: 'Showing Pre-Screen' });
+}
+
+function screeningDetailsHtml_(a, result) {
+  var rows = result.checks.map(function (c) {
+    return '<tr><td>' + (c.ok ? '✅' : '❌') + '</td><td><b>' + escapeHtml_(c.label) + '</b></td><td>' +
+      escapeHtml_(c.detail) + '</td></tr>';
+  }).join('');
+
+  var answers = [
+    ['Bedrooms', a.bedroomsLabel],
+    ['Move-in date', a.moveInRaw],
+    ['Credit range', a.creditRange],
+    ['Combined monthly income', formatMoney_(a.monthlyIncome)],
+    ['Cosigner', a.cosigner],
+    ['Heard about us', a.referralSource],
+    ['Notes', a.notes]
+  ].map(function (p) {
+    return '<tr><td><b>' + p[0] + '</b></td><td>' + escapeHtml_(p[1] || '—') + '</td></tr>';
+  }).join('');
+
+  return '<h3 style="margin-bottom:4px">Result: ' + result.verdict + '</h3>' +
+    '<table cellpadding="4">' + rows + '</table>' +
+    '<h3 style="margin-bottom:4px">Form answers</h3>' +
+    '<table cellpadding="4">' + answers + '</table>';
+}
+
+function resultEmoji_(result) {
+  return result.verdict === 'PASS' ? '✅' : result.verdict === 'FAIL' ? '❌' : '⚠️';
+}
+
+function formatMoney_(n) {
+  return '$' + Math.round(Number(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// ---------------------------------------------------------------------------
+// Logging (GPM Pre-Screening Responses spreadsheet)
+// ---------------------------------------------------------------------------
+
+// New tab for the redesigned form — the old "Leads" tab (unit type, pets) is
+// left untouched as history.
+function logScreening_(a, result, status) {
   var ss = SpreadsheetApp.openById(getPreScreenResponsesSpreadsheetId_());
-  var sheet = ss.getSheetByName(LEADS_SHEET_NAME);
-  if (sheet) return sheet;
-
-  sheet = ss.insertSheet(LEADS_SHEET_NAME);
-  sheet.appendRow([
-    'Timestamp', 'FullName', 'Email', 'Property', 'UnitAnswer', 'MonthlyRent',
-    'MoveInDate', 'Pets', 'PetDetails', 'CreditRange', 'MonthlyIncome',
-    'Cosigner', 'ReferralSource', 'Notes',
-    'Passed', 'Status', 'Reason'
-  ]);
-  sheet.setFrozenRows(1);
-  return sheet;
+  var sheet = ss.getSheetByName(SCREENINGS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SCREENINGS_SHEET_NAME);
+    sheet.appendRow(['Timestamp', 'FullName', 'Email', 'Property', 'Bedrooms', 'MoveInDate', 'CreditRange',
+      'CombinedMonthlyIncome', 'Cosigner', 'ReferralSource', 'Notes', 'Verdict', 'Status', 'Reason']);
+    sheet.setFrozenRows(1);
+  }
+  sheet.appendRow([new Date(), a.fullName, a.email, a.property, a.bedroomsLabel, a.moveInRaw, a.creditRange,
+    a.monthlyIncome, a.cosigner, a.referralSource, a.notes, result.verdict, status, result.reason]);
 }
 
 function logPreScreenError_(message, e) {
@@ -303,55 +450,17 @@ function logPreScreenError_(message, e) {
     }
     sheet.appendRow([new Date(), message, JSON.stringify(e && e.namedValues ? e.namedValues : (e ? String(e) : ''))]);
   } catch (loggingFailure) {
-    // Last resort — don't let a logging failure mask the original problem.
     Logger.log('logPreScreenError_ failed: ' + loggingFailure + ' | original: ' + message);
   }
 }
 
-function sendTourEmail_(a, result) {
-  var firstName = a.fullName.split(' ')[0] || 'there';
-  var subject = a.property + ' - Schedule Your Showing';
-  // Cosigner note has to appear BEFORE the scheduling link — this applicant
-  // passed on a "will get a cosigner if needed" basis (isNoCreditAnswer_ +
-  // cosigner === 'If needed' in computeScreeningResult_), not a confirmed
-  // one, so they need to see the requirement before they book, not after.
-  var cosignerNote = result && result.needsCosignerFollowup
-    ? `Please note: since you don't have credit history on file yet, a cosigner will be required to move forward with your application. Please have your cosigner ready before or at the time of your tour.<br><br>`
-    : '';
-  var htmlBody = `
-    Hello ${firstName},<br><br>
-    Thanks for filling that out! You're all set to book a tour of ${a.property}.<br><br>
-    ${cosignerNote}<strong><a href="${SHOWING_LINK}">SCHEDULE YOUR SHOWING</a></strong><br><br>
-    When you book, please note "${a.property}" in the event details so I know which property to prepare for.<br><br>
-    Looking forward to meeting you,<br>
-    ${SENDER_SIGNATURE}<br>
-    Green Property Management
-  `;
-
-  GmailApp.sendEmail(a.email, subject, "", {
-    htmlBody: htmlBody,
-    name: SENDER_NAME,
-    replyTo: REPLY_TO_EMAIL
-  });
-}
-
-// Run this ONCE from the Apps Script editor after buildPreScreenForm() has
-// created the form — same safe-to-re-run pattern as createAutoResponderTrigger
-// in Code.js, so re-running never stacks duplicate triggers.
+// Called by installShowingWorkflow() (Code.js). Safe to re-run — clears any
+// existing form-submit trigger first so they never stack.
 function createPreScreenSubmitTrigger() {
-  deletePreScreenSubmitTriggers_();
+  deleteTriggersFor_('onPreScreenSubmit_');
   var form = getOrCreatePreScreenForm_();
   ScriptApp.newTrigger('onPreScreenSubmit_')
     .forForm(form)
     .onFormSubmit()
     .create();
-}
-
-function deletePreScreenSubmitTriggers_() {
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'onPreScreenSubmit_') {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
-  }
 }
