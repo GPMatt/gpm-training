@@ -46,6 +46,7 @@ function buildPreScreenForm() {
 
   form.addPageBreakItem().setTitle('A Few Quick Questions');
   form.addMultipleChoiceItem().setTitle(Q_BEDROOMS).setRequired(true)
+    .setHelpText('This just tells us what you\u2019re looking for \u2014 it doesn\u2019t mean a unit of that size is currently available.')
     .setChoiceValues(BEDROOM_CHOICES.map(function (b) { return b.label; }));
   form.addDateItem().setTitle(Q_MOVE_IN).setRequired(true);
   // Bands split exactly at 625 so no band straddles the current threshold.
