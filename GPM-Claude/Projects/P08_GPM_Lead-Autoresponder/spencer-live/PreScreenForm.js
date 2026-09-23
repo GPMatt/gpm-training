@@ -69,14 +69,7 @@ function buildPreScreenForm() {
     ]);
   form.addParagraphTextItem().setTitle(Q_NOTES).setRequired(false);
 
-  // Entry IDs are needed by Code.js to build prefilled links (name/email/
-  // property filled in from the lead we already have before the prospect
-  // ever opens the form). Store once here so showingWatcher (Code.js) never has to
-  // re-open the Form just to look them up on every send.
   var props = PropertiesService.getScriptProperties();
-  props.setProperty('PRESCREEN_ENTRY_NAME', String(identity.nameItem.getId()));
-  props.setProperty('PRESCREEN_ENTRY_EMAIL', String(identity.emailItem.getId()));
-  props.setProperty('PRESCREEN_ENTRY_PROPERTY', String(identity.propertyItem.getId()));
   // Cached so showingWatcher (Code.js) never has to open the Form itself
   // on every 1-minute trigger tick just to read its URL.
   props.setProperty('PRESCREEN_PUBLISHED_URL', form.getPublishedUrl());

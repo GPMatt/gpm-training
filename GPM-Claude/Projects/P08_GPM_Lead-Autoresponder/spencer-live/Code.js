@@ -284,8 +284,8 @@ function sendFormForShowing_(showing) {
   var htmlBody = `
     Hi ${firstName},<br><br>
     Thanks for booking a showing at ${showing.property.displayName}!<br><br>
-    📅 ${when}<br>
-    📍 ${escapeHtml_(showing.unitText)}<br><br>
+    <b>Date:</b> ${when}<br>
+    <b>Location:</b> ${escapeHtml_(showing.unitText)}<br><br>
     To confirm your showing, please take two minutes to fill out this quick pre-screening form before your appointment:<br><br>
     <strong><a href="${formUrl}">COMPLETE YOUR PRE-SCREENING</a></strong><br><br>
     Once we've reviewed it, we'll send your confirmation.<br><br>
@@ -306,7 +306,7 @@ function sendFormForShowing_(showing) {
   // that the pre-screen may not be back in time, and skip the prospect
   // reminder (they literally just got the form).
   if (showing.start - now < REMINDER_LEAD_MIN * 60000) {
-    notifySpencer_('⚠️ SHORT NOTICE — ' + name + ' — ' + showing.property.displayName + ' ' + when,
+    notifySpencer_('[SHORT NOTICE] ' + name + ' — ' + showing.property.displayName + ' ' + when,
       'This showing was booked less than ' + (REMINDER_LEAD_MIN / 60) + ' hours out. The pre-screen form was sent, ' +
       'but the answers may not come back before the showing — check your email before heading out.',
       row);
@@ -325,7 +325,7 @@ function escalateNoMatch_(showing) {
     ShowingStart: showing.start, Status: 'NO_MATCH', SpencerFlaggedAt: new Date(),
     Reason: 'no matching guest card within ' + GUEST_CARD_WAIT_MIN + ' min'
   };
-  notifySpencer_('❓ NO EMAIL FOUND — ' + showing.name + ' — ' + showing.property.displayName + ' ' + when,
+  notifySpencer_('[NO EMAIL FOUND] ' + showing.name + ' — ' + showing.property.displayName + ' ' + when,
     'A showing was booked, but no matching AppFolio guest card arrived, so the automation has no email address ' +
     'for this prospect and did NOT send the pre-screen form. Please pre-screen them manually ' +
     '(the guest card link is in the original AppFolio showing email).',
@@ -368,7 +368,7 @@ function sweepOpenShowings_() {
       name: SENDER_NAME, replyTo: REPLY_TO_EMAIL
     });
 
-    notifySpencer_('⏳ NO PRE-SCREEN YET — ' + rec.ProspectName + ' — ' + rec.Property + ' ' + when,
+    notifySpencer_('[NO PRE-SCREEN YET] ' + rec.ProspectName + ' — ' + rec.Property + ' ' + when,
       'This prospect hasn\'t submitted the pre-screening form and the showing is about ' + Math.round(minsOut) +
       ' minutes away. A reminder was just sent to them. Your call whether to keep the showing.',
       rec);
@@ -450,23 +450,34 @@ function rowToObject_(header, row) {
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-// Builds a prefilled link into the pre-screen form (PreScreenForm.js). Falls
-// back to the bare form URL if the form hasn't been built yet.
+// Builds a prefilled link into the pre-screen form (PreScreenForm.js) via
+// FormApp's own toPrefilledUrl(). Hand-built "entry.<item id>" links don't
+// work: Item.getId() is NOT the entry ID a prefill URL needs, and Forms
+// silently ignores unknown entry params — so links opened blank (found in
+// live testing 2026-09-23). Falls back to the bare form URL on any error so a
+// form problem never blocks the email.
 function buildPrescreenUrl_(fullName, email, propertyDisplayName) {
-  var props = PropertiesService.getScriptProperties();
-  var baseUrl = props.getProperty('PRESCREEN_PUBLISHED_URL');
-  var entryName = props.getProperty('PRESCREEN_ENTRY_NAME');
-  var entryEmail = props.getProperty('PRESCREEN_ENTRY_EMAIL');
-  var entryProperty = props.getProperty('PRESCREEN_ENTRY_PROPERTY');
+  var form = getOrCreatePreScreenForm_();
+  try {
+    var items = form.getItems();
+    var byTitle = {};
+    for (var i = 0; i < items.length; i++) byTitle[items[i].getTitle()] = items[i];
 
-  if (!baseUrl || !entryName || !entryEmail || !entryProperty) {
-    return baseUrl || 'https://forms.google.com/';
+    var response = form.createResponse();
+    if (byTitle['Full Name'] && fullName) {
+      response.withItemResponse(byTitle['Full Name'].asTextItem().createResponse(String(fullName)));
+    }
+    if (byTitle['Email Address'] && email) {
+      response.withItemResponse(byTitle['Email Address'].asTextItem().createResponse(String(email)));
+    }
+    if (byTitle['Property'] && propertyDisplayName) {
+      response.withItemResponse(byTitle['Property'].asMultipleChoiceItem().createResponse(propertyDisplayName));
+    }
+    return response.toPrefilledUrl();
+  } catch (err) {
+    logPreScreenError_('Prefilled link failed, sent bare form URL instead: ' + err, null);
+    return form.getPublishedUrl();
   }
-
-  return baseUrl + '?usp=pp_url'
-    + '&entry.' + entryName + '=' + encodeURIComponent(fullName)
-    + '&entry.' + entryEmail + '=' + encodeURIComponent(email)
-    + '&entry.' + entryProperty + '=' + encodeURIComponent(propertyDisplayName);
 }
 
 // Returns the matching PROPERTIES entry, or null. Every caller re-checks with

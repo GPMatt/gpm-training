@@ -78,7 +78,7 @@ function onPreScreenSubmit_run_(e) {
 
   if (!open) {
     logScreening_(a, result, 'NO_OPEN_SHOWING');
-    notifySpencer_(resultEmoji_(result) + ' ' + result.verdict + ' (no showing on file) — ' + a.fullName + ' — ' + a.property,
+    notifySpencer_('[' + result.verdict + ', NO SHOWING ON FILE] ' + a.fullName + ' — ' + a.property,
       'This pre-screen came in, but there is no open showing for ' + a.email + ' (already decided, or booked outside ' +
       'the automation). Nothing was sent to the prospect.',
       { ProspectName: a.fullName, Email: a.email, Property: a.property },
@@ -106,14 +106,14 @@ function onPreScreenSubmit_run_(e) {
   } else {
     sendCancellationEmail_(showing, a);
     status = 'FAILED';
-    action = 'Prospect was sent a cancellation email. 👉 Please cancel this showing in AppFolio.';
+    action = 'Prospect was sent a cancellation email. ACTION NEEDED: please cancel this showing in AppFolio.';
   }
 
   updates.Status = status;
   updateShowingRow_(open.rowNumber, updates);
   logScreening_(a, result, status);
 
-  notifySpencer_(resultEmoji_(result) + ' ' + (late ? 'LATE ' : '') + result.verdict + ' — ' + a.fullName + ' — ' +
+  notifySpencer_('[' + (late ? 'LATE ' : '') + result.verdict + '] ' + a.fullName + ' — ' +
       showing.Property + (start ? ' ' + formatShowingTime_(start) : ''),
     action, showing, screeningDetailsHtml_(a, result));
 }
@@ -335,8 +335,8 @@ function sendConfirmationEmail_(showing, a, result) {
     htmlBody: `
       Hi ${firstName},<br><br>
       Great news — you're all set! We're excited to show you around ${showing.Property}.<br><br>
-      📅 ${when}<br>
-      📍 ${escapeHtml_(showing.Unit)}<br><br>
+      <b>Date:</b> ${when}<br>
+      <b>Location:</b> ${escapeHtml_(showing.Unit)}<br><br>
       A calendar invite is on its way so it's on your schedule. ${cosignerNote}If anything changes, just reply to this email.<br><br>
       See you soon,<br>
       ${SENDER_SIGNATURE}<br>
@@ -390,7 +390,7 @@ function notifySpencer_(subject, message, rec, detailsHtml) {
 
 function screeningDetailsHtml_(a, result) {
   var rows = result.checks.map(function (c) {
-    return '<tr><td>' + (c.ok ? '✅' : '❌') + '</td><td><b>' + escapeHtml_(c.label) + '</b></td><td>' +
+    return '<tr><td>' + (c.ok ? '<b style="color:#2e7d32">PASS</b>' : '<b style="color:#c62828">FAIL</b>') + '</td><td><b>' + escapeHtml_(c.label) + '</b></td><td>' +
       escapeHtml_(c.detail) + '</td></tr>';
   }).join('');
 
@@ -410,10 +410,6 @@ function screeningDetailsHtml_(a, result) {
     '<table cellpadding="4">' + rows + '</table>' +
     '<h3 style="margin-bottom:4px">Form answers</h3>' +
     '<table cellpadding="4">' + answers + '</table>';
-}
-
-function resultEmoji_(result) {
-  return result.verdict === 'PASS' ? '✅' : result.verdict === 'FAIL' ? '❌' : '⚠️';
 }
 
 function formatMoney_(n) {
