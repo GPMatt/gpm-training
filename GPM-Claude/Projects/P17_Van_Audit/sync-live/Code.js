@@ -111,8 +111,24 @@ function sbGet(table, query) {
 // gpm-warehouse-pipeline, which paused despite a daily read-only ping
 // running clean the day before. A write is a stronger signal, hence the
 // upsert into a dedicated single-row table instead of a plain read.
+//
+// A failed ping DOES alert. It used to be swallowed, and that hid a missing
+// GRANT on keepalive_heartbeat for three weeks: every ping 403'd, nothing
+// said so, and the project paused the first week audits were skipped
+// (2026-10-05). On failure it still fires a plain read so the project sees
+// some traffic, then emails -- a daily nag until it's fixed is the point.
 function keepSupabaseAwake() {
-  try { sbUpsert('keepalive_heartbeat', [{ id: 1, pinged_at: new Date().toISOString() }], 'id'); } catch (e) { /* a failed ping isn't worth alerting on */ }
+  try {
+    sbUpsert('keepalive_heartbeat', [{ id: 1, pinged_at: new Date().toISOString() }], 'id');
+  } catch (e) {
+    let fallback = 'fallback read succeeded';
+    try { sbGet('cause_codes', 'select=id&limit=1'); } catch (e2) { fallback = `fallback read ALSO failed: ${e2.message}`; }
+    GmailApp.sendEmail(CONFIG.ALERT_EMAIL, 'Van Audit keep-alive ping FAILED — Supabase may pause',
+      `The daily keep-alive write to Supabase failed, so the project is at risk of auto-pausing after 7 idle days.\n\n` +
+      `Write error: ${e.message}\n${fallback}\n\n` +
+      `If the project is paused, restore it at supabase.com/dashboard. If it says "permission denied", run ` +
+      `migration_2026-09-16_keepalive_heartbeat.sql's GRANT line in the SQL Editor.`);
+  }
 }
 
 // ── Weekly AppFolio -> Supabase sync ─────────────────────────────────────────

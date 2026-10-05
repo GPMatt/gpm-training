@@ -13,3 +13,9 @@ create table keepalive_heartbeat (
 );
 
 insert into keepalive_heartbeat (id) values (1);
+
+-- Added 2026-10-05: creating the table isn't enough. This project doesn't
+-- auto-grant new tables to the API roles, so without this every ping 403s
+-- with "permission denied for table keepalive_heartbeat" -- which is exactly
+-- how the project paused on 2026-10-05 despite the daily trigger firing.
+grant select, insert, update on public.keepalive_heartbeat to service_role;
