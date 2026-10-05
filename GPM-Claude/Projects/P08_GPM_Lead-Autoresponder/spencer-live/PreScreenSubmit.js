@@ -7,8 +7,7 @@
 //      matched by email, same property preferred).
 //   3. Email Spencer a summary every time: answers, each rule and its result,
 //      and what the prospect was sent.
-//   4. Email the prospect — PASS: confirmation + calendar invite (automation@
-//      calendar, prospect + Spencer as guests). FAIL: cancellation (the
+//   4. Email the prospect — PASS: confirmation. FAIL: cancellation (the
 //      showing itself still has to be cancelled in AppFolio by Spencer; we
 //      only have read access there). Submitted after the showing time:
 //      Spencer only, nothing to the prospect.
@@ -98,11 +97,9 @@ function onPreScreenSubmit_run_(e) {
     status = 'NEEDS_REVIEW';
     action = 'Could not score automatically (' + result.reason + '). Nothing was sent to the prospect — your call.';
   } else if (result.verdict === 'PASS') {
-    var eventId = createShowingEvent_(showing, a);
     sendConfirmationEmail_(showing, a, result);
     status = 'PASSED';
-    updates.CalendarEventId = eventId;
-    action = 'Prospect was sent a confirmation email + calendar invite (you\'re on the invite too).';
+    action = 'Prospect was sent a confirmation email.';
   } else {
     sendCancellationEmail_(showing, a);
     status = 'FAILED';
@@ -298,30 +295,8 @@ function getPropertyKeyByDisplayName_(displayName) {
 }
 
 // ---------------------------------------------------------------------------
-// Prospect emails + calendar
+// Prospect emails
 // ---------------------------------------------------------------------------
-
-function createShowingEvent_(showing, a) {
-  try {
-    var start = showing.ShowingStart;
-    var end = new Date(start.getTime() + SHOWING_DURATION_MIN * 60000);
-    var event = CalendarApp.getDefaultCalendar().createEvent(
-      'Showing: ' + a.fullName + ' — ' + showing.Property,
-      start, end, {
-        location: showing.Unit,
-        description: 'Apartment showing at ' + showing.Property + ' (' + showing.Unit + ').\n' +
-          'Questions or need to reschedule? Reply to the confirmation email or contact ' + REPLY_TO_EMAIL + '.',
-        guests: a.email + ',' + getNotifyEmail_(),
-        sendInvites: true
-      });
-    return event.getId();
-  } catch (err) {
-    // The confirmation email still goes out — a calendar hiccup shouldn't cost
-    // a qualified prospect their confirmation.
-    logPreScreenError_('Calendar invite failed for ' + a.email + ': ' + err, null);
-    return 'FAILED: ' + err;
-  }
-}
 
 function sendConfirmationEmail_(showing, a, result) {
   var firstName = firstNameOf_(a.fullName);
@@ -337,7 +312,7 @@ function sendConfirmationEmail_(showing, a, result) {
       Great news — you're all set! We're excited to show you around ${showing.Property}.<br><br>
       <b>Date:</b> ${when}<br>
       <b>Location:</b> ${escapeHtml_(showing.Unit)}<br><br>
-      A calendar invite is on its way so it's on your schedule. ${cosignerNote}If anything changes, just reply to this email.<br><br>
+      ${cosignerNote}If anything changes, just reply to this email.<br><br>
       See you soon,<br>
       ${SENDER_SIGNATURE}<br>
       Green Property Management

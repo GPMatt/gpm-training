@@ -9,10 +9,15 @@
 //   2. showingWatcher (this file, every minute) pairs that showing with the
 //      AppFolio guest-card email that arrives alongside it (which DOES carry
 //      the prospect's email), then emails the prospect the prefilled
-//      pre-screen form (PreScreenForm.js).
+//      pre-screen form (PreScreenForm.js). No card alongside → the prospect's
+//      most recent guest card at that property from the last 30 days is used.
+//      Still nothing (always the case when staff book the showing themselves —
+//      AppFolio sends no guest-card email for those) → Spencer gets a
+//      [NEED EMAIL] alert and can reply to it with the prospect's email; the
+//      watcher picks the reply up and sends the form.
 //   3. The form submission is scored live against the Requirements tab
 //      (PreScreenSubmit.js): Spencer gets a summary, the prospect gets either
-//      a confirmation + calendar invite or a cancellation.
+//      a confirmation or a cancellation.
 //   4. showingWatcher also sweeps open showings: 2h before a showing with no
 //      form back, the prospect gets a reminder and Spencer gets a flag.
 //
@@ -41,16 +46,18 @@ var SENDER_SIGNATURE = 'Spencer';
 var REPLY_TO_EMAIL = 'spencer@greenpropertymgt.com';
 var TIME_ZONE = 'America/Detroit';
 
-var SHOWING_DURATION_MIN = 30;
 var REMINDER_LEAD_MIN = 120;          // reminder + Spencer flag this long before the showing
 var GUEST_CARD_WAIT_MIN = 30;         // how long a showing waits for its guest card before escalating
 var GUEST_CARD_WINDOW_MIN = 60;       // guest card must arrive within this of the showing email
+var GUEST_CARD_LOOKBACK_DAYS = 30;    // fallback: prospect's own earlier guest card, matched by name
+var AUTOMATION_EMAIL = 'automation@greenpropertymgt.com';
+var STAFF_EMAIL_DOMAIN = 'greenpropertymgt.com'; // only replies from here can supply a prospect email
 
 var SHOWINGS_SHEET_NAME = 'Showings';
 var SHOWINGS_HEADER = [
   'ShowingMsgId', 'Received', 'ProspectName', 'Email', 'PropertyKey', 'Property', 'Unit',
   'ShowingStart', 'Status', 'FormSentAt', 'ReminderSentAt', 'SpencerFlaggedAt',
-  'Result', 'Reason', 'CalendarEventId'
+  'Result', 'Reason'
 ];
 
 // Where Spencer-facing emails (summaries, flags) go. Set the Script Property
@@ -70,6 +77,7 @@ function showingWatcher() {
 
   try {
     processNewShowings_();
+    processEmailReplies_();
     sweepOpenShowings_();
   } catch (err) {
     logPreScreenError_('showingWatcher failed: ' + err + (err && err.stack ? ' | ' + err.stack : ''), null);
@@ -90,7 +98,7 @@ function processNewShowings_() {
   var threads = GmailApp.search(query, 0, 50);
   if (threads.length === 0) return;
 
-  var handledIds = getHandledShowingIds_();
+  var known = loadKnownShowings_();
   var guestCards = null; // loaded lazily, only if an unhandled showing of ours exists
 
   for (var i = 0; i < threads.length; i++) {
@@ -100,7 +108,7 @@ function processNewShowings_() {
     for (var m = 0; m < messages.length; m++) {
       var message = messages[m];
       if (!message.isUnread()) continue;
-      if (handledIds[message.getId()]) { message.markRead(); continue; }
+      if (known.ids[message.getId()]) { message.markRead(); continue; }
 
       var showing = parseShowingEmail_(message);
       if (!showing) continue; // not one of our three properties — leave it alone
@@ -110,19 +118,28 @@ function processNewShowings_() {
         continue;
       }
 
+      // AppFolio re-sends the assignment when the same showing is assigned
+      // again — same prospect, property and time is not a new showing.
+      var key = showingKey_(showing.name, showing.property.key, showing.start);
+      if (known.keys[key]) { message.markRead(); continue; }
+
       if (!guestCards) guestCards = loadRecentGuestCards_();
-      var card = findGuestCardForShowing_(showing, guestCards);
+      var card = findGuestCardForShowing_(showing, guestCards) || findGuestCardByName_(showing);
 
       if (card) {
         showing.email = card.email;
         if (card.name) showing.guestCardName = card.name;
         sendFormForShowing_(showing);
         message.markRead();
+        known.keys[key] = true;
       } else {
+        // Staff-booked showings never produce a guest-card email, so there is
+        // nothing to wait for.
         var waitedMin = (new Date() - showing.received) / 60000;
-        if (waitedMin >= GUEST_CARD_WAIT_MIN) {
+        if (showing.staffBooked || waitedMin >= GUEST_CARD_WAIT_MIN) {
           escalateNoMatch_(showing);
           message.markRead();
+          known.keys[key] = true;
         }
         // else: leave unread, try again next minute
       }
@@ -152,7 +169,11 @@ function parseShowingEmail_(message) {
     unitText: unitText,
     unitKey: unitKey_(property.key, unitText),
     name: name,
-    start: parseShowingStart_(text)
+    start: parseShowingStart_(text),
+    // "<staff name> assigned you the following showing" = booked by hand in
+    // AppFolio. "System assigned you" is a Zillow tour and "<prospect> has
+    // scheduled a showing" is self-booked — both of those DO get a guest card.
+    staffBooked: /assigned you the following showing/i.test(text) && !/\bSystem assigned you/i.test(text)
   };
 }
 
@@ -212,25 +233,31 @@ function loadRecentGuestCards_() {
   for (var i = 0; i < threads.length; i++) {
     var messages = threads[i].getMessages();
     for (var m = 0; m < messages.length; m++) {
-      var msg = messages[m];
-      var text = msg.getSubject() + '\n' + htmlToText_(msg.getBody());
-      var property = detectProperty_(text);
-      if (!property) continue;
-
-      var email = extractEmail_(msg.getReplyTo()) || extractProspectEmailFromBody_(text);
-      if (!email) continue;
-
-      cards.push({
-        date: msg.getDate(),
-        property: property,
-        // Subject first — it names the specific unit; the body can mention others.
-        unitKey: unitKey_(property.key, msg.getSubject()) || unitKey_(property.key, text),
-        name: msg.getFrom().split('<')[0].replace(/"/g, '').trim(),
-        email: email
-      });
+      var card = parseGuestCard_(messages[m]);
+      if (card) cards.push(card);
     }
   }
   return cards;
+}
+
+// Returns null unless the card is for one of our properties and carries the
+// prospect's email.
+function parseGuestCard_(msg) {
+  var text = msg.getSubject() + '\n' + htmlToText_(msg.getBody());
+  var property = detectProperty_(text);
+  if (!property) return null;
+
+  var email = extractEmail_(msg.getReplyTo()) || extractProspectEmailFromBody_(text);
+  if (!email) return null;
+
+  return {
+    date: msg.getDate(),
+    property: property,
+    // Subject first — it names the specific unit; the body can mention others.
+    unitKey: unitKey_(property.key, msg.getSubject()) || unitKey_(property.key, text),
+    name: msg.getFrom().split('<')[0].replace(/"/g, '').trim(),
+    email: email
+  };
 }
 
 // Same property + same unit + arrived within the window is the primary match.
@@ -259,6 +286,30 @@ function findGuestCardForShowing_(showing, cards) {
   return best;
 }
 
+// Fallback when nothing arrived alongside the showing: AppFolio doesn't always
+// send a fresh guest card at booking time (a prospect who inquired through
+// Zillow yesterday and books today gets none), so use that prospect's most
+// recent card at the same property. Name is the only link available — the
+// showing email carries no prospect email or phone.
+function findGuestCardByName_(showing) {
+  var parts = normalizeName_(showing.name);
+  if (parts.length < 2) return null;
+
+  var threads = GmailApp.search('from:guestcards@appfolio.com "' + parts[parts.length - 1] + '" newer_than:' +
+    GUEST_CARD_LOOKBACK_DAYS + 'd', 0, 30);
+  var best = null;
+  for (var i = 0; i < threads.length; i++) {
+    var messages = threads[i].getMessages();
+    for (var m = 0; m < messages.length; m++) {
+      var card = parseGuestCard_(messages[m]);
+      if (!card || card.property.key !== showing.property.key) continue;
+      if (!namesLooselyMatch_(showing.name, card.name)) continue;
+      if (!best || card.date > best.date) best = card;
+    }
+  }
+  return best;
+}
+
 function namesLooselyMatch_(a, b) {
   var pa = normalizeName_(a), pb = normalizeName_(b);
   if (pa.length < 2 || pb.length < 2) return false;
@@ -274,7 +325,10 @@ function normalizeName_(s) {
 // Step 3 — send the form, record the showing
 // ---------------------------------------------------------------------------
 
-function sendFormForShowing_(showing) {
+// rowNumber: pass the existing Showings row when the form is going out late
+// for a NO_MATCH showing (Spencer supplied the email) — that row is updated
+// instead of a second one being added.
+function sendFormForShowing_(showing, rowNumber) {
   var name = showing.guestCardName || showing.name;
   var firstName = firstNameOf_(name);
   var when = formatShowingTime_(showing.start);
@@ -314,7 +368,12 @@ function sendFormForShowing_(showing) {
     row.SpencerFlaggedAt = now;
   }
 
-  appendShowingRow_(row);
+  if (rowNumber) {
+    updateShowingRow_(rowNumber, { Email: row.Email, Status: row.Status, FormSentAt: row.FormSentAt,
+      ReminderSentAt: row.ReminderSentAt || '', Reason: '' });
+  } else {
+    appendShowingRow_(row);
+  }
 }
 
 function escalateNoMatch_(showing) {
@@ -323,14 +382,92 @@ function escalateNoMatch_(showing) {
     ShowingMsgId: showing.msgId, Received: showing.received, ProspectName: showing.name, Email: '',
     PropertyKey: showing.property.key, Property: showing.property.displayName, Unit: showing.unitText,
     ShowingStart: showing.start, Status: 'NO_MATCH', SpencerFlaggedAt: new Date(),
-    Reason: 'no matching guest card within ' + GUEST_CARD_WAIT_MIN + ' min'
+    Reason: showing.staffBooked
+      ? 'booked by staff in AppFolio — no guest-card email is sent for those'
+      : 'no guest card in the last ' + GUEST_CARD_LOOKBACK_DAYS + ' days'
   };
-  notifySpencer_('[NO EMAIL FOUND] ' + showing.name + ' — ' + showing.property.displayName + ' ' + when,
-    'A showing was booked, but no matching AppFolio guest card arrived, so the automation has no email address ' +
-    'for this prospect and did NOT send the pre-screen form. Please pre-screen them manually ' +
-    '(the guest card link is in the original AppFolio showing email).',
+  var why = showing.staffBooked
+    ? 'This showing was booked by staff in AppFolio. AppFolio doesn\'t email a guest card for those, so the ' +
+      'automation has no email address for this prospect and did NOT send the pre-screen form.'
+    : 'A showing was booked, but AppFolio sent no guest card for this prospect, so the automation has no email ' +
+      'address for them and did NOT send the pre-screen form.';
+  // The subject is how processEmailReplies_ ties a reply back to this showing
+  // (prospect name + showing time) — keep both in it.
+  notifySpencer_('[NEED EMAIL] ' + showing.name + ' — ' + showing.property.displayName + ' ' + when,
+    why + ' Want them pre-screened? Reply to this email with the prospect\'s email address and the form will be ' +
+    'sent to them automatically. Otherwise no action is needed.',
     row);
   appendShowingRow_(row);
+}
+
+// Spencer replies to a [NEED EMAIL] alert with the prospect's address → send
+// the form for that showing. Replies land in this mailbox because the alert
+// is sent from it.
+function processEmailReplies_() {
+  var threads = GmailApp.search('subject:("NEED EMAIL" OR "NO EMAIL FOUND") is:unread newer_than:30d', 0, 20);
+  if (threads.length === 0) return;
+
+  var sheet = getOrCreateShowingsSheet_();
+  var data = sheet.getDataRange().getValues();
+  var col = headerIndex_(data[0]);
+  var now = new Date();
+
+  for (var i = 0; i < threads.length; i++) {
+    var messages = threads[i].getMessages();
+    for (var m = 0; m < messages.length; m++) {
+      var msg = messages[m];
+      if (!msg.isUnread()) continue;
+
+      // Only staff can point the automation at an address.
+      var from = extractEmail_(msg.getFrom()).toLowerCase();
+      if (from === AUTOMATION_EMAIL || from.split('@')[1] !== STAFF_EMAIL_DOMAIN) continue;
+
+      var subject = msg.getSubject();
+      var rowNumber = 0;
+      for (var r = 1; r < data.length; r++) {
+        var start = data[r][col.ShowingStart];
+        if (data[r][col.Status] !== 'NO_MATCH' || !(start instanceof Date)) continue;
+        if (subject.indexOf(String(data[r][col.ProspectName])) === -1) continue;
+        if (subject.indexOf(formatShowingTime_(start)) === -1) continue;
+        rowNumber = r + 1;
+        break;
+      }
+      msg.markRead();
+      if (!rowNumber) continue; // already handled, or not one of ours
+
+      var rec = rowToObject_(data[0], data[rowNumber - 1]);
+      var email = extractEmailFromReply_(msg.getPlainBody(), from);
+      if (!email) {
+        msg.reply('I couldn\'t find an email address in your reply, so nothing was sent to ' + rec.ProspectName +
+          '. Reply again with just their email address.', { name: 'Showing Pre-Screen' });
+        continue;
+      }
+      if (rec.ShowingStart <= now) {
+        msg.reply('That showing time has already passed, so nothing was sent to ' + email + '.', { name: 'Showing Pre-Screen' });
+        continue;
+      }
+
+      sendFormForShowing_({
+        msgId: rec.ShowingMsgId, received: rec.Received, name: rec.ProspectName, email: email,
+        property: { key: rec.PropertyKey, displayName: rec.Property }, unitText: rec.Unit, start: rec.ShowingStart
+      }, rowNumber);
+      data[rowNumber - 1][col.Status] = 'FORM_SENT'; // a second reply in this run must not send again
+      msg.reply('Sent the pre-screen form to ' + email + '.', { name: 'Showing Pre-Screen' });
+    }
+  }
+}
+
+// First address in what the sender actually typed — everything from the
+// quoted original down is ignored, as are our own addresses (signatures).
+function extractEmailFromReply_(plainBody, senderEmail) {
+  var typed = String(plainBody || '').split(/\n\s*(?:On .*wrote:|>|-{2,} ?(?:Original|Forwarded) message|From:)/i)[0];
+  var re = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, m;
+  while ((m = re.exec(typed)) !== null) {
+    var found = m[0].toLowerCase();
+    if (found === senderEmail || found === AUTOMATION_EMAIL || found === REPLY_TO_EMAIL.toLowerCase()) continue;
+    return m[0];
+  }
+  return '';
 }
 
 // ---------------------------------------------------------------------------
@@ -397,11 +534,21 @@ function appendShowingRow_(obj) {
   sheet.appendRow(SHOWINGS_HEADER.map(function (h) { return obj[h] === undefined ? '' : obj[h]; }));
 }
 
-function getHandledShowingIds_() {
+// ids: showing emails already recorded. keys: prospect + property + showing
+// time, so a re-sent assignment for the same showing is recognised.
+function loadKnownShowings_() {
   var data = getOrCreateShowingsSheet_().getDataRange().getValues();
-  var ids = {};
-  for (var r = 1; r < data.length; r++) ids[data[r][0]] = true;
-  return ids;
+  var col = headerIndex_(data[0]);
+  var known = { ids: {}, keys: {} };
+  for (var r = 1; r < data.length; r++) {
+    known.ids[data[r][col.ShowingMsgId]] = true;
+    known.keys[showingKey_(data[r][col.ProspectName], data[r][col.PropertyKey], data[r][col.ShowingStart])] = true;
+  }
+  return known;
+}
+
+function showingKey_(name, propertyKey, start) {
+  return normalizeName_(name).join(' ') + '|' + propertyKey + '|' + (start instanceof Date ? start.getTime() : '');
 }
 
 // Returns { rowNumber, record } for the prospect's open (FORM_SENT) showing,
