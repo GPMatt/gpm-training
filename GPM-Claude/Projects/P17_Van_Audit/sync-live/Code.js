@@ -160,6 +160,13 @@ function syncVanInventoryManual() {
   runInventorySync(csv);
 }
 
+// Practice van for testing the audit app (shown to Matt only — see the
+// PWA). It is not in the AppFolio CSV, so each sync gives it a short list
+// borrowed from the first real van. The app never marks its audits
+// 'completed', which keeps them out of both report views.
+const TEST_VAN_LABEL = 'Test Van';
+const TEST_VAN_ITEMS = 8;
+
 function runInventorySync(csv) {
   const parsed = parseInventoryCSV(csv);
   if (!parsed.length) {
@@ -172,7 +179,7 @@ function runInventorySync(csv) {
   const vanLabels = [...new Set(parsed.map(r => r.van))];
   const partNumbers = [...new Set(parsed.map(r => r.partNumber))];
 
-  const vans = sbUpsert('vans', vanLabels.map(label => ({ label })), 'label');
+  const vans = sbUpsert('vans', [...vanLabels, TEST_VAN_LABEL].map(label => ({ label })), 'label');
   const vanIdByLabel = Object.fromEntries(vans.map(v => [v.label, v.id]));
 
   // name comes from this week's CSV; part_number is the natural key
@@ -190,6 +197,10 @@ function runInventorySync(csv) {
     part_id: partIdByNumber[r.partNumber],
     expected_qty: r.quantity,
   }));
+  vanParRows
+    .filter(r => r.van_id === vanIdByLabel[vanLabels[0]])
+    .slice(0, TEST_VAN_ITEMS)
+    .forEach(r => vanParRows.push({ ...r, van_id: vanIdByLabel[TEST_VAN_LABEL] }));
 
   // van_par rows must reference an existing par_syncs row (FK), so the sync
   // row has to be created as 'ok' before we know the write actually
@@ -279,7 +290,8 @@ function parseInventoryCSV(csvContent) {
 
 // ── Monthly Jason-audit picker — random without replacement, reset each month ─
 function drawJasonSchedule() {
-  const vans = sbGet('vans', 'select=id,label&active=eq.true&order=label');
+  const vans = sbGet('vans', 'select=id,label&active=eq.true&order=label')
+    .filter(v => v.label !== TEST_VAN_LABEL);
   if (!vans.length) return;
 
   const shuffled = [...vans];
