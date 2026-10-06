@@ -24,7 +24,8 @@ const RESP_ID = 'resp-sheet', UNITS_ID = 'units-sheet', FORM_ID = 'form-1';
 function makeWorld() {
   const w = {
     messages: [], sent: [], replies: [], props: {}, sheets: {}, created: [],
-    failFormOpen: false, failSendTo: null, failAppendOnce: false, failSheetOpen: null, idSeq: 0
+    failFormOpen: false, failSendTo: null, failAppendOnce: false, failSheetOpen: null, idSeq: 0,
+    cache: {}, bodyReads: {}, failCache: false
   };
   w.props.PRESCREEN_FORM_ID = FORM_ID;
   w.props.PRESCREEN_RESPONSES_SHEET_ID = RESP_ID;
@@ -68,7 +69,7 @@ function fakeMessage(w, m) {
   const api = {
     raw: m,
     getId: () => m.id, getDate: () => m.date, getSubject: () => m.subject || '',
-    getBody: () => m.html || '', getPlainBody: () => m.plain || '',
+    getBody: () => { w.bodyReads[m.id] = (w.bodyReads[m.id] || 0) + 1; return m.html || ''; }, getPlainBody: () => m.plain || '',
     getFrom: () => m.from || '', getReplyTo: () => m.replyTo || '', getTo: () => m.to || '',
     isUnread: () => m.unread, markRead() { m.unread = false; },
     reply(text) { w.replies.push({ to: m.from, text, inReplyTo: m.id }); }
@@ -159,6 +160,10 @@ function buildSandbox(w) {
       setProperty(k, v) { w.props[k] = String(v); }
     }) },
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
+    CacheService: { getScriptCache: () => ({
+      get(k) { if (w.failCache) throw new Error('TEST: cache down'); return k in w.cache ? w.cache[k] : null; },
+      put(k, v) { if (w.failCache) throw new Error('TEST: cache down'); w.cache[k] = String(v); }
+    }) },
     Logger: { log() {} },
     ScriptApp: {},
     // Sheets hands dates back as its own realm's Date; the code checks
@@ -307,6 +312,24 @@ test('lookback ignores the same name at a different property', (w, sb) => {
   w.messages.push(guestCard({ name: 'Karen Patterson', email: 'kp@icloud.com', subjectProp: 'Eaglebrook Apartments - 5993C', ageMin: 3 * 24 * 60 }));
   sb.showingWatcher();
   eq(toProspects(w).length, 0, 'nothing sent');
+});
+test('guest cards are read from Gmail once, not on every run while a showing waits', (w, sb) => {
+  w.messages.push(showingEmail({ mode: 'self', name: 'Olivia Zlydaszyk', ageMin: 5 }));
+  w.messages.push(guestCard({ name: 'Marquayvius Green', email: 'quayg70@gmail.com', ageMin: 10 }));
+  w.messages.push(guestCard({ name: 'Someone Else', email: 'else@gmail.com', subjectProp: 'Oakwood Apartments - 12', ageMin: 10 }));
+  sb.showingWatcher(); sb.showingWatcher(); sb.showingWatcher();
+  eq([w.bodyReads[w.messages[1].id], w.bodyReads[w.messages[2].id]], [1, 1], 'each card body read once over 3 runs');
+  w.messages.push(guestCard({ name: 'Olivia Zlydaszyk', email: 'olivia@gmail.com', ageMin: 1 }));
+  sb.showingWatcher();
+  eq(toProspects(w).map(s => s.to), ['olivia@gmail.com'], 'a card arriving later is still picked up, from cached and fresh cards alike');
+});
+test('cache unavailable: cards are read directly and the form still goes out', (w, sb) => {
+  w.failCache = true;
+  w.messages.push(showingEmail({ mode: 'self', name: 'Olivia Zlydaszyk', ageMin: 5 }));
+  w.messages.push(guestCard({ name: 'Olivia Zlydaszyk', email: 'olivia@gmail.com', ageMin: 5 }));
+  sb.showingWatcher();
+  eq(toProspects(w).map(s => s.to), ['olivia@gmail.com'], 'recipient');
+  eq(errors(w), [], 'no errors logged');
 });
 test('no card yet: waits, then alerts Spencer after 30 minutes', (w, sb) => {
   w.messages.push(showingEmail({ mode: 'self', name: 'Olivia Zlydaszyk', ageMin: 10 }));

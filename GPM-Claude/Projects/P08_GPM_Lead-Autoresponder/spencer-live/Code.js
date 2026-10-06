@@ -292,8 +292,21 @@ function loadRecentGuestCards_() {
 }
 
 // Returns null unless the card is for one of our properties and carries the
-// prospect's email.
+// prospect's email. A guest card never changes once sent, so the result is
+// cached by message ID: while a showing waits for its card this runs every
+// minute over two days of cards, and re-reading every body each time is what
+// tripped Gmail's read limit.
 function parseGuestCard_(msg) {
+  var cacheKey = 'gc1:' + msg.getId();
+  var cached = readGuestCardCache_(cacheKey);
+  if (cached !== undefined) return cached;
+
+  var card = readGuestCard_(msg);
+  writeGuestCardCache_(cacheKey, card);
+  return card;
+}
+
+function readGuestCard_(msg) {
   var text = msg.getSubject() + '\n' + htmlToText_(msg.getBody());
   var property = detectProperty_(text);
   if (!property) return null;
@@ -309,6 +322,37 @@ function parseGuestCard_(msg) {
     name: msg.getFrom().split('<')[0].replace(/"/g, '').trim(),
     email: email
   };
+}
+
+var GUEST_CARD_CACHE_SEC = 21600; // 6 hours, the most CacheService allows
+
+// Returns the cached card, null for a cached "not one of ours", or undefined
+// on a miss. The cache is only a shortcut — any trouble with it is a miss.
+function readGuestCardCache_(cacheKey) {
+  try {
+    var raw = CacheService.getScriptCache().get(cacheKey);
+    if (raw === null) return undefined;
+    var c = JSON.parse(raw);
+    if (c === null) return null;
+    for (var i = 0; i < PROPERTIES.length; i++) {
+      if (PROPERTIES[i].key === c.propertyKey) {
+        return { date: new Date(c.date), property: PROPERTIES[i], unitKey: c.unitKey, name: c.name, email: c.email };
+      }
+    }
+  } catch (err) {
+    Logger.log('guest card cache read failed: ' + err);
+  }
+  return undefined;
+}
+
+function writeGuestCardCache_(cacheKey, card) {
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(card && {
+      date: card.date.getTime(), propertyKey: card.property.key, unitKey: card.unitKey, name: card.name, email: card.email
+    }), GUEST_CARD_CACHE_SEC);
+  } catch (err) {
+    Logger.log('guest card cache write failed: ' + err);
+  }
 }
 
 // Same property + same name + arrived within the window. The name is always
