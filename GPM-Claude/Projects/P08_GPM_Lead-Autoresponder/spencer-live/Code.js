@@ -52,6 +52,8 @@ var GUEST_CARD_WINDOW_MIN = 60;       // guest card must arrive within this of t
 var GUEST_CARD_LOOKBACK_DAYS = 30;    // fallback: prospect's own earlier guest card, matched by name
 var AUTOMATION_EMAIL = 'automation@greenpropertymgt.com';
 var STAFF_EMAIL_DOMAIN = 'greenpropertymgt.com'; // only replies from here can supply a prospect email
+var ERROR_ALERT_EMAIL = 'matt@greenpropertymgt.com'; // every Errors-tab entry is also emailed here...
+var ERROR_ALERTS_PER_DAY = 5;                        // ...up to this many a day
 
 var SHOWINGS_SHEET_NAME = 'Showings';
 var SHOWINGS_HEADER = [
@@ -76,13 +78,21 @@ function showingWatcher() {
   if (!lock.tryLock(5000)) return;
 
   try {
-    processNewShowings_();
-    processEmailReplies_();
-    sweepOpenShowings_();
-  } catch (err) {
-    logPreScreenError_('showingWatcher failed: ' + err + (err && err.stack ? ' | ' + err.stack : ''), null);
+    // Each step is isolated so a failure in one never starves the others.
+    runWatcherStep_('processNewShowings_', processNewShowings_);
+    runWatcherStep_('processEmailReplies_', processEmailReplies_);
+    runWatcherStep_('processBounces_', processBounces_);
+    runWatcherStep_('sweepOpenShowings_', sweepOpenShowings_);
   } finally {
     lock.releaseLock();
+  }
+}
+
+function runWatcherStep_(name, fn) {
+  try {
+    fn();
+  } catch (err) {
+    logPreScreenError_(name + ' failed: ' + err + (err && err.stack ? ' | ' + err.stack : ''), null);
   }
 }
 
@@ -98,8 +108,7 @@ function processNewShowings_() {
   var threads = GmailApp.search(query, 0, 50);
   if (threads.length === 0) return;
 
-  var known = loadKnownShowings_();
-  var guestCards = null; // loaded lazily, only if an unhandled showing of ours exists
+  var ctx = { known: loadKnownShowings_(), guestCards: null }; // cards load lazily, only if an unhandled showing of ours exists
 
   for (var i = 0; i < threads.length; i++) {
     // Gmail bundles near-identical AppFolio subjects into one thread, so walk
@@ -108,43 +117,85 @@ function processNewShowings_() {
     for (var m = 0; m < messages.length; m++) {
       var message = messages[m];
       if (!message.isUnread()) continue;
-      if (known.ids[message.getId()]) { message.markRead(); continue; }
-
-      var showing = parseShowingEmail_(message);
-      if (!showing) continue; // not one of our three properties — leave it alone
-
-      if (!showing.start) {
-        logPreScreenError_('Could not parse date/time from showing email ' + message.getId() + ' (' + message.getSubject() + ')', null);
-        continue;
-      }
-
-      // AppFolio re-sends the assignment when the same showing is assigned
-      // again — same prospect, property and time is not a new showing.
-      var key = showingKey_(showing.name, showing.property.key, showing.start);
-      if (known.keys[key]) { message.markRead(); continue; }
-
-      if (!guestCards) guestCards = loadRecentGuestCards_();
-      var card = findGuestCardForShowing_(showing, guestCards) || findGuestCardByName_(showing);
-
-      if (card) {
-        showing.email = card.email;
-        if (card.name) showing.guestCardName = card.name;
-        sendFormForShowing_(showing);
-        message.markRead();
-        known.keys[key] = true;
-      } else {
-        // Staff-booked showings never produce a guest-card email, so there is
-        // nothing to wait for.
-        var waitedMin = (new Date() - showing.received) / 60000;
-        if (showing.staffBooked || waitedMin >= GUEST_CARD_WAIT_MIN) {
-          escalateNoMatch_(showing);
-          message.markRead();
-          known.keys[key] = true;
+      // One showing failing must never block the ones behind it.
+      try {
+        handleShowingMessage_(message, ctx);
+      } catch (err) {
+        logPreScreenError_('Showing email ' + message.getId() + ' (' + message.getSubject() + ') failed: ' + err +
+          (err && err.stack ? ' | ' + err.stack : ''), null);
+        // Left unread, so it is retried next minute — but only while it's
+        // fresh. After that it is handed to Spencer rather than retried (and
+        // logged) every minute for two days.
+        if ((new Date() - message.getDate()) / 60000 >= GUEST_CARD_WAIT_MIN) {
+          giveUpOnShowing_(message, 'ERROR', 'automation error: ' + err);
         }
-        // else: leave unread, try again next minute
       }
     }
   }
+}
+
+function handleShowingMessage_(message, ctx) {
+  var known = ctx.known;
+  if (known.ids[message.getId()]) { message.markRead(); return; }
+
+  var showing = parseShowingEmail_(message);
+  if (!showing) return; // not one of our three properties — leave it alone
+
+  if (!showing.start) {
+    // Deterministic — retrying won't help. Hand it over once.
+    logPreScreenError_('Could not parse date/time from showing email ' + message.getId() + ' (' + message.getSubject() + ')', null);
+    giveUpOnShowing_(message, 'UNPARSED', 'could not read the showing date/time from the AppFolio email', showing);
+    known.ids[message.getId()] = true;
+    return;
+  }
+
+  // AppFolio re-sends the assignment when the same showing is assigned
+  // again — same prospect, property and time is not a new showing.
+  var key = showingKey_(showing.name, showing.property.key, showing.start);
+  if (known.keys[key]) { message.markRead(); return; }
+
+  if (!ctx.guestCards) ctx.guestCards = loadRecentGuestCards_();
+  var card = findGuestCardForShowing_(showing, ctx.guestCards) || findGuestCardByName_(showing);
+
+  if (card) {
+    showing.email = card.email;
+    if (card.name) showing.guestCardName = card.name;
+    sendFormForShowing_(showing);
+    message.markRead();
+    known.keys[key] = true;
+    return;
+  }
+
+  // Staff-booked showings never produce a guest-card email, so there is
+  // nothing to wait for.
+  var waitedMin = (new Date() - showing.received) / 60000;
+  if (showing.staffBooked || waitedMin >= GUEST_CARD_WAIT_MIN) {
+    escalateNoMatch_(showing);
+    message.markRead();
+    known.keys[key] = true;
+  }
+  // else: leave unread, try again next minute
+}
+
+// Stops processing a showing email the automation can't handle: records it,
+// tells Spencer once, and marks it read so it is never picked up again.
+// Best-effort throughout — this runs when something has already gone wrong.
+function giveUpOnShowing_(message, status, reason, showing) {
+  var row = {
+    ShowingMsgId: message.getId(), Received: message.getDate(),
+    ProspectName: showing ? showing.name : '', Email: '',
+    PropertyKey: showing ? showing.property.key : '', Property: showing ? showing.property.displayName : '',
+    Unit: showing ? showing.unitText : '', ShowingStart: showing && showing.start ? showing.start : '',
+    Status: status, SpencerFlaggedAt: new Date(), Reason: reason
+  };
+  try { appendShowingRow_(row); } catch (e1) { Logger.log('giveUpOnShowing_ row failed: ' + e1); }
+  try {
+    notifySpencer_('[NOT PROCESSED] ' + message.getSubject(),
+      'The automation could not process this AppFolio showing email (' + reason + '), so no pre-screen form was ' +
+      'sent. Please handle this prospect manually — the details are in the original AppFolio showing email.',
+      row);
+  } catch (e2) { Logger.log('giveUpOnShowing_ notify failed: ' + e2); }
+  try { message.markRead(); } catch (e3) { Logger.log('giveUpOnShowing_ markRead failed: ' + e3); }
 }
 
 // Parses the AppFolio "New Showing Assignment" body. Works off the HTML with
@@ -260,27 +311,25 @@ function parseGuestCard_(msg) {
   };
 }
 
-// Same property + same unit + arrived within the window is the primary match.
-// Name is only a fallback, and only loosely compared — the same person has
-// shown up as "Matt Fournier" on a showing and "Matthieu Fournier" on the guest
-// card. When several candidates tie, the one closest in time wins.
+// Same property + same name + arrived within the window. The name is always
+// required: units like GCL 209 get several inquiries a day, so a unit-only
+// match would hand the form to whoever else asked about that unit in the same
+// hour. The unit only breaks ties between two cards for the same name, then
+// the one closest in time wins.
 function findGuestCardForShowing_(showing, cards) {
   var windowMs = GUEST_CARD_WINDOW_MIN * 60000;
   var best = null;
-  var bestScore = 0;
+  var bestScore = -1;
 
   for (var i = 0; i < cards.length; i++) {
     var c = cards[i];
     if (c.property.key !== showing.property.key) continue;
     var gap = Math.abs(c.date - showing.received);
     if (gap > windowMs) continue;
+    if (!namesLooselyMatch_(showing.name, c.name)) continue;
 
     var unitHit = showing.unitKey && c.unitKey && showing.unitKey === c.unitKey;
-    var nameHit = namesLooselyMatch_(showing.name, c.name);
-    if (!unitHit && !nameHit) continue;
-
-    // unit+name > unit > name, then closer in time
-    var score = (unitHit ? 2 : 0) + (nameHit ? 1 : 0) + (1 - gap / windowMs) * 0.5;
+    var score = (unitHit ? 1 : 0) + (1 - gap / windowMs) * 0.5;
     if (score > bestScore) { best = c; bestScore = score; }
   }
   return best;
@@ -314,7 +363,12 @@ function namesLooselyMatch_(a, b) {
   var pa = normalizeName_(a), pb = normalizeName_(b);
   if (pa.length < 2 || pb.length < 2) return false;
   if (pa[pa.length - 1] !== pb[pb.length - 1]) return false; // last names must agree
-  return pa[0].indexOf(pb[0]) === 0 || pb[0].indexOf(pa[0]) === 0; // "matt" vs "matthieu"
+  if (pa[0] === pb[0]) return true;
+  // "matt" vs "matthieu" — but the short form needs 4+ letters, so "al" can't
+  // stand in for "alex" or "alicia". A miss just means Spencer is asked.
+  var shorter = pa[0].length <= pb[0].length ? pa[0] : pb[0];
+  var longer = pa[0].length <= pb[0].length ? pb[0] : pa[0];
+  return shorter.length >= 4 && longer.indexOf(shorter) === 0;
 }
 
 function normalizeName_(s) {
@@ -328,52 +382,74 @@ function normalizeName_(s) {
 // rowNumber: pass the existing Showings row when the form is going out late
 // for a NO_MATCH showing (Spencer supplied the email) — that row is updated
 // instead of a second one being added.
+//
+// Order matters: the row is written BEFORE the email goes out. If the write
+// came second and failed, the showing would look unhandled and the prospect
+// would get the same email again every minute. A failed send is recorded on
+// the row (SEND_FAILED) and reported — never retried blindly.
 function sendFormForShowing_(showing, rowNumber) {
   var name = showing.guestCardName || showing.name;
-  var firstName = firstNameOf_(name);
   var when = formatShowingTime_(showing.start);
-  var formUrl = buildPrescreenUrl_(name, showing.email, showing.property.displayName);
+  // Throws if the form can't be opened — nothing is recorded yet, so the
+  // caller simply tries again next minute.
+  var mail = buildFormEmail_(name, showing.email, showing.property.displayName, when, showing.unitText);
 
-  var subject = 'Confirm your showing at ' + showing.property.displayName + ' — ' + when;
-  var htmlBody = `
-    Hi ${firstName},<br><br>
-    Thanks for booking a showing at ${showing.property.displayName}!<br><br>
+  var now = new Date();
+  var shortNotice = showing.start - now < REMINDER_LEAD_MIN * 60000;
+  var row = {
+    ShowingMsgId: showing.msgId, Received: showing.received, ProspectName: name, Email: showing.email,
+    PropertyKey: showing.property.key, Property: showing.property.displayName, Unit: showing.unitText,
+    ShowingStart: showing.start, Status: 'FORM_SENT', FormSentAt: now,
+    // Booked too close to the showing for a normal reminder (they literally
+    // just got the form).
+    ReminderSentAt: shortNotice ? 'skipped (short notice)' : ''
+  };
+
+  if (rowNumber) {
+    updateShowingRow_(rowNumber, { Email: row.Email, Status: row.Status, FormSentAt: row.FormSentAt,
+      ReminderSentAt: row.ReminderSentAt, Reason: '' });
+  } else {
+    rowNumber = appendShowingRow_(row);
+  }
+
+  try {
+    GmailApp.sendEmail(showing.email, mail.subject, '', { htmlBody: mail.htmlBody, name: SENDER_NAME, replyTo: REPLY_TO_EMAIL });
+  } catch (err) {
+    updateShowingRow_(rowNumber, { Status: 'SEND_FAILED', Reason: 'form email failed: ' + err, SpencerFlaggedAt: now });
+    logPreScreenError_('Form email to ' + showing.email + ' failed: ' + err, null);
+    notifySpencer_('[FORM NOT SENT] ' + name + ' — ' + showing.property.displayName + ' ' + when,
+      'The pre-screen form could not be emailed to this prospect (' + err + '). The address may be wrong in AppFolio. ' +
+      'Please pre-screen them manually.', row);
+    return false;
+  }
+
+  if (shortNotice) {
+    notifySpencer_('[SHORT NOTICE] ' + name + ' — ' + showing.property.displayName + ' ' + when,
+      'This showing was booked less than ' + (REMINDER_LEAD_MIN / 60) + ' hours out. The pre-screen form was sent, ' +
+      'but the answers may not come back before the showing — check your email before heading out.',
+      row);
+    updateShowingRow_(rowNumber, { SpencerFlaggedAt: now });
+  }
+  return true;
+}
+
+function buildFormEmail_(name, email, propertyDisplayName, when, unitText) {
+  var formUrl = buildPrescreenUrl_(name, email, propertyDisplayName);
+  return {
+    subject: 'Confirm your showing at ' + propertyDisplayName + ' — ' + when,
+    htmlBody: `
+    Hi ${firstNameOf_(name)},<br><br>
+    Thanks for booking a showing at ${propertyDisplayName}!<br><br>
     <b>Date:</b> ${when}<br>
-    <b>Location:</b> ${escapeHtml_(showing.unitText)}<br><br>
+    <b>Location:</b> ${escapeHtml_(unitText)}<br><br>
     To confirm your showing, please take two minutes to fill out this quick pre-screening form before your appointment:<br><br>
     <strong><a href="${formUrl}">COMPLETE YOUR PRE-SCREENING</a></strong><br><br>
     Once we've reviewed it, we'll send your confirmation.<br><br>
     Thanks,<br>
     ${SENDER_SIGNATURE}<br>
     Green Property Management
-  `;
-  GmailApp.sendEmail(showing.email, subject, '', { htmlBody: htmlBody, name: SENDER_NAME, replyTo: REPLY_TO_EMAIL });
-
-  var now = new Date();
-  var row = {
-    ShowingMsgId: showing.msgId, Received: showing.received, ProspectName: name, Email: showing.email,
-    PropertyKey: showing.property.key, Property: showing.property.displayName, Unit: showing.unitText,
-    ShowingStart: showing.start, Status: 'FORM_SENT', FormSentAt: now
+  `
   };
-
-  // Booked too close to the showing for a normal reminder — tell Spencer now
-  // that the pre-screen may not be back in time, and skip the prospect
-  // reminder (they literally just got the form).
-  if (showing.start - now < REMINDER_LEAD_MIN * 60000) {
-    notifySpencer_('[SHORT NOTICE] ' + name + ' — ' + showing.property.displayName + ' ' + when,
-      'This showing was booked less than ' + (REMINDER_LEAD_MIN / 60) + ' hours out. The pre-screen form was sent, ' +
-      'but the answers may not come back before the showing — check your email before heading out.',
-      row);
-    row.ReminderSentAt = 'skipped (short notice)';
-    row.SpencerFlaggedAt = now;
-  }
-
-  if (rowNumber) {
-    updateShowingRow_(rowNumber, { Email: row.Email, Status: row.Status, FormSentAt: row.FormSentAt,
-      ReminderSentAt: row.ReminderSentAt || '', Reason: '' });
-  } else {
-    appendShowingRow_(row);
-  }
 }
 
 function escalateNoMatch_(showing) {
@@ -391,13 +467,13 @@ function escalateNoMatch_(showing) {
       'automation has no email address for this prospect and did NOT send the pre-screen form.'
     : 'A showing was booked, but AppFolio sent no guest card for this prospect, so the automation has no email ' +
       'address for them and did NOT send the pre-screen form.';
+  appendShowingRow_(row); // before the email, so a failed write can't cause repeat alerts
   // The subject is how processEmailReplies_ ties a reply back to this showing
   // (prospect name + showing time) — keep both in it.
   notifySpencer_('[NEED EMAIL] ' + showing.name + ' — ' + showing.property.displayName + ' ' + when,
     why + ' Want them pre-screened? Reply to this email with the prospect\'s email address and the form will be ' +
     'sent to them automatically. Otherwise no action is needed.',
     row);
-  appendShowingRow_(row);
 }
 
 // Spencer replies to a [NEED EMAIL] alert with the prospect's address → send
@@ -432,27 +508,36 @@ function processEmailReplies_() {
         rowNumber = r + 1;
         break;
       }
+      // Read first: whatever happens below, one reply is acted on once.
       msg.markRead();
       if (!rowNumber) continue; // already handled, or not one of ours
 
-      var rec = rowToObject_(data[0], data[rowNumber - 1]);
-      var email = extractEmailFromReply_(msg.getPlainBody(), from);
-      if (!email) {
-        msg.reply('I couldn\'t find an email address in your reply, so nothing was sent to ' + rec.ProspectName +
-          '. Reply again with just their email address.', { name: 'Showing Pre-Screen' });
-        continue;
-      }
-      if (rec.ShowingStart <= now) {
-        msg.reply('That showing time has already passed, so nothing was sent to ' + email + '.', { name: 'Showing Pre-Screen' });
-        continue;
-      }
+      try {
+        var rec = rowToObject_(data[0], data[rowNumber - 1]);
+        var email = extractEmailFromReply_(msg.getPlainBody(), from);
+        if (!email) {
+          msg.reply('I couldn\'t find an email address in your reply, so nothing was sent to ' + rec.ProspectName +
+            '. Reply again with just their email address.', { name: 'Showing Pre-Screen' });
+          continue;
+        }
+        if (rec.ShowingStart <= now) {
+          msg.reply('That showing time has already passed, so nothing was sent to ' + email + '.', { name: 'Showing Pre-Screen' });
+          continue;
+        }
 
-      sendFormForShowing_({
-        msgId: rec.ShowingMsgId, received: rec.Received, name: rec.ProspectName, email: email,
-        property: { key: rec.PropertyKey, displayName: rec.Property }, unitText: rec.Unit, start: rec.ShowingStart
-      }, rowNumber);
-      data[rowNumber - 1][col.Status] = 'FORM_SENT'; // a second reply in this run must not send again
-      msg.reply('Sent the pre-screen form to ' + email + '.', { name: 'Showing Pre-Screen' });
+        data[rowNumber - 1][col.Status] = 'FORM_SENT'; // a second reply in this run must not send again
+        var sent = sendFormForShowing_({
+          msgId: rec.ShowingMsgId, received: rec.Received, name: rec.ProspectName, email: email,
+          property: { key: rec.PropertyKey, displayName: rec.Property }, unitText: rec.Unit, start: rec.ShowingStart
+        }, rowNumber);
+        if (sent) msg.reply('Sent the pre-screen form to ' + email + '.', { name: 'Showing Pre-Screen' });
+      } catch (err) {
+        logPreScreenError_('Reply ' + msg.getId() + ' (' + subject + ') failed: ' + err, null);
+        try {
+          msg.reply('Something went wrong and the form was NOT sent (' + err + '). Please pre-screen this prospect manually.',
+            { name: 'Showing Pre-Screen' });
+        } catch (replyErr) { Logger.log('reply failed: ' + replyErr); }
+      }
     }
   }
 }
@@ -468,6 +553,45 @@ function extractEmailFromReply_(plainBody, senderEmail) {
     return m[0];
   }
   return '';
+}
+
+// A form or reminder that bounces means the address on the guest card is
+// wrong, and nobody reads this mailbox — so tell Spencer. Only bounces that
+// name a prospect on the Showings tab are touched; this mailbox is shared with
+// other automations, and their bounces are left exactly as they are.
+function processBounces_() {
+  var threads = GmailApp.search('from:(mailer-daemon OR postmaster) is:unread newer_than:3d', 0, 10);
+  if (threads.length === 0) return;
+
+  var sheet = getOrCreateShowingsSheet_();
+  var data = sheet.getDataRange().getValues();
+  var col = headerIndex_(data[0]);
+
+  for (var i = 0; i < threads.length; i++) {
+    var messages = threads[i].getMessages();
+    for (var m = 0; m < messages.length; m++) {
+      var msg = messages[m];
+      if (!msg.isUnread()) continue;
+      var body = (msg.getSubject() + '\n' + msg.getPlainBody()).toLowerCase();
+
+      for (var r = data.length - 1; r >= 1; r--) {
+        var email = String(data[r][col.Email] || '').trim().toLowerCase();
+        if (!email || body.indexOf(email) === -1) continue;
+        if (data[r][col.Status] !== 'FORM_SENT') continue; // already decided or already flagged
+
+        var rec = rowToObject_(data[0], data[r]);
+        var when = rec.ShowingStart instanceof Date ? formatShowingTime_(rec.ShowingStart) : '';
+        msg.markRead();
+        // BOUNCED also takes the row out of the reminder sweep.
+        updateShowingRow_(r + 1, { Status: 'BOUNCED', Reason: 'email to prospect bounced', SpencerFlaggedAt: new Date() });
+        data[r][col.Status] = 'BOUNCED';
+        notifySpencer_('[EMAIL BOUNCED] ' + rec.ProspectName + ' — ' + rec.Property + ' ' + when,
+          'The pre-screen email to this prospect bounced, so they never received the form. The email address on ' +
+          'their guest card is probably wrong. Please pre-screen them manually.', rec);
+        break;
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -488,13 +612,20 @@ function sweepOpenShowings_() {
     var minsOut = (start - now) / 60000;
     if (minsOut > REMINDER_LEAD_MIN || minsOut <= 0) continue;
 
-    var rec = rowToObject_(data[0], row);
-    var when = formatShowingTime_(start);
-    var firstName = firstNameOf_(rec.ProspectName);
-    var formUrl = buildPrescreenUrl_(rec.ProspectName, rec.Email, rec.Property);
+    // Isolated per row, and the row is stamped BEFORE the email goes out: a
+    // failure after sending must never mean the prospect is reminded again
+    // every minute until the showing.
+    try {
+      var rec = rowToObject_(data[0], row);
+      var when = formatShowingTime_(start);
+      var firstName = firstNameOf_(rec.ProspectName);
+      var formUrl = buildPrescreenUrl_(rec.ProspectName, rec.Email, rec.Property); // throws → retried next minute
 
-    GmailApp.sendEmail(rec.Email, 'Reminder: pre-screening needed for your ' + rec.Property + ' showing', '', {
-      htmlBody: `
+      sheet.getRange(r + 1, col.ReminderSentAt + 1).setValue(now);
+      sheet.getRange(r + 1, col.SpencerFlaggedAt + 1).setValue(now);
+
+      GmailApp.sendEmail(rec.Email, 'Reminder: pre-screening needed for your ' + rec.Property + ' showing', '', {
+        htmlBody: `
         Hi ${firstName},<br><br>
         Just a reminder — we still need your quick pre-screening form before your showing at ${rec.Property} (${when}).<br><br>
         <strong><a href="${formUrl}">COMPLETE YOUR PRE-SCREENING</a></strong><br><br>
@@ -502,16 +633,16 @@ function sweepOpenShowings_() {
         ${SENDER_SIGNATURE}<br>
         Green Property Management
       `,
-      name: SENDER_NAME, replyTo: REPLY_TO_EMAIL
-    });
+        name: SENDER_NAME, replyTo: REPLY_TO_EMAIL
+      });
 
-    notifySpencer_('[NO PRE-SCREEN YET] ' + rec.ProspectName + ' — ' + rec.Property + ' ' + when,
-      'This prospect hasn\'t submitted the pre-screening form and the showing is about ' + Math.round(minsOut) +
-      ' minutes away. A reminder was just sent to them. Your call whether to keep the showing.',
-      rec);
-
-    sheet.getRange(r + 1, col.ReminderSentAt + 1).setValue(now);
-    sheet.getRange(r + 1, col.SpencerFlaggedAt + 1).setValue(now);
+      notifySpencer_('[NO PRE-SCREEN YET] ' + rec.ProspectName + ' — ' + rec.Property + ' ' + when,
+        'This prospect hasn\'t submitted the pre-screening form and the showing is about ' + Math.round(minsOut) +
+        ' minutes away. A reminder was just sent to them. Your call whether to keep the showing.',
+        rec);
+    } catch (err) {
+      logPreScreenError_('Reminder for Showings row ' + (r + 1) + ' failed: ' + err, null);
+    }
   }
 }
 
@@ -532,6 +663,7 @@ function getOrCreateShowingsSheet_() {
 function appendShowingRow_(obj) {
   var sheet = getOrCreateShowingsSheet_();
   sheet.appendRow(SHOWINGS_HEADER.map(function (h) { return obj[h] === undefined ? '' : obj[h]; }));
+  return sheet.getLastRow();
 }
 
 // ids: showing emails already recorded. keys: prospect + property + showing
@@ -601,10 +733,11 @@ function rowToObject_(header, row) {
 // FormApp's own toPrefilledUrl(). Hand-built "entry.<item id>" links don't
 // work: Item.getId() is NOT the entry ID a prefill URL needs, and Forms
 // silently ignores unknown entry params — so links opened blank (found in
-// live testing 2026-09-23). Falls back to the bare form URL on any error so a
-// form problem never blocks the email.
+// live testing 2026-09-23). Falls back to the bare form URL if only the
+// prefill fails. If the form itself can't be opened this THROWS — callers
+// retry rather than send a link to nowhere, and nothing is ever created here.
 function buildPrescreenUrl_(fullName, email, propertyDisplayName) {
-  var form = getOrCreatePreScreenForm_();
+  var form = getPreScreenForm_();
   try {
     var items = form.getItems();
     var byTitle = {};
@@ -684,6 +817,28 @@ function firstNameOf_(name) {
 
 function escapeHtml_(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ---------------------------------------------------------------------------
+// Deliverability check — run sendDeliverabilityTest() by hand
+// ---------------------------------------------------------------------------
+
+// Sends the real "Confirm your showing" email to test inboxes so you can see
+// whether it lands in the inbox or in spam. Set the Script Property
+// DELIVERABILITY_TEST_EMAILS (Project Settings → Script Properties) to a
+// comma-separated list — ideally one Gmail, one iCloud, one Yahoo/Outlook —
+// then run this from the editor. Nothing is written to the Showings tab.
+function sendDeliverabilityTest() {
+  var raw = PropertiesService.getScriptProperties().getProperty('DELIVERABILITY_TEST_EMAILS') || '';
+  var addresses = raw.split(',').map(function (a) { return a.trim(); }).filter(function (a) { return a; });
+  if (addresses.length === 0) throw new Error('Set the Script Property DELIVERABILITY_TEST_EMAILS first.');
+
+  var when = formatShowingTime_(new Date(Date.now() + 2 * 86400000));
+  addresses.forEach(function (address) {
+    var mail = buildFormEmail_('Test Prospect', address, PROPERTIES[2].displayName, when, '100 Commerce Ave SW - 202 Grand Rapids, MI 49503');
+    GmailApp.sendEmail(address, mail.subject, '', { htmlBody: mail.htmlBody, name: SENDER_NAME, replyTo: REPLY_TO_EMAIL });
+    Logger.log('Sent test to ' + address);
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -249,8 +249,15 @@ function parseCreditRangeLowerBound_(rangeText) {
 // column is whichever header mentions "rent" (currently "Min Rent by Bedroom").
 function getRequirements_(propertyKey, beds) {
   if (!propertyKey) return null;
-  var ss = SpreadsheetApp.openById(getPropertyUnitsSpreadsheetId_());
-  var sheet = ss.getSheetByName(REQUIREMENTS_SHEET_NAME);
+  // Can't reach the spreadsheet → NEEDS REVIEW for Spencer (and an error
+  // alert), never a lost submission and never an auto-fail.
+  var sheet;
+  try {
+    sheet = SpreadsheetApp.openById(getPropertyUnitsSpreadsheetId_()).getSheetByName(REQUIREMENTS_SHEET_NAME);
+  } catch (err) {
+    logPreScreenError_('Could not open the Requirements spreadsheet: ' + err, null);
+    return null;
+  }
   if (!sheet) {
     logPreScreenError_('Requirements tab is missing from the Property & Unit Details spreadsheet', null);
     return null;
@@ -422,6 +429,32 @@ function logPreScreenError_(message, e) {
     sheet.appendRow([new Date(), message, JSON.stringify(e && e.namedValues ? e.namedValues : (e ? String(e) : ''))]);
   } catch (loggingFailure) {
     Logger.log('logPreScreenError_ failed: ' + loggingFailure + ' | original: ' + message);
+  }
+  alertOnError_(message);
+}
+
+// Nobody watches the Errors tab, so every error is also emailed — capped per
+// day so a fault that repeats every minute can't flood the inbox. The last
+// alert of the day says so; the Errors tab keeps the full record regardless.
+function alertOnError_(message) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var today = Utilities.formatDate(new Date(), TIME_ZONE, 'yyyy-MM-dd');
+    var count = props.getProperty('ERROR_ALERT_DAY') === today ? parseInt(props.getProperty('ERROR_ALERT_COUNT'), 10) || 0 : 0;
+    if (count >= ERROR_ALERTS_PER_DAY) return;
+    props.setProperty('ERROR_ALERT_DAY', today);
+    props.setProperty('ERROR_ALERT_COUNT', String(count + 1));
+
+    var last = count + 1 === ERROR_ALERTS_PER_DAY;
+    GmailApp.sendEmail(ERROR_ALERT_EMAIL, '[Spencer pre-screen ERROR] ' + String(message).slice(0, 120), '', {
+      htmlBody: '<p>' + escapeHtml_(message) + '</p>' +
+        (last ? '<p><b>This is alert ' + ERROR_ALERTS_PER_DAY + ' of ' + ERROR_ALERTS_PER_DAY + ' for today — further errors today ' +
+                'will only appear on the Errors tab.</b></p>' : '') +
+        '<p style="color:#888;font-size:12px">Full log: Errors tab of "GPM Pre-Screening Responses".</p>',
+      name: 'Showing Pre-Screen'
+    });
+  } catch (alertFailure) {
+    Logger.log('alertOnError_ failed: ' + alertFailure);
   }
 }
 

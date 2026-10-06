@@ -79,17 +79,24 @@ function buildPreScreenForm() {
   Logger.log('Published URL: ' + form.getPublishedUrl());
 }
 
+// RUNTIME accessor (watcher + submit handler). Opens the existing form or
+// throws — it never creates one. A momentary FormApp failure used to fall
+// through to FormApp.create(), silently replacing the live form with a new
+// one that had no submit trigger and a different responses spreadsheet.
+function getPreScreenForm_() {
+  var formId = PropertiesService.getScriptProperties().getProperty(PRESCREEN_FORM_ID_PROP);
+  if (!formId) throw new Error('No pre-screen form is set up (Script Property ' + PRESCREEN_FORM_ID_PROP + ' is empty) — run buildPreScreenForm().');
+  return FormApp.openById(formId);
+}
+
+// SETUP accessor — only ever called from functions run by hand in the editor
+// (buildPreScreenForm, installShowingWorkflow). Creates the form only when
+// none has ever been recorded. If one IS recorded but won't open, this throws
+// instead of replacing it; to deliberately start over, delete the Script
+// Properties PRESCREEN_FORM_ID and PRESCREEN_RESPONSES_SHEET_ID first.
 function getOrCreatePreScreenForm_() {
   var props = PropertiesService.getScriptProperties();
-  var formId = props.getProperty(PRESCREEN_FORM_ID_PROP);
-  if (formId) {
-    try {
-      return FormApp.openById(formId);
-    } catch (e) {
-      // Stored ID no longer resolves (form deleted/moved) — fall through and
-      // create a replacement rather than failing every future run.
-    }
-  }
+  if (props.getProperty(PRESCREEN_FORM_ID_PROP)) return getPreScreenForm_();
 
   var form = FormApp.create('GPM Apartments — Pre-Screening')
     .setDescription('Tell us a bit more about what you’re looking for and we’ll follow up with next steps.')
@@ -112,7 +119,7 @@ function getPreScreenResponsesSpreadsheetId_() {
   var sheetId = props.getProperty('PRESCREEN_RESPONSES_SHEET_ID');
   if (sheetId) return sheetId;
 
-  var form = getOrCreatePreScreenForm_();
+  var form = getPreScreenForm_();
   sheetId = form.getDestinationId();
   props.setProperty('PRESCREEN_RESPONSES_SHEET_ID', sheetId);
   return sheetId;
@@ -178,19 +185,16 @@ function clearNonIdentityItems_(form, identity) {
   }
 }
 
-// Opens the "GPM Spencer — Property & Unit Details" spreadsheet (creating it
-// on a first-ever run). Only its Requirements tab is used now — the Units tab
-// fed the old unit-type question and is no longer read.
+// SETUP ONLY — run by hand once to create the "GPM Spencer — Property & Unit
+// Details" spreadsheet. Only its Requirements tab is used now — the Units tab
+// fed the old unit-type question and is no longer read. Does nothing if a
+// spreadsheet is already recorded: an unreachable one is never replaced (that
+// used to swap the live Requirements for an empty new file). To deliberately
+// start over, delete the Script Property UNITS_SHEET_ID first.
 function getOrCreateUnitsSheet_() {
   var props = PropertiesService.getScriptProperties();
   var sheetId = props.getProperty(UNITS_SHEET_ID_PROP);
-  if (sheetId) {
-    try {
-      return SpreadsheetApp.openById(sheetId).getSheetByName('Units');
-    } catch (e) {
-      // fall through and recreate below
-    }
-  }
+  if (sheetId) return SpreadsheetApp.openById(sheetId).getSheetByName('Units');
 
   var ss = SpreadsheetApp.create('GPM Spencer — Property & Unit Details');
   var sheet = ss.getActiveSheet().setName('Units');
@@ -205,10 +209,10 @@ function getOrCreateUnitsSheet_() {
   return sheet;
 }
 
-// Requirements (PreScreenSubmit.js) lives as a second tab in the same
-// spreadsheet as Units, so it reuses this same spreadsheet ID rather than
-// creating a separate file.
+// RUNTIME accessor for the spreadsheet holding the Requirements tab
+// (PreScreenSubmit.js). Returns the recorded ID or throws — never creates.
 function getPropertyUnitsSpreadsheetId_() {
-  getOrCreateUnitsSheet_(); // ensures the spreadsheet + Units tab + property already exist
-  return PropertiesService.getScriptProperties().getProperty(UNITS_SHEET_ID_PROP);
+  var sheetId = PropertiesService.getScriptProperties().getProperty(UNITS_SHEET_ID_PROP);
+  if (!sheetId) throw new Error('No Property & Unit Details spreadsheet is set up (Script Property ' + UNITS_SHEET_ID_PROP + ' is empty).');
+  return sheetId;
 }
