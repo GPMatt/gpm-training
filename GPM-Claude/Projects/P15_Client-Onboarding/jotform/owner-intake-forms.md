@@ -34,8 +34,31 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
   - Added "Any details about the property that would be helpful for future
     tenants?"; photo ID upload says a clear photo is necessary.
   - Operating voided check stays optional. Photo ID stays last.
-- Still Claude's guesses, awaiting Laura: utility-account options, tax escrow
-  "Not sure", "Some units occupied", market-rent "No" wording, dropdown
+- Second round of changes, agreed with Matt later on 2026-10-08:
+  - Utilities Today is now one grid, "Who pays for each of these at the
+    property?": rows Gas, Electric, Water, Trash, Lawn care, Snow removal;
+    choices Landlord / Tenant / Not applicable. No utility company names.
+    GPM never puts utilities in its own name, so "Once we take over, where
+    should these utility accounts live?" is gone.
+  - Removed as duplicates of the grid: lawn, snow and trash provider
+    questions (and their checklist options) in Vendors, and "Utilities
+    included in rent, if any" in Leasing.
+  - Security deposit account is optional: new Yes/No "Do you have a separate
+    security deposit account?" gates the whole block (replaces the "Not
+    applicable" option). On Yes the owner still chooses between uploading a
+    voided check / bank letter and typing account + routing numbers.
+  - Both authorized-signer questions: the No answer reads "No — I will order
+    a signature stamp from Amazon for GPM to use instead", with helper text
+    saying a stamp must be ordered.
+  - Tenant questions show only when prior management is Self-managed AND the
+    property is occupied (Yes or Some units occupied). Newly purchased
+    occupied properties deliberately see no tenant questions. The connector
+    could not put a condition on the "Existing Tenant Information" heading,
+    so the heading itself may still show with nothing under it.
+- Not built: DocuSign completion triggering the form and prefilling it from
+  the signed management contract.
+- Still Claude's guesses, awaiting Laura: the grid's "Not applicable"
+  column, tax escrow "Not sure", "Some units occupied", market-rent "No" wording, dropdown
   choices (heating, water heater, laundry, account type, prior management,
   referral source), date of birth for entity signers.
 - Decided but not built: repeat owners get their own separate form.
