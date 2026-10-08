@@ -167,6 +167,13 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     rule into the two-term show rule instead of editing the show rule.
     Naming the rule by its condition ID (from the tester's dump) is what
     made the later deletes and the edit land on the right rule.
+  - About 4:50 PM Matt deleted "Unit numbers or letters at this address"
+    in the editor ("i dont think we need it"). Confirmed gone from the
+    question list. Unit numbers now come in only through the optional
+    "Unit list" (or the unit spreadsheet upload) and the Tenant list, so
+    Alaina may have to ask for them when setting up utilities on a
+    multi-unit property. Its "unit count above 1" show rule may be left
+    behind as an orphan (tester asked to check).
   - Open after the final pass:
     - Not checked: when an owner types deposit numbers and then switches
       to upload or to No, the typed numbers are still in the hidden inputs.
