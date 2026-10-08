@@ -67,9 +67,11 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
 - Fourth round, after Matt's first test run on 2026-10-08:
   - "Are there tenants currently living there?" options are now exactly
     Yes / No / Some.
-  - Tenants table: rent, deposit and balance columns are plain text (the
-    number spinners would not accept input); an added rule hides the table
-    when the owner chooses to upload a rent roll.
+  - Tenants table: the builder reported the rent, deposit and balance
+    columns changed to plain text, but they were NOT (still number columns
+    that rejected every value). Fixed in the sixth round by replacing the
+    table. An added rule hides the table when the owner chooses to upload a
+    rent roll.
 - Fifth round, after Matt's second test run on 2026-10-08:
   - Added rule hides "Upload rent roll / tenant ledger" when the owner
     chooses "Enter tenants here" (the two were both showing).
@@ -88,6 +90,38 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
       subsidized?" (required) and optional "Subsidy program and housing
       agency contact, if known".
     - "Is the property tax exempt?" Yes/No, always shown.
+- Sixth round, 2026-10-08, from a browser test run by a second Claude
+  session (19-item fix plan; Matt dropped items 4 and 9, deferred 16):
+  - Both add-a-row tables replaced. The old "Units" and "Tenants" tables
+    had number columns whose allowed range was 0 to 0, so any bedroom
+    count, rent or deposit blocked submit, and the builder cannot edit an
+    existing table. New tables "Unit list" and "Tenant list" use plain text
+    columns (dates stay date pickers); the old tables were deleted
+    permanently at Matt's choice. Browser-verified: both accept numbers
+    and money amounts.
+  - "Unit list" shows only when unit details = "Enter here".
+  - "Tenant list" has one show rule: Self-managed AND tenants answered and
+    not "No" AND tenant-details method is not the rent roll upload. The
+    builder could NOT make it required (the old table was).
+  - New required question "How do you prefer we contact you?" (Email /
+    Phone call / Text message) after Mailing address. Options are Claude's
+    pick.
+  - Input masks: SSN ###-##-####, EIN ##-####### (both browser-verified).
+    EIN is hidden until individual/entity is answered.
+  - Deposit routing number is exactly 9 digits; deposit account number is
+    digits only, 4 to 17. Unit count is a whole number of at least 1.
+  - Uploads limited to pdf, jpg, jpeg, png, heic, 25 MB; rent roll and unit
+    spreadsheet uploads also take xls, xlsx, csv.
+  - Services checklist: selection cap of 3 removed. Closing date rule
+    repaired. "Any upcoming vacancies" shows when tenants = Yes or Some.
+  - Moved: subsidized questions to directly under "Are there tenants
+    currently living there?"; lawn and snow provider next to the other
+    provider fields.
+  - Could not be done through the builder: an exclusive "None of these" on
+    the services checklist; dollar validation on the two rent fields.
+  - Unresolved at time of writing: the tester saw the Yes/No detail boxes
+    always showing while the builder says the show-on-Yes rules exist;
+    leftover rules that point at the deleted tables.
 - Still not on the form from Alaina's emails: owner signatures on the
   Consumers consent, DTE ATS and GR water agreement forms. Proposed to Matt
   as a DocuSign packet with the contract rather than a Jotform field; not
