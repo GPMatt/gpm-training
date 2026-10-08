@@ -119,9 +119,41 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     provider fields.
   - Could not be done through the builder: an exclusive "None of these" on
     the services checklist; dollar validation on the two rent fields.
-  - Unresolved at time of writing: the tester saw the Yes/No detail boxes
-    always showing while the builder says the show-on-Yes rules exist;
-    leftover rules that point at the deleted tables.
+  - Later the same day, after the tester's full rerun (three real test
+    submissions went through; phone width clean):
+    - Deposit account section opens correctly: Yes shows the method
+      question, account type and signer question; the typed numbers or the
+      upload appear on the chosen method and are required. The two stale
+      "Not applicable" rules and the No/empty hide pair were deleted.
+    - Show-on-Yes rules created for the deferred maintenance, major
+      project and code violation detail boxes (they had none).
+    - Tenant section rebuilt on Matt's approval: one hide rule (not
+      Self-managed, or tenants No/unanswered) over the tenant questions,
+      with the four detail boxes left to their own Yes rules. The
+      "units > 1 shows rent roll" rule is gone. "How would you like to
+      provide tenant details?" is now required. The "Existing Tenant
+      Information" heading shows for every owner.
+    - Custom thank-you page: "Thank you! We've received your information,
+      and a member of the Green Property Management team will be in
+      touch." (not browser-verified).
+    - Orphaned rules pointing at deleted fields were cleaned out.
+  - Open at time of writing:
+    - Rule "separate security deposit account = No -> hide upload /
+      account number / routing number" must be deleted by hand in the
+      editor (the builder refused four times). While it exists, answering
+      Yes shows all three fields before a method is picked.
+    - Deposit toggle-back: pick a method, then switch to No, and the
+      number or upload fields stay visible.
+    - "Tenant list" loads with no rows (an "Add Row" button) and is not
+      required.
+    - Unit count and subsidized count accept decimals; subsidized count is
+      not capped at the unit count. Deposit account number accepts a
+      hyphen.
+    - Warranty questions sit after the HOA pair at the end of the vendor
+      section.
+  - Jotform rule behaviour learned here: a "hide" rule SHOWS its targets
+    whenever it is false, so a hide rule and a show rule on the same field
+    fight. Prefer show-only rules with every needed term.
 - Still not on the form from Alaina's emails: owner signatures on the
   Consumers consent, DTE ATS and GR water agreement forms. Proposed to Matt
   as a DocuSign packet with the contract rather than a Jotform field; not
