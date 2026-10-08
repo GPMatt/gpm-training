@@ -184,9 +184,29 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     262804456930056 is a require rule again. After the revert the builder
     worked from a different copy: it said 262804097026053 no longer exists
     and that 262804427702051 already matched the fix, and it would not
-    list the rules. Not fixed as of 5:35 PM; needs doing by hand in
-    Settings -> Conditions in a freshly loaded editor.
+    list the rules.
     Lesson: an open editor tab overwrites builder edits on its next save.
+  - REDONE 5:35 to 5:48 PM through the builder, tester-verified (pull
+    5:56 PM, cases A-N run 5:57 to 6:05 PM, all correct, no wrong submit
+    block; 113 fields, 61 conditions). What got the builder unstuck:
+    asking it to re-read the conditional logic fresh from the published
+    form and to delete a rule outright by condition ID, then adding the
+    corrected rule as a new rule in the next edit. Deleted 262804427702051,
+    262804068408055 and 262804097026053. Deposit rules now:
+    - 262806901963059 show: 110 = Yes AND 29 = Enter -> Show 32, 33
+    - 262807253844058 show: 110 = Yes AND 29 = Upload -> Show 31
+    - 262805543116050 require: 110 = Yes AND 29 = Upload -> Require 31
+    - 262804456930056 require: 29 = Enter -> Unrequire 31, Require 32, 33
+      (left in place; harmless because hidden required fields do not block)
+    - 262804427922055 require: 29 = Upload -> Unrequire 32, 33
+    - 262804399023055 show: 110 = Yes -> Show 29, 30, 34
+  - Contact preference ranked (Matt, ~5:48 PM): field 124 retitled "What is
+    your first choice for how we contact you?"; new required field 125
+    "What is your second choice for how we contact you?" (Email / Phone
+    call / Text message) directly after it. Tester confirmed both render
+    and 125 blocks submit when empty. Nothing stops the same option being
+    picked for both. Matt declined renaming the occupancy options
+    (Yes / No / Some stay) because every rule keyed on them would break.
     Four stale rules still point at the deleted unit numbers field
     (262805402980053, 262804848434060, 262805380628057, 262805380431049);
     harmless, a 4-unit form passes validation.
