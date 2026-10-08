@@ -174,6 +174,22 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     Alaina may have to ask for them when setting up utilities on a
     multi-unit property. Its "unit count above 1" show rule may be left
     behind as an orphan (tester asked to check).
+  - REVERTED: that 4:50 PM editor save came from a tab loaded before the
+    deposit toggle-back fix and wrote its old copy of the rules back
+    (tester pulls 5:03 and 5:26 PM: 112 fields, 62 conditions). The
+    toggle-back bug is live again: Yes -> enter numbers (empty) -> No
+    blocks submit. Live deposit rules are back to: one-term show rules for
+    the number fields (262804097026053) and the upload (262804068408055),
+    "method = upload -> show upload, hide numbers" (262804427702051), and
+    262804456930056 is a require rule again. After the revert the builder
+    worked from a different copy: it said 262804097026053 no longer exists
+    and that 262804427702051 already matched the fix, and it would not
+    list the rules. Not fixed as of 5:35 PM; needs doing by hand in
+    Settings -> Conditions in a freshly loaded editor.
+    Lesson: an open editor tab overwrites builder edits on its next save.
+    Four stale rules still point at the deleted unit numbers field
+    (262805402980053, 262804848434060, 262805380628057, 262805380431049);
+    harmless, a 4-unit form passes validation.
   - Open after the final pass:
     - Not checked: when an owner types deposit numbers and then switches
       to upload or to No, the typed numbers are still in the hidden inputs.
