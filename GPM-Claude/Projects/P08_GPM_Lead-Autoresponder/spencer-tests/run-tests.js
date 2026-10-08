@@ -297,6 +297,33 @@ test('Wealthy and Sheldon showing with its guest card: form sent', (w, sb) => {
   eq(showings(w).map(r => [r.Status, r.PropertyKey]), [['FORM_SENT', 'WEALTHY_SHELDON']], 'row');
   eq(errors(w), [], 'no errors');
 });
+test('Wealthy and Sheldon matching check: Matt is alerted when the real email format is not what was assumed', (w, sb) => {
+  const ws = o => showingEmail(Object.assign({ mode: 'self', subjectUnit: '90 Wealthy Street SE - W 201',
+    unit: '90 Wealthy Street SE - W 201 Grand Rapids, MI 49503' }, o));
+  // unreadable unit on the showing, card found by name: form still goes out
+  w.messages.push(ws({ name: 'Dana Wells', subjectUnit: '90 Wealthy Street SE - Wealthy 2B', unit: '90 Wealthy Street SE - Wealthy 2B' }));
+  w.messages.push(guestCard({ name: 'Dana Wells', email: 'dana.wells@gmail.com', subjectProp: 'Wealthy and Sheldon - W 201' }));
+  // unreadable unit on the guest card
+  w.messages.push(ws({ name: 'Lee Park' }));
+  w.messages.push(guestCard({ name: 'Lee Park', email: 'lee.park@gmail.com', subjectProp: 'Wealthy and Sheldon' }));
+  // prospect-booked, no guest card after the wait
+  w.messages.push(ws({ name: 'Rosa Diaz', ageMin: 45 }));
+  // staff-booked with no card is expected, not a matching problem
+  w.messages.push(ws({ name: 'Omar Reyes', mode: 'staff' }));
+  sb.showingWatcher();
+  eq(toProspects(w).map(s => s.to).sort(), ['dana.wells@gmail.com', 'lee.park@gmail.com'], 'forms still sent');
+  const e = errors(w);
+  eq(e.length, 3, 'three alerts');
+  ok(/MATCHING CHECK — Dana Wells: the unit could not be read from the showing email \(Unit line: "90 Wealthy Street SE - Wealthy 2B"\)/.test(e[0]), 'showing unit');
+  ok(/Lee Park: the unit could not be read from the guest card/.test(e[1]) && /form WAS still sent to lee\.park@gmail\.com/.test(e[1]), 'card unit');
+  ok(/Rosa Diaz: the prospect booked this themselves but no guest card was found/.test(e[2]) && /NO form was sent/.test(e[2]), 'no card');
+  eq(toMatt(w).length, 3, 'emailed to Matt');
+});
+test('matching check stays quiet for the other properties', (w, sb) => {
+  w.messages.push(showingEmail({ mode: 'self', name: 'Pat Doe', ageMin: 45 }));
+  sb.showingWatcher();
+  eq(errors(w), [], 'no alert for Grand Central Lofts');
+});
 test('a Wealthy and Sheldon commercial suite showing is left untouched', (w, sb) => {
   w.messages.push(showingEmail({ mode: 'staff', name: 'Pat Doe', subjectUnit: '90 Wealthy Street SE - Suite A',
     unit: '90 Wealthy Street SE - Suite A Grand Rapids, MI 49503' }));

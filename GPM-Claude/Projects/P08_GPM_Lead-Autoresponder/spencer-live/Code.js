@@ -45,7 +45,10 @@ var PROPERTIES = [
   // skipUnit leaves those emails alone, like any property we don't handle.
   { key: 'WEALTHY_SHELDON', displayName: 'Wealthy and Sheldon',
     match: ['wealthy and sheldon', 'wealthy & sheldon', '90 wealthy'],
-    skipUnit: /\bSuite\s+[A-C]\b/i }
+    skipUnit: /\bSuite\s+[A-C]\b/i,
+    // Unit matching here was written from the rent roll, not a real email —
+    // see checkUnitMatching_. Remove once a live pairing has been confirmed.
+    verifyUnitMatching: true }
 ];
 
 var SENDER_NAME = 'Spencer';
@@ -170,6 +173,7 @@ function handleShowingMessage_(message, ctx) {
     sendFormForShowing_(showing);
     message.markRead();
     known.keys[key] = true;
+    checkUnitMatching_(showing, card);
     return;
   }
 
@@ -180,8 +184,32 @@ function handleShowingMessage_(message, ctx) {
     escalateNoMatch_(showing);
     message.markRead();
     known.keys[key] = true;
+    checkUnitMatching_(showing, null);
   }
   // else: leave unread, try again next minute
+}
+
+// For a property flagged verifyUnitMatching: emails Matt (through the Errors
+// tab alert) when a real showing shows the assumed email format is wrong —
+// a unit that can't be read, or a prospect-booked showing that found no guest
+// card. Runs after the showing is fully handled and can never affect it.
+function checkUnitMatching_(showing, card) {
+  try {
+    if (!showing.property.verifyUnitMatching) return;
+    var problems = [];
+    if (!showing.unitKey) problems.push('the unit could not be read from the showing email (Unit line: "' + showing.unitText + '")');
+    if (card && !card.unitKey) problems.push('the unit could not be read from the guest card (subject: "' + (card.subject || '') + '")');
+    if (!card && !showing.staffBooked) problems.push('the prospect booked this themselves but no guest card was found, so Spencer was sent [NEED EMAIL]');
+    if (problems.length === 0) return;
+
+    logPreScreenError_(showing.property.displayName + ' MATCHING CHECK — ' + showing.name + ': ' + problems.join('; ') +
+      '. The matching for this property was built without a real email to copy, and this showing suggests it is off. ' +
+      (card ? 'The form WAS still sent to ' + card.email + '. ' : 'NO form was sent. ') +
+      'To fix: forward this showing email and its guest card from automation@ to Claude. Showing email subject: "' +
+      showing.subject + '", received ' + Utilities.formatDate(showing.received, TIME_ZONE, 'MMM d h:mm a') + '.', null);
+  } catch (err) {
+    Logger.log('checkUnitMatching_ failed: ' + err);
+  }
 }
 
 // Stops processing a showing email the automation can't handle: records it,
@@ -223,6 +251,7 @@ function parseShowingEmail_(message) {
 
   return {
     msgId: message.getId(),
+    subject: subject,
     received: message.getDate(),
     property: property,
     unitText: unitText,
@@ -334,7 +363,8 @@ function readGuestCard_(msg) {
     // Subject first — it names the specific unit; the body can mention others.
     unitKey: unitKey_(property.key, msg.getSubject()) || unitKey_(property.key, text),
     name: msg.getFrom().split('<')[0].replace(/"/g, '').trim(),
-    email: email
+    email: email,
+    subject: msg.getSubject()
   };
 }
 
@@ -350,7 +380,7 @@ function readGuestCardCache_(cacheKey) {
     if (c === null) return null;
     for (var i = 0; i < PROPERTIES.length; i++) {
       if (PROPERTIES[i].key === c.propertyKey) {
-        return { date: new Date(c.date), property: PROPERTIES[i], unitKey: c.unitKey, name: c.name, email: c.email };
+        return { date: new Date(c.date), property: PROPERTIES[i], unitKey: c.unitKey, name: c.name, email: c.email, subject: c.subject };
       }
     }
   } catch (err) {
@@ -362,7 +392,8 @@ function readGuestCardCache_(cacheKey) {
 function writeGuestCardCache_(cacheKey, card) {
   try {
     CacheService.getScriptCache().put(cacheKey, JSON.stringify(card && {
-      date: card.date.getTime(), propertyKey: card.property.key, unitKey: card.unitKey, name: card.name, email: card.email
+      date: card.date.getTime(), propertyKey: card.property.key, unitKey: card.unitKey, name: card.name, email: card.email,
+      subject: card.subject
     }), GUEST_CARD_CACHE_SEC);
   } catch (err) {
     Logger.log('guest card cache write failed: ' + err);
