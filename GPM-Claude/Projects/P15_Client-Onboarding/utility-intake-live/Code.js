@@ -91,8 +91,10 @@ function doPost(e) {
   const token = prop_('WEBHOOK_TOKEN');
   if (!token || params.token !== token) {
     console.warn('Refused a POST with a missing or wrong token.');
+    noteRefusal_(params);
     return ContentService.createTextOutput('ok');
   }
+  PropertiesService.getScriptProperties().setProperty('LAST_ACCEPTED', new Date().toISOString() + ' submission ' + id);
   try {
     if (!/^\d+$/.test(id)) throw new Error('Webhook had no usable submissionID.');
     handleSubmission_(id);
@@ -100,6 +102,44 @@ function doPost(e) {
     notifyAdmin_(id, err);
   }
   return ContentService.createTextOutput('ok');
+}
+
+// A refused request is usually stray traffic, but it is also exactly what a
+// Jotform webhook saved without its ?token=... looks like, so say so: at
+// most one email an hour, and louder when the request names our form.
+function noteRefusal_(params) {
+  const props = PropertiesService.getScriptProperties();
+  const formId = prop_('JOTFORM_FORM_ID') || DEFAULT_FORM_ID;
+  const fromOurForm = String(params.formID || '') === formId;
+  const now = Date.now();
+  props.setProperty('LAST_REFUSED', new Date(now).toISOString()
+    + (fromOurForm ? ' (named our form, submission ' + (params.submissionID || 'unknown') + ')' : ' (did not name our form)')
+    + (params.token ? ' wrong token' : ' no token'));
+  if (now - Number(prop_('LAST_REFUSED_ALERT') || 0) < 60 * 60 * 1000) return;
+  props.setProperty('LAST_REFUSED_ALERT', String(now));
+  try {
+    MailApp.sendEmail({
+      to: prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL,
+      subject: 'P15 utility handoff refused a request' + (fromOurForm ? ' from the intake form' : ''),
+      body: (fromOurForm
+        ? 'A submission (' + (params.submissionID || 'unknown') + ') arrived from the intake form but '
+          + (params.token ? 'with the wrong token' : 'without a token') + ', so NO handoff was sent.\n\n'
+          + 'Fix: in Jotform, Settings -> Integrations -> WebHooks, the address must end with the ?token=... '
+          + 'that setup() logs. Then run processTestSubmission() to send the missed handoff.'
+        : 'Something called the web app without the token and did not name the intake form. Probably stray '
+          + 'traffic; nothing was done.')
+        + '\n\nFurther refusals in the next hour will not email again. Run webhookStatus() for the latest.'
+    });
+  } catch (mailErr) {
+    console.error('Could not email admin about a refusal: ' + mailErr);
+  }
+}
+
+// Logs when the web app last accepted and last refused a request.
+function webhookStatus() {
+  Logger.log('Last accepted: ' + (prop_('LAST_ACCEPTED') || 'never'));
+  Logger.log('Last refused:  ' + (prop_('LAST_REFUSED') || 'never'));
+  Logger.log('Handoffs go to: ' + (prop_('NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL));
 }
 
 function setup() {
