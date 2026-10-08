@@ -223,10 +223,28 @@ function answerText_(a) {
     return v.month + '/' + v.day + '/' + v.year;
   }
   if (typeof v === 'string' || typeof v === 'number') return flatten_(v);
-  if (a.type !== 'control_matrix' && typeof a.prettyFormat === 'string' && a.prettyFormat.trim()) {
+  if (a.type === 'control_matrix') return matrixText_(a);
+  if (typeof a.prettyFormat === 'string' && a.prettyFormat.trim()) {
     return stripHtml_(a.prettyFormat).trim();
   }
   return flatten_(v);
+}
+
+// A grid answer can arrive keyed by row name, or as a bare list of choices
+// in row order. A bare list is useless without the row names, so pair it
+// with them, or fall back to Jotform's own rendering of the grid.
+function matrixText_(a) {
+  const v = a.answer;
+  if (!Array.isArray(v)) return flatten_(v);
+  const rows = String(a.mrows || '').split('|').map(r => r.trim()).filter(Boolean);
+  if (rows.length === v.length) {
+    return rows.map((r, i) => r + ': ' + (flatten_(v[i]) || 'not answered')).join('\n');
+  }
+  if (typeof a.prettyFormat === 'string' && a.prettyFormat.trim()) {
+    return stripHtml_(a.prettyFormat).split('\n').map(l => l.trim().replace(/\s{2,}/g, ': ').replace(/: $/, ''))
+      .filter(Boolean).join('\n');
+  }
+  return flatten_(v) + '\n(Row names did not come through; order on the form is gas, electric, water, trash, lawn care, snow removal.)';
 }
 
 function flatten_(v) {
@@ -468,6 +486,11 @@ function inspectTestSubmission() {
   FIELDS.forEach(f => Logger.log((data.values[f.key] ? 'answered  ' : 'empty     ') + f.label));
   UPLOADS.forEach(u => Logger.log(data.uploads[u.key].length + ' file(s)  ' + u.label));
   Logger.log('Could not find on the form: ' + (data.missing.join(', ') || 'nothing'));
+  Object.keys(submission.answers).map(qid => submission.answers[qid])
+    .filter(a => a && a.type === 'control_matrix')
+    .forEach(a => Logger.log('Grid "' + stripHtml_(a.text).trim() + '": answer is '
+      + (Array.isArray(a.answer) ? 'a list' : typeof a.answer) + ', row names ' + (a.mrows ? 'present' : 'absent')
+      + ', Jotform rendering ' + (a.prettyFormat ? 'present' : 'absent') + '. Reads as:\n' + answerText_(a)));
   Logger.log('All question labels on this submission:');
   Object.keys(submission.answers).forEach(qid => {
     const a = submission.answers[qid];
