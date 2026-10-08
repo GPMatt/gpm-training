@@ -1,4 +1,5 @@
-// GPM Spencer Showing Pre-Screen — Indian Village, Eaglebrook, Grand Central Lofts
+// GPM Spencer Showing Pre-Screen — Indian Village, Eaglebrook, Grand Central Lofts,
+// Wealthy and Sheldon
 //
 // Booking-first flow (redesigned 2026-09-23, replaces the old guest-card
 // autoresponder that emailed the form as soon as a lead came in):
@@ -38,7 +39,13 @@ var PROPERTIES = [
   // Guest cards say "Grand Central Lofts" or "100 Commerce" inconsistently —
   // both have to work.
   { key: 'GRAND_CENTRAL_LOFTS', displayName: 'Grand Central Lofts',
-    match: ['grand central lofts', '100 commerce'] }
+    match: ['grand central lofts', '100 commerce'] },
+  // One building at 90 Wealthy St SE, units coded by wing ("W 201", "S 303").
+  // Its commercial suites (Suite A/B/C) are not residential showings, so
+  // skipUnit leaves those emails alone, like any property we don't handle.
+  { key: 'WEALTHY_SHELDON', displayName: 'Wealthy and Sheldon',
+    match: ['wealthy and sheldon', 'wealthy & sheldon', '90 wealthy'],
+    skipUnit: /\bSuite\s+[A-C]\b/i }
 ];
 
 var SENDER_NAME = 'Spencer';
@@ -104,7 +111,7 @@ function processNewShowings_() {
   // newer_than bounds the rescan cost: non-Spencer showings on 8th Ave etc.
   // match the subject phrases but are skipped in code and left unread.
   var query = 'from:notifications@appfolio.com subject:"New Showing Assignment" is:unread newer_than:2d ' +
-    'subject:("Burton" OR "8th Ave" OR "Commerce" OR "Indian Village" OR "Eaglebrook" OR "Grand Central")';
+    'subject:("Burton" OR "8th Ave" OR "Commerce" OR "Wealthy" OR "Indian Village" OR "Eaglebrook" OR "Grand Central" OR "Sheldon")';
   var threads = GmailApp.search(query, 0, 50);
   if (threads.length === 0) return;
 
@@ -139,7 +146,7 @@ function handleShowingMessage_(message, ctx) {
   if (known.ids[message.getId()]) { message.markRead(); return; }
 
   var showing = parseShowingEmail_(message);
-  if (!showing) return; // not one of our three properties — leave it alone
+  if (!showing) return; // not one of our properties — leave it alone
 
   if (!showing.start) {
     // Deterministic — retrying won't help. Hand it over once.
@@ -209,6 +216,7 @@ function parseShowingEmail_(message) {
 
   var unitMatch = text.match(/Unit:\s*([^\n]+)/);
   var unitText = unitMatch ? unitMatch[1].trim() : '';
+  if (property.skipUnit && property.skipUnit.test(subject + '\n' + unitText)) return null;
 
   var nameMatch = text.match(/Prospect:\s*([^\n(]+)/) || text.match(/\n\s*([^\n]+?) has scheduled a showing/);
   var name = nameMatch ? nameMatch[1].trim() : '';
@@ -230,7 +238,7 @@ function parseShowingEmail_(message) {
 
 // "Date: Thursday, September 24, 2026" + "Time: 12:30pm EDT". The weekday is
 // required in the date pattern so a forwarded-message header ("Date: Wed, Sep
-// 23, 2026 at 10:50AM") can never be picked up by mistake. All three
+// 23, 2026 at 10:50AM") can never be picked up by mistake. All four
 // properties are in Michigan, so the script's own time zone (America/Detroit)
 // is the showing's time zone.
 function parseShowingStart_(text) {
@@ -255,6 +263,8 @@ function parseShowingStart_(text) {
 //   Eaglebrook showing "5993 8th Ave SW, Apt C"             guest card "Eaglebrook Apartments - 5993C"
 //   IV         showing "1966 Burton St SE Apt 32"           guest card "1966 IVA32"
 //              showing "1960 Burton St SE - 1960 IVA05 Apt 05"
+// Wealthy and Sheldon is built from AppFolio's unit codes ("W 201", "S 303",
+// "W 102 ADA") — no live email pair had been seen when it was added.
 function unitKey_(propertyKey, text) {
   if (!text) return '';
   var m;
@@ -270,6 +280,10 @@ function unitKey_(propertyKey, text) {
     m = text.match(/Commerce\s+Ave(?:nue)?\s+SW\s*(?:-|,)?\s*(?:unit|apt|#)?\.?\s*#?\s*(\d{3})\b/i) ||
         text.match(/Lofts\s*-\s*(\d{3})\b/i);
     return m ? m[1] : '';
+  }
+  if (propertyKey === 'WEALTHY_SHELDON') {
+    m = text.match(/\b([WS])\s*-?\s*([1-4]0\d)\b/i);
+    return m ? m[1].toUpperCase() + m[2] : '';
   }
   return '';
 }

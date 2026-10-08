@@ -12,15 +12,17 @@
 //      only have read access there). Submitted after the showing time:
 //      Spencer only, nothing to the prospect.
 //
-// Rules (same for all three properties today, but read per property + bedroom
+// Rules (same for every property today, but read per property + bedroom
 // count from the Requirements tab, so each can diverge without a code change):
 //   - Credit: the chosen range's LOWER bound must be >= that row's Credit
 //     value ("625 - 649" and "650 or above" pass at 625). "NO CREDIT" passes
-//     only with cosigner Yes / If needed ("If needed" adds a cosigner note to
-//     the confirmation). A cosigner never rescues an actual score below the
-//     threshold.
+//     only with cosigner Yes / If needed. A cosigner never rescues an actual
+//     score below the threshold.
 //   - Income: combined monthly gross income >= Income multiplier ("3x") x the
-//     "Min Rent by Bedroom" for the bedroom count they asked for.
+//     "Min Rent by Bedroom" for the bedroom count they asked for. Short income
+//     also passes with cosigner Yes / If needed — no income floor.
+//   - Whenever a cosigner is what carried a check, the confirmation tells the
+//     prospect one will be required and Spencer's summary names the check.
 //   - Move-in: no more than 90 days after the submission date.
 // If the Requirements tab has no row for that property + bedroom count, the
 // submission is NOT auto-failed — Spencer gets it as NEEDS REVIEW and the
@@ -174,7 +176,8 @@ function parseFormDate_(raw) {
   return m ? new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10)) : null;
 }
 
-// Returns { verdict: 'PASS' | 'FAIL' | 'REVIEW', reason, checks: [{label, ok, detail}], needsCosignerFollowup }.
+// Returns { verdict: 'PASS' | 'FAIL' | 'REVIEW', reason, checks: [{label, ok, detail}], cosignerCovers }.
+// cosignerCovers lists the checks ('credit', 'income') that only passed because of a cosigner.
 function computeScreeningResult_(a) {
   var req = getRequirements_(getPropertyKeyByDisplayName_(a.property), a.beds);
   var checks = [];
@@ -195,42 +198,50 @@ function computeScreeningResult_(a) {
       verdict: 'REVIEW',
       reason: 'no Requirements row for ' + a.property + ' / ' + a.bedroomsLabel,
       checks: checks,
-      needsCosignerFollowup: false
+      cosignerCovers: []
     };
   }
 
-  // Credit — cosigner only ever substitutes for a genuine NO CREDIT answer.
+  var hasCosigner = a.cosigner === 'Yes' || a.cosigner === 'If needed';
+  var cosignerCovers = [];
+
+  // Credit — a cosigner substitutes for a genuine NO CREDIT answer, never for
+  // an actual score below the threshold.
   var isNoCredit = /no credit/i.test(String(a.creditRange));
   var lowerBound = parseCreditRangeLowerBound_(a.creditRange);
-  var needsCosignerFollowup = false;
   var creditOk, creditDetail;
   if (isNoCredit) {
-    creditOk = a.cosigner === 'Yes' || a.cosigner === 'If needed';
-    needsCosignerFollowup = a.cosigner === 'If needed';
+    creditOk = hasCosigner;
+    if (creditOk) cosignerCovers.push('credit');
     creditDetail = 'No credit, cosigner: ' + a.cosigner + (creditOk ? '' : ' (no credit requires a cosigner)');
   } else {
     creditOk = lowerBound >= req.creditThreshold;
     creditDetail = a.creditRange + ' vs ' + req.creditThreshold + ' needed' +
-      (!creditOk && a.cosigner !== 'No' ? ' (a cosigner only applies to NO CREDIT applicants)' : '');
+      (!creditOk && a.cosigner !== 'No' ? ' (a cosigner does not cover a score below the minimum)' : '');
   }
   checks.push({ label: 'Credit ' + req.creditThreshold + '+', ok: creditOk, detail: creditDetail });
 
+  // Income — short income passes with a cosigner, however short it is.
   var incomeNeeded = req.incomeMultiplier * req.minRent;
+  var incomeMet = a.monthlyIncome >= incomeNeeded;
+  if (!incomeMet && hasCosigner) cosignerCovers.push('income');
   checks.push({
     label: 'Income ' + req.incomeMultiplier + 'x rent',
-    ok: a.monthlyIncome >= incomeNeeded,
+    ok: incomeMet || hasCosigner,
     detail: formatMoney_(a.monthlyIncome) + ' vs ' + formatMoney_(incomeNeeded) + ' needed (' +
-      req.incomeMultiplier + ' x ' + formatMoney_(req.minRent) + ' min rent, ' + a.bedroomsLabel + ')'
+      req.incomeMultiplier + ' x ' + formatMoney_(req.minRent) + ' min rent, ' + a.bedroomsLabel + ')' +
+      (incomeMet ? '' : hasCosigner ? ' — short, covered by cosigner: ' + a.cosigner : ' — short, no cosigner')
   });
 
   var failed = checks.filter(function (c) { return !c.ok; });
   return {
     verdict: failed.length === 0 ? 'PASS' : 'FAIL',
     reason: failed.length === 0
-      ? 'meets all criteria' + (needsCosignerFollowup ? ' (cosigner required — applicant said "if needed")' : '')
+      ? 'meets all criteria' + (cosignerCovers.length
+          ? ' (cosigner required for ' + cosignerCovers.join(' and ') + ' — applicant answered "' + a.cosigner + '")' : '')
       : failed.map(function (c) { return c.label + ': ' + c.detail; }).join('; '),
     checks: checks,
-    needsCosignerFollowup: needsCosignerFollowup
+    cosignerCovers: cosignerCovers
   };
 }
 
@@ -308,8 +319,12 @@ function getPropertyKeyByDisplayName_(displayName) {
 function sendConfirmationEmail_(showing, a, result) {
   var firstName = firstNameOf_(a.fullName);
   var when = formatShowingTime_(showing.ShowingStart);
-  var cosignerNote = result.needsCosignerFollowup
-    ? 'One note: since you don\'t have credit history on file yet, a cosigner will be required to move forward ' +
+  var covers = result.cosignerCovers || [];
+  var cosignerWhy = covers.length === 2 ? 'based on the credit history and income you listed'
+    : covers[0] === 'income' ? 'based on the income you listed'
+    : 'since you don\'t have credit history on file yet';
+  var cosignerNote = covers.length
+    ? 'One note: ' + cosignerWhy + ', a cosigner will be required to move forward ' +
       'with an application — it helps to have them ready by the time you apply.<br><br>'
     : '';
 

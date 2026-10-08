@@ -35,7 +35,9 @@ function makeWorld() {
     Requirements: [
       ['PropertyKey', 'Credit', 'Income', 'Beds', 'Min Rent by Bedroom'],
       ['GRAND_CENTRAL_LOFTS', 625, '3x', 0, 1000],
-      ['GRAND_CENTRAL_LOFTS', 625, '3x', 1, 1400]
+      ['GRAND_CENTRAL_LOFTS', 625, '3x', 1, 1400],
+      ['WEALTHY_SHELDON', 625, '3x', 0, 1300],
+      ['WEALTHY_SHELDON', 625, '3x', 3, '']
     ]
   };
   return w;
@@ -276,6 +278,34 @@ test('a showing at a property we do not handle is left untouched', (w, sb) => {
   eq(showings(w).length, 0, 'rows');
 });
 
+test('Wealthy and Sheldon: detected by name or address, unit codes normalize, suites skipped', (w, sb) => {
+  const parse = o => sb.parseShowingEmail_(fakeMessage(w, showingEmail(Object.assign({ mode: 'self', name: 'Dana Wells' }, o))));
+  const s = parse({ subjectUnit: '90 Wealthy Street SE - W 201', unit: '90 Wealthy Street SE - W 201 Grand Rapids, MI 49503' });
+  eq([s.property.key, s.property.displayName, s.unitKey], ['WEALTHY_SHELDON', 'Wealthy and Sheldon', 'W201'], 'by address');
+  eq(parse({ subjectUnit: 'Wealthy and Sheldon - S 108 ADA', unit: 'Wealthy and Sheldon - S 108 ADA' }).unitKey, 'S108', 'by name, ADA unit');
+  eq(sb.unitKey_('WEALTHY_SHELDON', 'New Interest on an existing guest card for Wealthy and Sheldon - S303'), 'S303', 'guest card subject');
+  eq(sb.unitKey_('WEALTHY_SHELDON', '90 Wealthy Street SE, Grand Rapids, MI 49503'), '', 'address alone gives no unit');
+  eq(parse({ subjectUnit: '90 Wealthy Street SE - Suite B', unit: '90 Wealthy Street SE - Suite B Grand Rapids, MI 49503' }), null, 'commercial suite');
+});
+test('Wealthy and Sheldon showing with its guest card: form sent', (w, sb) => {
+  w.messages.push(showingEmail({ mode: 'self', name: 'Dana Wells', subjectUnit: '90 Wealthy Street SE - W 201',
+    unit: '90 Wealthy Street SE - W 201 Grand Rapids, MI 49503' }));
+  w.messages.push(guestCard({ name: 'Dana Wells', email: 'dana.wells@gmail.com', subjectProp: 'Wealthy and Sheldon - W 201' }));
+  sb.showingWatcher();
+  eq(toProspects(w).map(s => s.to), ['dana.wells@gmail.com'], 'form recipient');
+  ok(/Wealthy and Sheldon/.test(toProspects(w)[0].subject), 'property named in subject');
+  eq(showings(w).map(r => [r.Status, r.PropertyKey]), [['FORM_SENT', 'WEALTHY_SHELDON']], 'row');
+  eq(errors(w), [], 'no errors');
+});
+test('a Wealthy and Sheldon commercial suite showing is left untouched', (w, sb) => {
+  w.messages.push(showingEmail({ mode: 'staff', name: 'Pat Doe', subjectUnit: '90 Wealthy Street SE - Suite A',
+    unit: '90 Wealthy Street SE - Suite A Grand Rapids, MI 49503' }));
+  sb.showingWatcher();
+  eq(w.sent.length, 0, 'emails sent');
+  eq(w.messages[0].unread, true, 'still unread');
+  eq(showings(w).length, 0, 'rows');
+});
+
 console.log('Pairing a showing with a guest card');
 test('self-booked with its guest card: form sent, row recorded, email marked read', (w, sb) => {
   w.messages.push(showingEmail({ mode: 'self', name: 'Chelsea Daley' }));
@@ -498,6 +528,33 @@ test('pass / fail rules', (w, sb) => {
   eq(v({ beds: 1, bedroomsLabel: '1 Bedroom', monthlyIncome: 4199 }), 'FAIL', 'income under 3x $1,400');
   eq(v({ moveIn: new Date(Date.now() + 120 * DAY) }), 'FAIL', 'move-in over 90 days');
   eq(v({ beds: 3, bedroomsLabel: '3 Bedrooms' }), 'REVIEW', 'no Requirements row');
+});
+test('a cosigner covers short income (any amount), but never a low score or a late move-in', (w, sb) => {
+  const r = o => sb.computeScreeningResult_(answers(o));
+  eq(r({ monthlyIncome: 2999, cosigner: 'Yes' }).verdict, 'PASS', 'short income + Yes');
+  eq(r({ monthlyIncome: 0, cosigner: 'If needed' }).verdict, 'PASS', '$0 income + If needed');
+  eq(r({ monthlyIncome: 2999, cosigner: 'No' }).verdict, 'FAIL', 'short income, no cosigner');
+  eq(r({ monthlyIncome: 2999, cosigner: 'Yes' }).cosignerCovers, ['income'], 'covers income');
+  eq(r({ monthlyIncome: 5000, cosigner: 'Yes' }).cosignerCovers, [], 'income met: cosigner not relied on');
+  eq(r({ monthlyIncome: 0, cosigner: 'Yes', creditRange: 'NO CREDIT - ALLOWS COSIGNER' }).cosignerCovers, ['credit', 'income'], 'covers both');
+  eq(r({ monthlyIncome: 2999, cosigner: 'Yes', creditRange: '600 - 624' }).verdict, 'FAIL', 'low score still fails');
+  eq(r({ monthlyIncome: 2999, cosigner: 'Yes', moveIn: new Date(Date.now() + 120 * DAY) }).verdict, 'FAIL', 'late move-in still fails');
+  ok(/cosigner required for income/.test(r({ monthlyIncome: 2999, cosigner: 'Yes' }).reason), 'reason names the check');
+});
+test('confirmation email says a cosigner is required only when one was relied on', (w, sb) => {
+  const showing = { Property: 'Grand Central Lofts', Unit: '100 Commerce Ave SW - 207', ShowingStart: showingStart(3) };
+  const send = o => { const a = answers(o); sb.sendConfirmationEmail_(showing, a, sb.computeScreeningResult_(a)); return w.sent[w.sent.length - 1].html; };
+  ok(!/cosigner/.test(send({})), 'no note when not needed');
+  ok(/based on the income you listed, a cosigner will be required/.test(send({ monthlyIncome: 100, cosigner: 'Yes' })), 'income note');
+  ok(/credit history on file yet, a cosigner will be required/.test(send({ creditRange: 'NO CREDIT - ALLOWS COSIGNER', cosigner: 'If needed' })), 'credit note');
+  ok(/credit history and income you listed, a cosigner will be required/.test(send({ monthlyIncome: 0, creditRange: 'NO CREDIT - ALLOWS COSIGNER', cosigner: 'Yes' })), 'both');
+});
+test('Wealthy and Sheldon scores from its own rows; a blank rent goes to review', (w, sb) => {
+  const v = o => sb.computeScreeningResult_(answers(Object.assign({ property: 'Wealthy and Sheldon' }, o))).verdict;
+  eq(v({ monthlyIncome: 3900 }), 'PASS', '3x $1,300');
+  eq(v({ monthlyIncome: 3899 }), 'FAIL', 'under 3x $1,300');
+  eq(v({ beds: 3, bedroomsLabel: '3 Bedrooms' }), 'REVIEW', 'blank rent row');
+  eq(v({ beds: 2, bedroomsLabel: '2 Bedrooms' }), 'REVIEW', 'no row');
 });
 test('Requirements spreadsheet unreachable: NEEDS REVIEW, nothing created, saved ID untouched', (w, sb) => {
   w.failSheetOpen = UNITS_ID;

@@ -1,5 +1,5 @@
-// Builds/refreshes the shared pre-screening Google Form used across all three
-// Spencer properties. Run buildPreScreenForm() manually from the Apps Script
+// Builds/refreshes the shared pre-screening Google Form used across all of
+// Spencer's properties. Run buildPreScreenForm() manually from the Apps Script
 // editor (select it in the function dropdown, click Run) whenever PROPERTIES
 // (Code.js) or the questions below change — safe to re-run. Full Name / Email / Property
 // are reused, never recreated, so their entry IDs (and every already-sent
@@ -50,8 +50,8 @@ function buildPreScreenForm() {
     .setChoiceValues(BEDROOM_CHOICES.map(function (b) { return b.label; }));
   form.addDateItem().setTitle(Q_MOVE_IN).setRequired(true);
   // Bands split exactly at 625 so no band straddles the current threshold.
-  // "NO CREDIT" is its own option — a cosigner only ever rescues THIS answer,
-  // never an actual-but-insufficient score (see computeScreeningResult_).
+  // "NO CREDIT" is its own option — a cosigner rescues THIS answer (and short
+  // income), never an actual-but-insufficient score (see computeScreeningResult_).
   form.addMultipleChoiceItem().setTitle(Q_CREDIT).setRequired(true)
     .setChoiceValues(['650 or above', '625 - 649', '600 - 624', 'Below 600', 'NO CREDIT - ALLOWS COSIGNER']);
   form.addTextItem().setTitle(Q_INCOME).setRequired(true)
