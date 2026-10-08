@@ -64,6 +64,18 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
   - Lawn care and Snow removal are back as two separate options in "Which of
     these services are in place today?", each with its own provider
     question. Trash provider stays removed.
+- Fourth round, after Matt's first test run on 2026-10-08:
+  - "Are there tenants currently living there?" options are now exactly
+    Yes / No / Some.
+  - Tenants table: rent, deposit and balance columns are plain text (the
+    number spinners would not accept input); an added rule hides the table
+    when the owner chooses to upload a rent roll.
+- Gaps found against Alaina's 624 Veto utility set-up emails (not on the
+  form, proposed to Matt): owner signatures on the Consumers consent, DTE
+  ATS and GR water agreement forms; subsidized units Y/N + count and tax
+  exempt Y/N (Consumers landlord portal sheet); a date (tenant move-in /
+  ownership or requested effective date); unit numbers for multi-unit DTE
+  enrollment (only in the optional Unit Details section).
 - Shelved: DocuSign completion triggering the form and prefilling it from
   the signed management contract. GPM has no DocuSign template yet; revisit
   when it does.
