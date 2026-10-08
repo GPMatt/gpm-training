@@ -55,8 +55,18 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     occupied properties deliberately see no tenant questions. The connector
     could not put a condition on the "Existing Tenant Information" heading,
     so the heading itself may still show with nothing under it.
-- Not built: DocuSign completion triggering the form and prefilling it from
-  the signed management contract.
+- Third round, agreed with Matt on 2026-10-08:
+  - Mortgage question reworded to "Are you interested in having GPM pay the
+    mortgage on your behalf?" (Yes — I'd like to discuss it / No — I'll keep
+    paying it myself); GPM does not take over mortgage payments for everyone.
+  - Prior management = "Another property management company" reveals three
+    required fields: previous management company name, email, phone number.
+  - Lawn care and Snow removal are back as two separate options in "Which of
+    these services are in place today?", each with its own provider
+    question. Trash provider stays removed.
+- Shelved: DocuSign completion triggering the form and prefilling it from
+  the signed management contract. GPM has no DocuSign template yet; revisit
+  when it does.
 - Still Claude's guesses, awaiting Laura: the grid's "Not applicable"
   column, tax escrow "Not sure", "Some units occupied", market-rent "No" wording, dropdown
   choices (heating, water heater, laundry, account type, prior management,
