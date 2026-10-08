@@ -70,12 +70,28 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
   - Tenants table: rent, deposit and balance columns are plain text (the
     number spinners would not accept input); an added rule hides the table
     when the owner chooses to upload a rent roll.
-- Gaps found against Alaina's 624 Veto utility set-up emails (not on the
-  form, proposed to Matt): owner signatures on the Consumers consent, DTE
-  ATS and GR water agreement forms; subsidized units Y/N + count and tax
-  exempt Y/N (Consumers landlord portal sheet); a date (tenant move-in /
-  ownership or requested effective date); unit numbers for multi-unit DTE
-  enrollment (only in the optional Unit Details section).
+- Fifth round, after Matt's second test run on 2026-10-08:
+  - Added rule hides "Upload rent roll / tenant ledger" when the owner
+    chooses "Enter tenants here" (the two were both showing).
+  - Security deposit rules repaired: a conflicting rule that hid the typed
+    account / routing number fields was deleted. On Yes the owner sees the
+    provide-method question, account type and the second signer question;
+    the number fields show on "Enter account and routing number".
+  - New in The Property, for Alaina's utility set-up (624 Veto emails):
+    - "Unit numbers or letters at this address": required, shown when the
+      unit count is above 1.
+    - "Closing date (the date you took ownership)": required, shown when
+      Newly purchased AND occupied (Yes or Some). Closing date was Claude's
+      pick; Alaina to confirm the utilities don't want tenant move-in date.
+    - "Are any units subsidized (Section 8 or another housing assistance
+      program)?" Yes/No, shown when occupied; on Yes: "How many units are
+      subsidized?" (required) and optional "Subsidy program and housing
+      agency contact, if known".
+    - "Is the property tax exempt?" Yes/No, always shown.
+- Still not on the form from Alaina's emails: owner signatures on the
+  Consumers consent, DTE ATS and GR water agreement forms. Proposed to Matt
+  as a DocuSign packet with the contract rather than a Jotform field; not
+  decided.
 - Shelved: DocuSign completion triggering the form and prefilling it from
   the signed management contract. GPM has no DocuSign template yet; revisit
   when it does.
