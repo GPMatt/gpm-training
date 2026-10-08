@@ -4,6 +4,17 @@ Pulled from Jotform on 2026-10-08. Question titles only: field types, answer
 options and conditional logic are not included (the connector doesn't return
 them), so this is enough to rebuild the forms by hand, not to restore them.
 
+## Rebuild on 2026-10-08
+
+- Form ID: 262803708612052
+- URL: https://form.jotform.com/262803708612052
+- Rebuilt from the question list below in the Jotform account the connector
+  now reaches (the original 262517205694056 is not in that account).
+- Question titles match the original. Answer options and show/hide logic are
+  NOT the original's: they were rebuilt from Laura's 2026-09-10 reply on the
+  "New Client Onboarding" email thread where she specified them, and are
+  best guesses everywhere else.
+
 ## GPM New Client Onboarding — Owner Intake (current version)
 
 - Form ID: 262517205694056
