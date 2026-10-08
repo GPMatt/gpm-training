@@ -137,20 +137,40 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
       and a member of the Green Property Management team will be in
       touch." (not browser-verified).
     - Orphaned rules pointing at deleted fields were cleaned out.
-  - Open at time of writing:
-    - Rule "separate security deposit account = No -> hide upload /
-      account number / routing number" must be deleted by hand in the
-      editor (the builder refused four times). While it exists, answering
-      Yes shows all three fields before a method is picked.
-    - Deposit toggle-back: pick a method, then switch to No, and the
-      number or upload fields stay visible.
-    - "Tenant list" loads with no rows (an "Add Row" button) and is not
+  - Final tester pass (about 4:00 PM, 113 fields, 62 conditions, no stale
+    rules), after Matt deleted the "= No -> hide upload / account number /
+    routing number" rule by hand:
+    - Real end-to-end submit went through ("CLAUDE TEST D Ignore Me":
+      entity, 4 units, self-managed, tenants and units typed in the tables,
+      deposit account with typed numbers, 5 services).
+    - Thank-you page shows the GPM text. The "Now create your own Jotform"
+      ad still shows under it (a plan/branding setting, not a rule).
+    - Deposit section: answering Yes now shows only the method question
+      until a method is picked. Required checks work.
+    - "How will you give tenant details" and "Tenant list" are both
+      required now, and neither blocks owners who never see them.
+    - Phone width (390px) clean for the deposit and tenant sections.
+  - Open after the final pass:
+    - Deposit toggle-back: answer Yes, pick "enter numbers", leave them
+      empty, switch to No, and the account and routing fields stay on
+      screen and block submit as required. With typed numbers or the
+      upload path the fields stay visible but do not block. Fix: make the
+      three method rules two-term ("separate account = Yes AND method =
+      ..."), as the upload-required rule already is.
+    - "Tenant list" loads with no rows (an "Add Row" button) while being
       required.
+    - Before a tenant-details method is picked, the rent roll upload and
+      the Tenant list both show, so an owner who skips the method question
+      gets three required errors at once.
     - Unit count and subsidized count accept decimals; subsidized count is
       not capped at the unit count. Deposit account number accepts a
-      hyphen.
+      hyphen. Rent fields accept letters. "None of these" can be ticked
+      with other services. Deposit account type and signer are optional.
     - Warranty questions sit after the HOA pair at the end of the vendor
-      section.
+      section. The "Existing Tenant Information" heading shows for every
+      owner.
+    - Six test submissions in the inbox to delete: "CLAUDE TEST Ignore Me"
+      and A, B, C, D, plus Matt's own two.
   - Jotform rule behaviour learned here: a "hide" rule SHOWS its targets
     whenever it is false, so a hide rule and a show rule on the same field
     fight. Prefer show-only rules with every needed term.
