@@ -5,17 +5,15 @@
 // Grand Rapids water agreement). It does NOT fill the PDFs and does not
 // collect a signature yet.
 //
-// Flow: Jotform's "Onboarding form submitted" notification lands in this
-// account's inbox -> checkInbox() (every 5 minutes) sees it -> fetch every
-// not-yet-handled submission from Jotform's API -> one private Drive folder
-// per submission (details doc, photo ID, rent roll) -> email a link to
-// NOTIFY_EMAIL.
+// Flow: Jotform webhook -> doPost -> fetch the submission from Jotform's API
+// -> one private Drive folder per submission (details doc, photo ID, rent
+// roll) -> email a link to NOTIFY_EMAIL.
 //
 // Security choices, on purpose:
-// - There is no web address to call. The notification email is only a
-//   nudge: nothing is read from its body, and the answers come from
-//   Jotform's API using the stored key. A spoofed email can at worst make
-//   the script look for new submissions and find none.
+// - The webhook body is never trusted. Only the submission ID is taken from
+//   it; the answers come from Jotform's API using the stored key, and the
+//   submission must belong to JOTFORM_FORM_ID. A forged POST can at worst
+//   make the script re-read a real submission it has already handled.
 // - The email carries no SSN / EIN and no ID attachment, only a folder link.
 // - The SSN / EIN is written once, into the details doc, inside a folder
 //   that is private until shareParentFolder() is run.
@@ -24,6 +22,8 @@
 //   JOTFORM_API_KEY   required. A Jotform API key that can read submissions.
 //   JOTFORM_FORM_ID   optional, defaults to the v2 intake form.
 //   JOTFORM_API_BASE  optional, defaults to https://api.jotform.com
+//   WEBHOOK_TOKEN     written by setup(). The webhook URL must end
+//                     ?token=<it>, or the POST is refused.
 //   NOTIFY_EMAIL      who gets the handoff email. Defaults to ADMIN_EMAIL so
 //                     nothing reaches Alaina until this is set on purpose.
 //   ADMIN_EMAIL       who hears about failures. Defaults to matt@.
@@ -31,10 +31,10 @@
 //   PARENT_FOLDER_ID  written by setup().
 //   TEST_SUBMISSION_ID  used by the two test functions at the bottom.
 //
-// First run: add JOTFORM_API_KEY, then run setup(). setup() marks every
-// submission already on the form as handled, so only submissions made after
-// it produce a handoff, and installs the 5-minute inbox check. Run it from
-// the account that receives the Jotform notification email.
+// First run: add JOTFORM_API_KEY, run setup(), then paste the web app's
+// /exec URL plus the ?token=... that setup() logs into the form's
+// Settings -> Integrations -> WebHooks. After any code change the web app
+// only updates on `clasp deploy -i <deploymentId>`, not on `clasp push`.
 
 const DEFAULT_FORM_ID = '262804649990066';
 const DEFAULT_API_BASE = 'https://api.jotform.com';
@@ -46,8 +46,6 @@ const DEFAULT_SHARE_WITH = [
   'automation@greenpropertymgt.com'
 ].join(',');
 const PARENT_FOLDER_NAME = 'P15 Utility Set-Up Handoffs';
-const TRIGGER_QUERY = 'from:noreply@jotform.com subject:"Onboarding form submitted" newer_than:7d';
-const HANDLED_LABEL = 'P15 Handoff Done';
 
 // Which form questions feed the handoff, matched on the question's label
 // because the labels are all we have a record of. If a label is reworded on
@@ -84,32 +82,22 @@ const UPLOADS = [
 
 // ---------------------------------------------------------------- entry points
 
-// Runs every 5 minutes. Does nothing unless a Jotform notification for this
-// form is sitting in the inbox without the handled label.
-function checkInbox() {
-  const formId = prop_('JOTFORM_FORM_ID') || DEFAULT_FORM_ID;
-  const label = GmailApp.getUserLabelByName(HANDLED_LABEL) || GmailApp.createLabel(HANDLED_LABEL);
-  const threads = GmailApp.search(TRIGGER_QUERY + ' -label:' + HANDLED_LABEL.replace(/ /g, '-'), 0, 20)
-    .filter(t => t.getMessages().some(m => String(m.getHeader('X-Related-FormID')).trim() === formId));
-  if (!threads.length) return;
-
-  const ids = newSubmissionIds_();
-  ids.forEach(id => {
-    try {
-      handleSubmission_(id);
-    } catch (err) {
-      // Parked, not retried every 5 minutes. processTestSubmission() reruns one by hand.
-      PropertiesService.getScriptProperties().setProperty('failed_' + id, String(err.message || err).slice(0, 200));
-      notifyAdmin_(id, err);
-    }
-  });
-
-  // If the email beat the submission into Jotform's API, leave it unlabelled
-  // and look again next run, but not forever.
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  threads.forEach(t => {
-    if (ids.length || t.getLastMessageDate().getTime() < cutoff) t.addLabel(label);
-  });
+function doPost(e) {
+  const params = (e && e.parameter) || {};
+  const id = String(params.submissionID || '');
+  // Stray traffic to a public URL is expected; refuse it without emailing anyone.
+  const token = prop_('WEBHOOK_TOKEN');
+  if (!token || params.token !== token) {
+    console.warn('Refused a POST with a missing or wrong token.');
+    return ContentService.createTextOutput('ok');
+  }
+  try {
+    if (!/^\d+$/.test(id)) throw new Error('Webhook had no usable submissionID.');
+    handleSubmission_(id);
+  } catch (err) {
+    notifyAdmin_(id, err);
+  }
+  return ContentService.createTextOutput('ok');
 }
 
 function setup() {
@@ -120,18 +108,11 @@ function setup() {
     folder.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
     props.setProperty('PARENT_FOLDER_ID', folder.getId());
   }
-  if (!prop_('BASELINE_SET')) {
-    const existing = newSubmissionIds_();
-    existing.forEach(id => props.setProperty('done_' + id, 'baseline'));
-    props.setProperty('BASELINE_SET', new Date().toISOString());
-    Logger.log('Marked ' + existing.length + ' existing submission(s) as already handled.');
+  if (!prop_('WEBHOOK_TOKEN')) {
+    props.setProperty('WEBHOOK_TOKEN', Utilities.getUuid().replace(/-/g, ''));
   }
-
-  ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === 'checkInbox')
-    .forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('checkInbox').timeBased().everyMinutes(5).create();
   Logger.log('Parent folder: ' + DriveApp.getFolderById(prop_('PARENT_FOLDER_ID')).getUrl());
+  Logger.log('Add this to the end of the web app /exec URL for the Jotform webhook: ?token=' + prop_('WEBHOOK_TOKEN'));
 }
 
 // Go-live step, kept out of setup() because Drive emails everyone it adds.
@@ -179,24 +160,6 @@ function handleSubmission_(id) {
   } finally {
     lock.releaseLock();
   }
-}
-
-// Submission IDs on the form that have neither been handled nor parked.
-function newSubmissionIds_() {
-  const base = (prop_('JOTFORM_API_BASE') || DEFAULT_API_BASE).replace(/\/$/, '');
-  const formId = prop_('JOTFORM_FORM_ID') || DEFAULT_FORM_ID;
-  const resp = UrlFetchApp.fetch(base + '/form/' + formId + '/submissions?limit=100&orderby=created_at', {
-    headers: { APIKEY: requireProp_('JOTFORM_API_KEY') },
-    muteHttpExceptions: true
-  });
-  if (resp.getResponseCode() !== 200) {
-    throw new Error('Jotform API returned ' + resp.getResponseCode() + ' listing submissions.');
-  }
-  const props = PropertiesService.getScriptProperties().getProperties();
-  return (JSON.parse(resp.getContentText()).content || [])
-    .filter(sub => sub.status !== 'DELETED')
-    .map(sub => String(sub.id))
-    .filter(id => !props['done_' + id] && !props['failed_' + id]);
 }
 
 function fetchSubmission_(id) {
@@ -474,7 +437,6 @@ function requireProp_(name) {
 function processTestSubmission() {
   const id = requireProp_('TEST_SUBMISSION_ID');
   PropertiesService.getScriptProperties().deleteProperty('done_' + id);
-  PropertiesService.getScriptProperties().deleteProperty('failed_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id), null, 2));
 }
 
