@@ -150,13 +150,28 @@ them), so this is enough to rebuild the forms by hand, not to restore them.
     - "How will you give tenant details" and "Tenant list" are both
       required now, and neither blocks owners who never see them.
     - Phone width (390px) clean for the deposit and tenant sections.
+  - Deposit toggle-back fix (about 4:35 PM, tester-verified, 60 conditions):
+    answering Yes, picking a method, then switching to No used to leave the
+    method fields on screen, and with "enter numbers" left empty it blocked
+    submit. Now switching to No hides everything and submits. The five
+    deposit rules are:
+    - separate account = Yes -> show method, account type, signer.
+    - separate account = Yes AND method = enter numbers -> show account
+      number and routing number.
+    - separate account = Yes AND method = upload -> show the upload.
+    - separate account = Yes AND method = upload -> require the upload.
+    - method = upload -> unrequire account number and routing number.
+    Account number and routing number are required at field level, so no
+    require rule is needed for them; hidden required fields do not block.
+    How it got there: the builder's first attempt rewrote the old require
+    rule into the two-term show rule instead of editing the show rule.
+    Naming the rule by its condition ID (from the tester's dump) is what
+    made the later deletes and the edit land on the right rule.
   - Open after the final pass:
-    - Deposit toggle-back: answer Yes, pick "enter numbers", leave them
-      empty, switch to No, and the account and routing fields stay on
-      screen and block submit as required. With typed numbers or the
-      upload path the fields stay visible but do not block. Fix: make the
-      three method rules two-term ("separate account = Yes AND method =
-      ..."), as the upload-required rule already is.
+    - Not checked: when an owner types deposit numbers and then switches
+      to upload or to No, the typed numbers are still in the hidden inputs.
+      Whether they reach the submission depends on the form's "clear
+      hidden field values" setting.
     - "Tenant list" loads with no rows (an "Add Row" button) while being
       required.
     - Before a tenant-details method is picked, the rent roll upload and
