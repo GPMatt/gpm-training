@@ -61,7 +61,8 @@ const FIELDS = [
   { key: 'phone',           label: 'Owner phone',                match: /^phone number/i, required: true },
   { key: 'email',           label: 'Owner email',                match: /^e-?mail address/i, required: true },
   { key: 'ownerMailing',    label: 'Owner mailing address',      match: /^mailing address/i },
-  { key: 'contactPref',     label: 'Preferred contact method',   match: /prefer we contact/i },
+  { key: 'contactPref',     label: 'Contact method, first choice',  match: /first choice for how we contact/i },
+  { key: 'contactPref2',    label: 'Contact method, second choice', match: /second choice for how we contact/i },
   { key: 'propertyAddress', label: 'Property (service) address', match: /^property address/i, required: true },
   { key: 'unitCount',       label: 'Number of units',            match: /^number of units/i, required: true },
   { key: 'occupied',        label: 'Tenants living there now',   match: /tenants currently living/i },
@@ -361,7 +362,7 @@ function writeDetailsDoc_(data, notes, files, folder, id) {
   notes.forEach(n => body.appendListItem(n));
 
   section('Owner', fieldRows_(v, ['ownerName', 'signingAs', 'entityName', 'ssn', 'ein', 'phone', 'email',
-    'ownerMailing', 'contactPref']));
+    'ownerMailing', 'contactPref', 'contactPref2']));
   section('Property', fieldRows_(v, ['propertyAddress', 'unitCount', 'occupied', 'priorMgmt', 'closingDate',
     'subsidized', 'subsidizedCount', 'subsidyProgram', 'taxExempt']));
   section('Utilities and units', fieldRows_(v, ['whoPays', 'unitList', 'tenantList']));
