@@ -242,7 +242,25 @@ function extract_(submission) {
     if (!hit.length && u.required) missing.push(u.label + ' upload');
   });
 
-  return { values: values, uploads: uploads, missing: missing, createdAt: submission.created_at || '' };
+  // The two add-a-row lists also go into the doc as real tables.
+  const tables = {};
+  ['unitList', 'tenantList'].forEach(key => {
+    const f = FIELDS.filter(x => x.key === key)[0];
+    const hit = answers.filter(a => a.type !== 'control_fileupload' && f.match.test(labelOf(a)))[0];
+    tables[key] = hit ? listRows_(hit.answer) : [];
+  });
+
+  return { values: values, uploads: uploads, tables: tables, missing: missing, createdAt: submission.created_at || '' };
+}
+
+// Rows of an add-a-row list as plain objects, or [] if it is not in that shape.
+function listRows_(v) {
+  if (typeof v === 'string' && /^\s*\[/.test(v)) {
+    try { v = JSON.parse(v); } catch (e) { return []; }
+  }
+  if (!Array.isArray(v)) return [];
+  return v.filter(r => r && typeof r === 'object' && !Array.isArray(r)
+    && Object.keys(r).some(k => String(r[k] === null || r[k] === undefined ? '' : r[k]).trim()));
 }
 
 function answerText_(a) {
@@ -407,6 +425,7 @@ function writeDetailsDoc_(data, notes, files, folder, id) {
   const v = data.values;
   const doc = DocumentApp.create('Utility set-up details - ' + (v.propertyAddress || id).split(',')[0]);
   const body = doc.getBody();
+  body.setPageWidth(792).setPageHeight(612); // landscape, so the tenant table fits
   const section = (heading, rows) => {
     body.appendParagraph(heading).setHeading(DocumentApp.ParagraphHeading.HEADING2);
     body.appendTable(rows.map(r => [r[0], r[1] || 'Not provided']));
@@ -423,13 +442,31 @@ function writeDetailsDoc_(data, notes, files, folder, id) {
     'ownerMailing', 'contactPref', 'contactPref2']));
   section('Property', fieldRows_(v, ['propertyAddress', 'unitCount', 'occupied', 'priorMgmt', 'closingDate',
     'subsidized', 'subsidizedCount', 'subsidyProgram', 'taxExempt']));
-  section('Utilities and units', fieldRows_(v, ['whoPays', 'unitList', 'tenantList']));
+  section('Utilities', fieldRows_(v, ['whoPays']));
+  listSection_(body, 'Unit list (owner-entered)', data.tables.unitList, v.unitList);
+  listSection_(body, 'Tenant list (owner-entered)', data.tables.tenantList, v.tenantList);
   section('Files in this folder', UPLOADS.map(u => [u.label,
     files.copied[u.key].map(f => f.getName()).join('\n') || 'None provided']));
 
   doc.saveAndClose();
   DriveApp.getFileById(doc.getId()).moveTo(folder);
   return doc;
+}
+
+// One table row per unit or tenant; falls back to plain text if the list
+// did not arrive as rows.
+function listSection_(body, heading, rows, fallbackText) {
+  body.appendParagraph(heading).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  if (!rows.length) {
+    body.appendParagraph(fallbackText || 'Not provided');
+    return;
+  }
+  const cols = [];
+  rows.forEach(r => Object.keys(r).forEach(k => { if (cols.indexOf(k) === -1) cols.push(k); }));
+  const cell = x => (x === null || x === undefined) ? '' : String(x);
+  const table = body.appendTable([cols].concat(rows.map(r => cols.map(c => cell(r[c])))));
+  table.editAsText().setFontSize(9);
+  table.getRow(0).editAsText().setBold(true);
 }
 
 function fieldRows_(values, keys) {
@@ -516,6 +553,28 @@ function processTestSubmission() {
   const id = testSubmissionId_();
   PropertiesService.getScriptProperties().deleteProperty('done_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id), null, 2));
+}
+
+// Rewrites the details doc for the test submission inside the folder it
+// already has. Sends no email and copies no files, so it is safe to run
+// after a change to how the doc is laid out.
+function rebuildTestDoc() {
+  const id = testSubmissionId_();
+  const folderId = prop_('done_' + id);
+  if (!folderId || folderId === 'baseline') throw new Error('Submission ' + id + ' has no handoff folder yet.');
+  const folder = DriveApp.getFolderById(folderId);
+  const data = extract_(fetchSubmission_(id));
+
+  const files = { copied: {}, failed: [] };
+  UPLOADS.forEach(u => { files.copied[u.key] = []; });
+  const existing = folder.getFiles();
+  while (existing.hasNext()) {
+    const f = existing.next();
+    if (f.getName().indexOf('Utility set-up details') === 0) { f.setTrashed(true); continue; }
+    UPLOADS.forEach(u => { if (f.getName().indexOf(u.label + ' - ') === 0) files.copied[u.key].push(f); });
+  }
+  const doc = writeDetailsDoc_(data, filingNotes_(data, files), files, folder, id);
+  Logger.log('Rebuilt, no email sent: ' + doc.getUrl());
 }
 
 // Dry run: logs which questions matched and which did not. Writes nothing,
