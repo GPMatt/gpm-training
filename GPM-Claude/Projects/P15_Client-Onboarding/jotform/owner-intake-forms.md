@@ -4,6 +4,42 @@ Pulled from Jotform on 2026-10-08. Question titles only: field types, answer
 options and conditional logic are not included (the connector doesn't return
 them), so this is enough to rebuild the forms by hand, not to restore them.
 
+## v2 "one size fits all" form — 2026-10-08
+
+- Form ID: 262804649990066
+- URL: https://form.jotform.com/262804649990066
+- Title: GPM New Client Onboarding — Owner Intake v2
+- Sent AFTER the management agreement is signed (contract goes out by
+  DocuSign first), so the closing text no longer promises an agreement.
+- Changes from the rebuild below, all agreed with Matt on 2026-10-08:
+  - Occupancy asked once (in The Property); it drives the tenant section and
+    the vacancy-dependent leasing questions.
+  - SSN shown to individuals, EIN / Tax ID shown to entities.
+  - Utilities: checklist of which utilities serve the property, then "who
+    gets the bill" only for those checked.
+  - Security deposit account: "Not applicable — I don't have a separate
+    security deposit account" option.
+  - Tenants: add-a-row table (one row per tenant). 1 unit goes straight to
+    the table; 2+ units choose between uploading a rent roll and the table.
+  - New optional Unit Details section: add-a-row table (unit, beds, baths,
+    sq ft, amenities) or spreadsheet upload for many units.
+  - "Any…?" questions are Yes/No with a details box on Yes (deferred
+    maintenance, major projects, code violations, payment plans, notices,
+    concessions, warranties).
+  - Vendors: checklist of services in place, provider field per checked
+    service; contracts questions hidden when none. Elevator/fire/security
+    question only for 2+ units. HOA gated by Yes/No.
+  - No mortgage skips lender, mortgage-payment and escrow questions.
+  - "Appliances supplied by owner" sits under Physical Property.
+  - Added "Any details about the property that would be helpful for future
+    tenants?"; photo ID upload says a clear photo is necessary.
+  - Operating voided check stays optional. Photo ID stays last.
+- Still Claude's guesses, awaiting Laura: utility-account options, tax escrow
+  "Not sure", "Some units occupied", market-rent "No" wording, dropdown
+  choices (heating, water heater, laundry, account type, prior management,
+  referral source), date of birth for entity signers.
+- Decided but not built: repeat owners get their own separate form.
+
 ## Rebuild on 2026-10-08
 
 - Form ID: 262803708612052
