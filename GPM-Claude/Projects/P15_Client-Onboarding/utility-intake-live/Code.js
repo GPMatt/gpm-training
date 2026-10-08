@@ -29,7 +29,8 @@
 //   ADMIN_EMAIL       who hears about failures. Defaults to matt@.
 //   SHARE_WITH        comma-separated viewers for shareParentFolder().
 //   PARENT_FOLDER_ID  written by setup().
-//   TEST_SUBMISSION_ID  used by the two test functions at the bottom.
+//   TEST_SUBMISSION_ID  optional. The two test functions at the bottom use
+//                     it, or the form's newest submission when it is unset.
 //
 // First run: add JOTFORM_API_KEY, run setup(), then paste the web app's
 // /exec URL plus the ?token=... that setup() logs into the form's
@@ -433,9 +434,27 @@ function requireProp_(name) {
 
 // ---------------------------------------------------------------- testing
 
-// Runs the whole handoff for TEST_SUBMISSION_ID, even if it ran before.
+function testSubmissionId_() {
+  const fixed = prop_('TEST_SUBMISSION_ID');
+  if (fixed) return fixed;
+  const base = (prop_('JOTFORM_API_BASE') || DEFAULT_API_BASE).replace(/\/$/, '');
+  const formId = prop_('JOTFORM_FORM_ID') || DEFAULT_FORM_ID;
+  const resp = UrlFetchApp.fetch(base + '/form/' + formId + '/submissions?limit=1&orderby=created_at', {
+    headers: { APIKEY: requireProp_('JOTFORM_API_KEY') },
+    muteHttpExceptions: true
+  });
+  if (resp.getResponseCode() !== 200) {
+    throw new Error('Jotform API returned ' + resp.getResponseCode() + ' listing submissions.');
+  }
+  const newest = (JSON.parse(resp.getContentText()).content || [])[0];
+  if (!newest) throw new Error('The form has no submissions to test with.');
+  Logger.log('Using the newest submission: ' + newest.id + ' (' + newest.created_at + ')');
+  return String(newest.id);
+}
+
+// Runs the whole handoff for the test submission, even if it ran before.
 function processTestSubmission() {
-  const id = requireProp_('TEST_SUBMISSION_ID');
+  const id = testSubmissionId_();
   PropertiesService.getScriptProperties().deleteProperty('done_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id), null, 2));
 }
@@ -443,7 +462,7 @@ function processTestSubmission() {
 // Dry run: logs which questions matched and which did not. Writes nothing,
 // sends nothing, and logs labels only, never answers.
 function inspectTestSubmission() {
-  const submission = fetchSubmission_(requireProp_('TEST_SUBMISSION_ID'));
+  const submission = fetchSubmission_(testSubmissionId_());
   const data = extract_(submission);
   FIELDS.forEach(f => Logger.log((data.values[f.key] ? 'answered  ' : 'empty     ') + f.label));
   UPLOADS.forEach(u => Logger.log(data.uploads[u.key].length + ' file(s)  ' + u.label));
