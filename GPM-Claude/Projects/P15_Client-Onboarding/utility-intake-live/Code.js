@@ -1,22 +1,31 @@
-// P15 Client Onboarding — utility set-up handoff
+// P15 Client Onboarding — utility set-up handoff and full intake packet
 //
-// When an owner submits the Jotform intake form, this hands Alaina what she
-// needs to file the three utility forms by hand (Consumers consent, DTE ATS,
-// Grand Rapids water agreement). It does NOT fill the PDFs and does not
-// collect a signature yet.
+// When an owner submits the Jotform intake form, this does two things:
+//
+// 1. Utility handoff. Hands Alaina what she needs to file the three utility
+//    forms by hand (Consumers consent, DTE ATS, Grand Rapids water
+//    agreement). It does NOT fill the PDFs and does not collect a signature
+//    yet.
+// 2. Full packet. Hands Blake and Laura the whole submission: every answered
+//    question and every upload.
 //
 // Flow: Jotform webhook -> doPost -> fetch the submission from Jotform's API
 // -> one private Drive folder per submission (details doc, photo ID, rent
-// roll) -> email a link to NOTIFY_EMAIL.
+// roll) -> email a link to NOTIFY_EMAIL; then a second private folder under
+// a different parent (full doc, all uploads) -> email a link to
+// FULL_NOTIFY_EMAIL. The two are separate so that Alaina's folder never
+// holds the bank details, and one failing does not hold up the other.
 //
 // Security choices, on purpose:
 // - The webhook body is never trusted. Only the submission ID is taken from
 //   it; the answers come from Jotform's API using the stored key, and the
 //   submission must belong to JOTFORM_FORM_ID. A forged POST can at worst
 //   make the script re-read a real submission it has already handled.
-// - The email carries no SSN / EIN and no ID attachment, only a folder link.
-// - The SSN / EIN is written once, into the details doc, inside a folder
-//   that is private until shareParentFolder() is run.
+// - The emails carry no SSN / EIN, no bank numbers and no attachments, only
+//   a folder link.
+// - The SSN / EIN is written into the details doc, and again with the bank
+//   numbers into the full doc, each inside a folder that is private until
+//   its share function is run.
 //
 // Script Properties (Project Settings -> Script Properties):
 //   JOTFORM_API_KEY   required. A Jotform API key that can read submissions.
@@ -29,6 +38,10 @@
 //   ADMIN_EMAIL       who hears about failures. Defaults to matt@.
 //   SHARE_WITH        comma-separated viewers for shareParentFolder().
 //   PARENT_FOLDER_ID  written by setup().
+//   FULL_NOTIFY_EMAIL who gets the full packet email. Defaults to ADMIN_EMAIL
+//                     until shareFullParentFolder() sets it to Blake and Laura.
+//   FULL_SHARE_WITH   comma-separated viewers for shareFullParentFolder().
+//   FULL_PARENT_FOLDER_ID  written the first time it is needed.
 //   TEST_SUBMISSION_ID  optional. The two test functions at the bottom use
 //                     it, or the form's newest submission when it is unset.
 //
@@ -47,6 +60,14 @@ const DEFAULT_SHARE_WITH = [
   'automation@greenpropertymgt.com'
 ].join(',');
 const PARENT_FOLDER_NAME = 'P15 Utility Set-Up Handoffs';
+const DEFAULT_FULL_NOTIFY_EMAIL = 'blake@greenpropertymgt.com,laura@greenpropertymgt.com';
+const DEFAULT_FULL_SHARE_WITH = [
+  'blake@greenpropertymgt.com',
+  'laura@greenpropertymgt.com',
+  'matt@greenpropertymgt.com',
+  'automation@greenpropertymgt.com'
+].join(',');
+const FULL_PARENT_FOLDER_NAME = 'P15 Full Intake Packets';
 
 // Which form questions feed the handoff, matched on the question's label
 // because the labels are all we have a record of. If a label is reworded on
@@ -140,6 +161,7 @@ function webhookStatus() {
   Logger.log('Last accepted: ' + (prop_('LAST_ACCEPTED') || 'never'));
   Logger.log('Last refused:  ' + (prop_('LAST_REFUSED') || 'never'));
   Logger.log('Handoffs go to: ' + (prop_('NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL));
+  Logger.log('Full packets go to: ' + (prop_('FULL_NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL));
 }
 
 function setup() {
@@ -154,6 +176,7 @@ function setup() {
     props.setProperty('WEBHOOK_TOKEN', Utilities.getUuid().replace(/-/g, ''));
   }
   Logger.log('Parent folder: ' + DriveApp.getFolderById(prop_('PARENT_FOLDER_ID')).getUrl());
+  Logger.log('Full packet parent folder: ' + fullParentFolder_().getUrl());
   Logger.log('Add this to the end of the web app /exec URL for the Jotform webhook: ?token=' + prop_('WEBHOOK_TOKEN'));
 }
 
@@ -165,42 +188,86 @@ function shareParentFolder() {
     .forEach(addr => folder.addViewer(addr));
 }
 
+// Go-live step for the full packet: lets Blake and Laura open the folders,
+// then points the email at them. Until this runs the email goes to the admin.
+function shareFullParentFolder() {
+  const folder = fullParentFolder_();
+  (prop_('FULL_SHARE_WITH') || DEFAULT_FULL_SHARE_WITH).split(',')
+    .map(s => s.trim()).filter(Boolean)
+    .forEach(addr => folder.addViewer(addr));
+  if (!prop_('FULL_NOTIFY_EMAIL')) {
+    PropertiesService.getScriptProperties().setProperty('FULL_NOTIFY_EMAIL', DEFAULT_FULL_NOTIFY_EMAIL);
+  }
+}
+
+function fullParentFolder_() {
+  const id = prop_('FULL_PARENT_FOLDER_ID');
+  if (id) return DriveApp.getFolderById(id);
+  const folder = DriveApp.createFolder(FULL_PARENT_FOLDER_NAME);
+  folder.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+  PropertiesService.getScriptProperties().setProperty('FULL_PARENT_FOLDER_ID', folder.getId());
+  return folder;
+}
+
 // ---------------------------------------------------------------- core
 
-function handleSubmission_(id) {
+// `only` limits the run to 'utility' or 'full'; the webhook leaves it unset.
+function handleSubmission_(id, only) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
-  let folder = null;
   try {
     const props = PropertiesService.getScriptProperties();
-    const doneKey = 'done_' + id;
-    if (props.getProperty(doneKey)) return;
+    const todo = [
+      { key: 'done_' + id, name: 'utility', label: 'Utility handoff', run: utilityHandoff_ },
+      { key: 'full_' + id, name: 'full', label: 'Full packet', run: fullPacket_ }
+    ].filter(t => (!only || t.name === only) && !props.getProperty(t.key));
+    if (!todo.length) return;
 
     const submission = fetchSubmission_(id);
     const formId = prop_('JOTFORM_FORM_ID') || DEFAULT_FORM_ID;
     if (String(submission.form_id) !== formId) {
       throw new Error('Submission belongs to form ' + submission.form_id + ', not ' + formId + '.');
     }
-
     const data = extract_(submission);
-    const title = folderTitle_(data, id);
-    folder = DriveApp.getFolderById(requireProp_('PARENT_FOLDER_ID')).createFolder(title);
 
+    // The two are independent: one failing must not hold up the other.
+    const result = {};
+    const failures = [];
+    todo.forEach(t => {
+      try {
+        const out = t.run(id, submission, data);
+        props.setProperty(t.key, out.folder.getId());
+        result[t.name] = { folderUrl: out.folder.getUrl(), docUrl: out.doc.getUrl(), problems: out.problems };
+        if (out.problems.length) notifyAdmin_(id, new Error(t.label + ':\n' + out.problems.join('\n')), out.folder.getUrl());
+      } catch (err) {
+        failures.push(t.label + ' was NOT sent: ' + (err && err.message ? err.message : String(err)));
+      }
+    });
+    if (failures.length) {
+      throw new Error(failures.concat(Object.keys(result).map(n => 'The ' + n + ' one was sent.')).join('\n'));
+    }
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function utilityHandoff_(id, submission, data) {
+  const folder = DriveApp.getFolderById(requireProp_('PARENT_FOLDER_ID')).createFolder(folderTitle_(data, id));
+  try {
     const files = copyUploads_(data, folder);
     const notes = filingNotes_(data, files);
     const doc = writeDetailsDoc_(data, notes, files, folder, id);
     sendHandoff_(data, notes, files, folder, id);
-
-    props.setProperty(doneKey, folder.getId());
-    const problems = data.missing.map(m => 'Could not find on the form: ' + m)
-      .concat(files.failed.map(f => 'Could not copy from Jotform: ' + f));
-    if (problems.length) notifyAdmin_(id, new Error(problems.join('\n')), folder.getUrl());
-    return { folderUrl: folder.getUrl(), docUrl: doc.getUrl(), problems: problems };
+    return {
+      folder: folder,
+      doc: doc,
+      problems: data.missing.map(m => 'Could not find on the form: ' + m)
+        .concat(files.failed.map(f => 'Could not copy from Jotform: ' + f))
+    };
   } catch (err) {
-    if (folder) folder.setTrashed(true);
+    folder.setTrashed(true);
     throw err;
-  } finally {
-    lock.releaseLock();
   }
 }
 
@@ -220,10 +287,7 @@ function fetchSubmission_(id) {
 
 // Turns the raw submission into { values, uploads, missing }.
 function extract_(submission) {
-  const answers = Object.keys(submission.answers)
-    .map(qid => submission.answers[qid])
-    .filter(a => a && a.text)
-    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  const answers = orderedAnswers_(submission);
   const labelOf = a => stripHtml_(a.text).trim();
 
   const values = {};
@@ -251,6 +315,14 @@ function extract_(submission) {
   });
 
   return { values: values, uploads: uploads, tables: tables, missing: missing, createdAt: submission.created_at || '' };
+}
+
+// Every question on the submission, in the order it sits on the form.
+function orderedAnswers_(submission) {
+  return Object.keys(submission.answers)
+    .map(qid => submission.answers[qid])
+    .filter(a => a && a.text)
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 }
 
 // Rows of an add-a-row list as plain objects, or [] if it is not in that shape.
@@ -390,16 +462,20 @@ function copyUploads_(data, folder) {
     copied[u.key] = [];
     data.uploads[u.key].forEach((url, i) => {
       try {
-        const blob = fetchUpload_(url);
-        const ext = (decodeURIComponent(url.split('?')[0].split('/').pop()).match(/\.[A-Za-z0-9]{2,5}$/) || [''])[0];
-        const name = u.label + ' - ' + who + (data.uploads[u.key].length > 1 ? ' ' + (i + 1) : '') + ext;
-        copied[u.key].push(folder.createFile(blob.setName(name)));
+        const name = u.label + ' - ' + who + (data.uploads[u.key].length > 1 ? ' ' + (i + 1) : '');
+        copied[u.key].push(copyUpload_(url, name, folder));
       } catch (err) {
         failed.push(u.label + ' (' + err.message + ')');
       }
     });
   });
   return { copied: copied, failed: failed };
+}
+
+// Saves one Jotform upload into the folder under `name`, keeping its extension.
+function copyUpload_(url, name, folder) {
+  const ext = (decodeURIComponent(url.split('?')[0].split('/').pop()).match(/\.[A-Za-z0-9]{2,5}$/) || [''])[0];
+  return folder.createFile(fetchUpload_(url).setName(name + ext));
 }
 
 // Uploads can be login-protected on the Jotform side; the API key opens
@@ -461,6 +537,10 @@ function listSection_(body, heading, rows, fallbackText) {
     body.appendParagraph(fallbackText || 'Not provided');
     return;
   }
+  appendListTable_(body, rows);
+}
+
+function appendListTable_(body, rows) {
   const cols = [];
   rows.forEach(r => Object.keys(r).forEach(k => { if (cols.indexOf(k) === -1) cols.push(k); }));
   const cell = x => (x === null || x === undefined) ? '' : String(x);
@@ -487,10 +567,7 @@ function sendHandoff_(data, notes, files, folder, id) {
   ];
   const html = '<p>A new owner intake form came in. Everything needed for the Consumers, DTE and water forms is '
     + 'in this folder:</p><p><a href="' + folder.getUrl() + '">' + esc_(folder.getName()) + '</a></p>'
-    + '<table cellpadding="4" style="border-collapse:collapse">'
-    + rows.map(r => '<tr><td style="vertical-align:top"><b>' + esc_(r[0]) + '</b></td><td>'
-      + esc_(r[1] || 'Not provided').replace(/\n/g, '<br>') + '</td></tr>').join('')
-    + '</table><p><b>Read before filing</b></p><ul>'
+    + rowsHtml_(rows) + '<p><b>Read before filing</b></p><ul>'
     + notes.map(n => '<li>' + esc_(n) + '</li>').join('') + '</ul>'
     + '<p>The Social Security / tax ID number is in the details doc in the folder, not in this email.</p>';
   MailApp.sendEmail({
@@ -500,12 +577,145 @@ function sendHandoff_(data, notes, files, folder, id) {
   });
 }
 
+function rowsHtml_(rows) {
+  return '<table cellpadding="4" style="border-collapse:collapse">'
+    + rows.map(r => '<tr><td style="vertical-align:top"><b>' + esc_(r[0]) + '</b></td><td>'
+      + esc_(r[1] || 'Not provided').replace(/\n/g, '<br>') + '</td></tr>').join('')
+    + '</table>';
+}
+
+// ---------------------------------------------------------------- full packet
+
+// The whole submission for Blake and Laura: every answered question in form
+// order and every upload, in a folder Alaina cannot open because it also
+// holds the bank details.
+function fullPacket_(id, submission, data) {
+  const folder = fullParentFolder_().createFolder(folderTitle_(data, id));
+  try {
+    const answers = orderedAnswers_(submission);
+    const uploads = copyAllUploads_(answers, data, folder);
+    const doc = writeFullDoc_(answers, uploads, data, folder, id);
+    sendFullPacket_(data, uploads, folder, doc);
+    return {
+      folder: folder,
+      doc: doc,
+      problems: uploads.failed.map(f => 'Could not copy from Jotform: ' + f)
+    };
+  } catch (err) {
+    folder.setTrashed(true);
+    throw err;
+  }
+}
+
+// Copies every file the owner uploaded, named after the question it answers.
+function copyAllUploads_(answers, data, folder) {
+  const who = (data.values.entityName || data.values.ownerName || 'owner').replace(/[\/\\:*?"<>|]+/g, ' ');
+  const copied = [];
+  const failed = [];
+  answers.filter(a => a.type === 'control_fileupload').forEach(a => {
+    const label = stripHtml_(a.text).trim();
+    const base = label.replace(/[\/\\:*?"<>|\n\r]+/g, ' ').slice(0, 60).trim();
+    const urls = fileUrls_(a.answer);
+    const names = [];
+    urls.forEach((url, i) => {
+      try {
+        names.push(copyUpload_(url, base + ' - ' + who + (urls.length > 1 ? ' ' + (i + 1) : ''), folder).getName());
+      } catch (err) {
+        failed.push(label + ' (' + err.message + ')');
+      }
+    });
+    if (urls.length) copied.push({ label: label, names: names });
+  });
+  return { copied: copied, failed: failed };
+}
+
+// One section per heading on the form. A question the owner left blank, or
+// that the form's logic never showed them, has no answer and is left out.
+function writeFullDoc_(answers, uploads, data, folder, id) {
+  const doc = DocumentApp.create('Full intake - ' + (data.values.propertyAddress || id).split(',')[0]);
+  const body = doc.getBody();
+  body.setPageWidth(792).setPageHeight(612); // landscape, so the tenant table fits
+
+  body.appendParagraph('New client intake: full submission').setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph('From Jotform submission ' + id + (data.createdAt ? ', received ' + data.createdAt : '')
+    + '. Contains a Social Security or tax ID number and may contain bank account numbers: keep it in this '
+    + 'folder. Questions the owner left blank or was not asked are left out.');
+
+  let heading = '';
+  let rows = [];
+  const startSection = () => {
+    if (heading) body.appendParagraph(heading).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    heading = '';
+  };
+  const flush = () => {
+    if (!rows.length) return;
+    startSection();
+    body.appendTable(rows);
+    rows = [];
+  };
+  answers.forEach(a => {
+    const label = stripHtml_(a.text).trim();
+    if (a.type === 'control_head') { flush(); heading = label; return; }
+    if (a.type === 'control_fileupload') return;
+    const list = listRows_(a.answer);
+    if (list.length) {
+      flush();
+      startSection();
+      body.appendParagraph(label).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+      appendListTable_(body, list);
+      return;
+    }
+    const text = answerText_(a);
+    if (text) rows.push([label, text]);
+  });
+  flush();
+
+  body.appendParagraph('Files in this folder').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  if (uploads.copied.length) {
+    body.appendTable(uploads.copied.map(u => [u.label, u.names.join('\n') || 'Could not be copied from Jotform']));
+  } else {
+    body.appendParagraph('The owner uploaded no files.');
+  }
+
+  doc.saveAndClose();
+  DriveApp.getFileById(doc.getId()).moveTo(folder);
+  return doc;
+}
+
+function sendFullPacket_(data, uploads, folder, doc) {
+  const v = data.values;
+  const to = prop_('FULL_NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL;
+  const address = v.propertyAddress || 'address not given';
+  const rows = [
+    ['Owner', v.entityName ? v.entityName + ' (' + v.ownerName + ')' : v.ownerName],
+    ['Phone', v.phone],
+    ['Email', v.email],
+    ['Property', address],
+    ['Units', v.unitCount],
+    ['Tenants living there now', v.occupied],
+    ['Managed before GPM by', v.priorMgmt],
+    ['Files uploaded', uploads.copied.map(u => u.label + (u.names.length ? '' : ' (could not be copied)')).join('\n')
+      || 'None']
+  ];
+  const html = '<p>A new owner intake form came in. Every answer and every file the owner uploaded is in this '
+    + 'folder:</p><p><a href="' + folder.getUrl() + '">' + esc_(folder.getName()) + '</a></p>'
+    + '<p>Start with the <a href="' + doc.getUrl() + '">full intake doc</a>.</p>'
+    + rowsHtml_(rows)
+    + '<p>The Social Security / tax ID number and any bank account numbers are in the doc, not in this email. '
+    + 'Alaina gets a separate email with what she needs for the utility set-up.</p>';
+  MailApp.sendEmail({
+    to: to,
+    subject: 'New owner intake: ' + address.split(',')[0] + ' - full packet',
+    htmlBody: html
+  });
+}
+
 function notifyAdmin_(id, err, folderUrl) {
   try {
     MailApp.sendEmail({
       to: prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL,
-      subject: 'P15 utility handoff ' + (folderUrl ? 'needs a look' : 'FAILED') + ' (submission ' + (id || 'unknown') + ')',
-      body: (folderUrl ? 'The handoff was sent, with gaps:\n\n' : 'No handoff was sent.\n\n')
+      subject: 'P15 intake handoff ' + (folderUrl ? 'needs a look' : 'FAILED') + ' (submission ' + (id || 'unknown') + ')',
+      body: (folderUrl ? 'This was sent, with gaps:\n\n' : 'Not everything was sent.\n\n')
         + (err && err.message ? err.message : String(err))
         + (folderUrl ? '\n\nFolder: ' + folderUrl : '')
     });
@@ -548,11 +758,20 @@ function testSubmissionId_() {
   return String(newest.id);
 }
 
-// Runs the whole handoff for the test submission, even if it ran before.
+// Runs both handoffs for the test submission, even if they ran before.
+// Emails Alaina as well as the full packet's recipients.
 function processTestSubmission() {
   const id = testSubmissionId_();
-  PropertiesService.getScriptProperties().deleteProperty('done_' + id);
+  PropertiesService.getScriptProperties().deleteProperty('done_' + id).deleteProperty('full_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id), null, 2));
+}
+
+// Runs only the full packet for the test submission, even if it ran before.
+// Nothing goes to Alaina.
+function processTestFullPacket() {
+  const id = testSubmissionId_();
+  PropertiesService.getScriptProperties().deleteProperty('full_' + id);
+  Logger.log(JSON.stringify(handleSubmission_(id, 'full'), null, 2));
 }
 
 // Rewrites the details doc for the test submission inside the folder it
