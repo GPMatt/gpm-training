@@ -1,11 +1,11 @@
 // GAS Script #1 — Van Inventory Email Sync + Supabase bridge
 // Triggers (all created by setup()):
-//   - syncVanInventory   Monday 7:20am EST  — pulls AppFolio CSV, writes into Supabase
+//   - syncVanInventory   daily 7:20am EST   — pulls AppFolio CSV, writes into Supabase
 //   - keepSupabaseAwake  daily 3:00am EST   — free-tier projects pause after 7 days idle
 //   - drawJasonSchedule  1st of month 5:00am EST — random-without-replacement Jason-audit picker
 //
 // syncVanInventoryManual has no trigger — run it by hand from the editor to
-// backfill a missed week or seed the first baseline off whatever the latest
+// backfill a missed day or seed the first baseline off whatever the latest
 // Van Inventory email in the inbox is.
 //
 // Before running setup(): open Project Settings in the Apps Script editor and
@@ -24,7 +24,7 @@ function setup() {
   ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
 
   ScriptApp.newTrigger('syncVanInventory')
-    .timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY)
+    .timeBased().everyDays(1)
     .atHour(7).nearMinute(20).inTimezone('America/Detroit').create();
 
   ScriptApp.newTrigger('keepSupabaseAwake')
@@ -112,7 +112,7 @@ function sbGet(table, query) {
 // running clean the day before. A write is a stronger signal.
 //
 // The write is a no-change upsert of the Test Van row -- the same call the
-// Monday sync already makes, so it needs no table or permission of its own.
+// daily sync already makes, so it needs no table or permission of its own.
 // It used to target a dedicated keepalive_heartbeat table, but that table
 // needed a GRANT run by hand in the SQL Editor, which never happened: every
 // ping 403'd from 2026-09-16 on and the project paused on 2026-10-05.
@@ -136,7 +136,7 @@ function keepSupabaseAwake() {
   }
 }
 
-// ── Weekly AppFolio -> Supabase sync ─────────────────────────────────────────
+// ── Daily AppFolio -> Supabase sync ──────────────────────────────────────────
 function syncVanInventory() {
   const csv = getTodaysInventoryCSV();
   if (!csv) {
@@ -144,7 +144,7 @@ function syncVanInventory() {
     GmailApp.sendEmail(
       CONFIG.ALERT_EMAIL,
       'Van Inventory Sync FAILED — No Email Found Today',
-      `The Monday sync ran at 7:20am EST but could not find a Van Inventory email from ${CONFIG.SENDER} received today.\n\nCheck that AppFolio sent the report. This week's baseline was NOT updated.`
+      `The daily sync ran at 7:20am EST but could not find a Van Inventory email from ${CONFIG.SENDER} received today.\n\nCheck that AppFolio sent the report. Today's baseline was NOT updated — the audit app is still on the last good one.`
     );
     return;
   }
@@ -153,7 +153,7 @@ function syncVanInventory() {
 
 // Manual backfill: pulls the most recent Van Inventory email regardless of
 // date, instead of requiring one to have arrived today. For catching up a
-// missed Monday, or seeding a baseline before the first scheduled run.
+// missed day, or seeding a baseline before the first scheduled run.
 // Run by hand from the Apps Script editor: select this function, click Run.
 function syncVanInventoryManual() {
   const csv = getLatestInventoryCSV();
@@ -187,7 +187,7 @@ function runInventorySync(csv) {
   const vans = sbUpsert('vans', [...vanLabels, TEST_VAN_LABEL].map(label => ({ label })), 'label');
   const vanIdByLabel = Object.fromEntries(vans.map(v => [v.label, v.id]));
 
-  // name comes from this week's CSV; part_number is the natural key
+  // name comes from today's CSV; part_number is the natural key
   const partsByNumber = {};
   parsed.forEach(r => { partsByNumber[r.partNumber] = r.name; });
   const parts = sbUpsert('parts',
@@ -217,7 +217,7 @@ function runInventorySync(csv) {
     sbUpdate('par_syncs', sync.id, { status: 'failed' });
     GmailApp.sendEmail(CONFIG.ALERT_EMAIL, 'Van Inventory Sync FAILED — Baseline Write Incomplete',
       `par_syncs was created but writing van_par rows failed partway through:\n\n${e.message}\n\n` +
-      `This week's baseline is incomplete or missing. The par_syncs row has been corrected to status=failed.`);
+      `Today's baseline is incomplete or missing. The par_syncs row has been corrected to status=failed.`);
   }
 }
 
