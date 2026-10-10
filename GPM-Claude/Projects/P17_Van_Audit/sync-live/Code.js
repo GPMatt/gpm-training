@@ -14,6 +14,10 @@
 // service_role key anywhere client-side; this script is the only place it
 // belongs.
 
+// AppFolio also emails the ACE Restock report ("GPM - Inventory Status",
+// Fridays) to this same inbox from the same sender, with a CSV in the same
+// layout. SUBJECT is what tells the two apart, so it is checked on the
+// message itself (isVanInventoryMessage), not only in the Gmail search.
 const CONFIG = {
   SENDER:      'donotreply@appfolio.com',
   SUBJECT:     'Van Inventory',
@@ -231,6 +235,9 @@ function getTodaysInventoryCSV() {
   for (const thread of threads) {
     const messages = thread.getMessages();
     for (let i = messages.length - 1; i >= 0; i--) {
+      // Gmail threads the daily emails together, so a thread that matched
+      // "today" also holds earlier days' CSVs — only take today's message.
+      if (!isVanInventoryMessage(messages[i]) || formatGmailDate(messages[i].getDate()) !== after) continue;
       for (const att of messages[i].getAttachments()) {
         const name = att.getName().toLowerCase();
         const type = att.getContentType().toLowerCase();
@@ -250,6 +257,7 @@ function getLatestInventoryCSV() {
 
   for (const thread of threads) {
     for (const message of thread.getMessages()) {
+      if (!isVanInventoryMessage(message)) continue;
       if (newest && message.getDate() <= newest.date) continue;
       for (const att of message.getAttachments()) {
         const name = att.getName().toLowerCase();
@@ -262,6 +270,10 @@ function getLatestInventoryCSV() {
     }
   }
   return newest ? newest.csv : null;
+}
+
+function isVanInventoryMessage(message) {
+  return message.getSubject().toLowerCase().includes(CONFIG.SUBJECT.toLowerCase());
 }
 
 function formatGmailDate(date) {
