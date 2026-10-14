@@ -76,3 +76,16 @@ function findRow_(sh, id) {
   for (var i = 0; i < ids.length; i++) if (ids[i][0] === id) return i + 2;
   return 0;
 }
+
+/** Deletes every booking row whose resident name starts with "TEST" or "UI TEST". */
+function deleteTestRows() {
+  var sh = SpreadsheetApp.getActive().getSheetByName(SHEET_BOOKINGS);
+  if (sh.getLastRow() < 2) return 0;
+  var names = sh.getRange(2, COL['Resident Name'], sh.getLastRow() - 1, 1).getDisplayValues();
+  var n = 0;
+  for (var i = names.length - 1; i >= 0; i--) {
+    if (/^(UI )?TEST\b/.test(names[i][0])) { sh.deleteRow(i + 2); n++; }
+  }
+  Logger.log('Deleted ' + n + ' test row(s).');
+  return n;
+}
