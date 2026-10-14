@@ -18,9 +18,16 @@ function weeklyRun() {
   sendDiscrepancyReport(sent);
 }
 
+// Full Thursday flow, but the list goes to REPORT_TO only. Nothing reaches
+// Cunningham. The test CSV is still saved to the Drive folder.
+function testRun() {
+  const sent = exportList(true);
+  sendDiscrepancyReport(sent);
+}
+
 // ---------- 1. Export ----------
 
-function exportList() {
+function exportList(testOnly) {
   const rows = readAssignments_();
   const seen = new Set();
   const list = [];
@@ -39,7 +46,7 @@ function exportList() {
   const file = exportFolder_().createFile(blob);
   PropertiesService.getScriptProperties().setProperty('LAST_SENT_FILE_ID', file.getId());
 
-  const live = !!CONFIG.CUNNINGHAM_EMAIL;
+  const live = !!CONFIG.CUNNINGHAM_EMAIL && !testOnly;
   const body =
     `Hello,\n\nAttached is Green Property Management's current property list ` +
     `(${list.length} properties) with the property manager for each address. ` +
