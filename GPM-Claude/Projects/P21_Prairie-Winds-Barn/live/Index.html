@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root { --green:#5f8f2e; --green-soft:#eef5e4; --ink:#1f2a1a; --muted:#6b7266; --line:#dde3d6; --bad:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f7f8f5; color:var(--ink); font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:16px; }
+  .card h2 { font-size:17px; margin:0 0 12px; }
+  .step { display:inline-block; width:24px; height:24px; border-radius:50%; background:var(--green); color:#fff; text-align:center; font-size:13px; line-height:24px; margin-right:8px; }
+  .cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .cal-head button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:15px; }
+  .cal-head button:disabled { opacity:.35; cursor:default; }
+  .grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .dow { text-align:center; font-size:12px; color:var(--muted); padding:4px 0; }
+  .day { aspect-ratio:1; border:1px solid var(--line); border-radius:8px; background:#fff; cursor:pointer; font-size:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0; }
+  .day small { font-size:10px; color:var(--muted); line-height:1.1; }
+  .day.partial { background:#fff8e6; }
+  .day.holiday small { color:#8a5a00; }
+  .day.off { background:#f0f0ee; color:#b5b8b0; cursor:default; text-decoration:line-through; }
+  .day.blank { border:none; background:none; cursor:default; }
+  .day.sel { background:var(--green); color:#fff; border-color:var(--green); }
+  .day.sel small { color:#fff; }
+  .legend { font-size:12px; color:var(--muted); margin-top:8px; }
+  .slots { display:grid; gap:8px; }
+  .slot { display:flex; justify-content:space-between; align-items:center; border:1px solid var(--line); border-radius:10px; padding:12px 14px; cursor:pointer; background:#fff; text-align:left; font-size:15px; width:100%; }
+  .slot.sel { border-color:var(--green); background:var(--green-soft); box-shadow:inset 0 0 0 1px var(--green); }
+  .slot:disabled { opacity:.45; cursor:default; }
+  .slot b { display:block; }
+  .slot span { color:var(--muted); font-size:13px; }
+  label { display:block; font-weight:600; margin:12px 0 4px; font-size:14px; }
+  input[type=text], input[type=email], input[type=tel] { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+  .radio { display:flex; gap:16px; font-weight:400; }
+  .radio label { font-weight:400; display:flex; gap:6px; align-items:center; margin:0; }
+  .terms { max-height:260px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:13px; background:#fbfcfa; }
+  .terms h3 { font-size:14px; margin:8px 0 4px; }
+  .check { display:flex; gap:8px; align-items:flex-start; font-weight:400; margin-top:12px; }
+  .check input { margin-top:4px; }
+  .total { display:flex; justify-content:space-between; font-size:15px; padding:4px 0; }
+  .total.big { font-weight:700; border-top:1px solid var(--line); margin-top:6px; padding-top:8px; }
+  .note { font-size:13px; color:var(--muted); }
+  .btn { width:100%; padding:14px; border:none; border-radius:10px; background:var(--green); color:#fff; font-size:16px; font-weight:600; cursor:pointer; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .err { color:var(--bad); margin-top:10px; font-size:14px; }
+  .hidden { display:none; }
+  .done { text-align:center; }
+  .done .tick { font-size:44px; color:var(--green); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="form">
+    <h1>Prairie Winds Clubhouse Reservation</h1>
+    <p class="sub">6611 Prairie Winds Drive, Zeeland, MI. Clubhouse only: no pool, patio, grill, or outdoor use.</p>
+
+    <div class="card">
+      <h2><span class="step">1</span>Pick a date</h2>
+      <div class="cal-head">
+        <button id="prev" type="button">&#8249;</button>
+        <b id="monthLabel"></b>
+        <button id="next" type="button">&#8250;</button>
+      </div>
+      <div class="grid" id="grid"><div class="dow">Loading…</div></div>
+      <div class="legend">Yellow = one half of the day is taken &middot; Struck through = unavailable &middot; Holidays are full-day only</div>
+    </div>
+
+    <div class="card hidden" id="slotCard">
+      <h2><span class="step">2</span>Pick a time: <span id="slotDate"></span></h2>
+      <div class="slots" id="slots"></div>
+    </div>
+
+    <div class="card hidden" id="detailsCard">
+      <h2><span class="step">3</span>Your details</h2>
+      <label for="name">Full name</label><input type="text" id="name" autocomplete="name">
+      <label for="address">Address in Prairie Winds</label><input type="text" id="address" autocomplete="street-address">
+      <label for="cell">Cell phone</label><input type="tel" id="cell" autocomplete="tel">
+      <label for="email">Email</label><input type="email" id="email" autocomplete="email">
+      <label>Will alcohol be served at your event?</label>
+      <div class="radio">
+        <label><input type="radio" name="alcohol" value="No"> No</label>
+        <label><input type="radio" name="alcohol" value="Yes"> Yes</label>
+      </div>
+    </div>
+
+    <div class="card hidden" id="agreeCard">
+      <h2><span class="step">4</span>Reservation agreement</h2>
+      <div class="terms">
+        <p>You are requesting the rental of the community clubhouse. This does not include access to the Eastbrook office space, the pool, patio, grill, or any outdoor use of the parking lot or grassy space.</p>
+        <h3>Fees</h3>
+        <p>Half day $25 (morning: out by 3:30 PM; evening: 3:30 PM to midnight). Full day $50 (out by midnight). Holiday full day $150. A $200 security deposit is also required. The usage fee and deposit are charged to your AppFolio account.</p>
+        <p>Rentals during May and June, and rentals between and including Thanksgiving Day and New Year's Day, are subject to a $30 cancellation fee.</p>
+        <h3>Terms</h3>
+        <p>1) The security deposit will be returned after the event, provided the member and a clubhouse committee member have completed the checklist, no damage or loss has occurred, and there have been no infractions of the clubhouse rules.</p>
+        <p>2) The member reserving the clubhouse is responsible for payment or replacement cost for all items damaged or lost as a result of use of the property. This may result in forfeiture of the security deposit and/or additional costs to be billed. Damage bills must be paid within 15 days to avoid pool/clubhouse restrictions.</p>
+        <p>3) Lessee, its agents and invitees, hold PWHOA harmless against any claims, actions, liability and expense in connection with loss of life, personal injury, or loss of property arising out of the use of the property by the Lessee, its agents or invitees.</p>
+        <p>4) Cleaning the clubhouse is the responsibility of the lessee. The clubhouse must be cleaned and completely vacated within 1 hour of the conclusion of the event or additional hours may be charged. Smoking is not allowed within 25 feet of the building. Lessees are responsible for disposing of any cigarettes left on the ground. A clubhouse committee member will inspect the premises for violations and review the completed checklist. Not complying with all areas of the checklist will result in forfeiting all or part of the security deposit.</p>
+        <p>Eastbrook Homes reserves the right to use their sales office, located within the clubhouse, during clubhouse rental hours.</p>
+        <h3>Cancellations</h3>
+        <p>Cancellations 7 days or less from the event date will forfeit the rental fee; the deposit will be returned. Rentals may be rescheduled due to inclement weather one time with no penalty.</p>
+        <h3>Exit checklist</h3>
+        <p>Complete before vacating. These fees are deducted from the security deposit for any item left incomplete or any rule broken:</p>
+        <ul>
+          <li>Cleaning (complete list available at the clubhouse): $100</li>
+          <li>Trash to the dumpster and cans relined (kitchen, men's &amp; women's restrooms): $50</li>
+          <li>Absolutely no use of the patio or pool area: $200</li>
+          <li>Absolutely no tape, glitter, tacks, glue, or putty on any walls or woodwork: $100</li>
+          <li>Prelock the front door</li>
+          <li>Sign the exit checklist: $100</li>
+          <li>Vacate the clubhouse at the scheduled time: $50</li>
+        </ul>
+        <p>WiFi is available in the clubhouse.</p>
+        <p><b>I have carefully read and understand this reservation agreement and the clubhouse rules and regulations and agree to be bound by its terms and conditions. This includes the Alcohol Addendum, if applicable, and the Exit Checklist. I understand that renting the Clubhouse is a privilege. Any abuse of that privilege, including, but not restricted to the agreements in this contract, will result in an increase in my deposit/rental fee for my next rental or prohibit my rental completely. My deposit will be forfeited for breaking the terms of this agreement.</b></p>
+      </div>
+      <label class="check"><input type="checkbox" id="agree"> I have read and agree to the reservation agreement and exit checklist.</label>
+      <label for="agreeSignature">Type your full name to sign</label><input type="text" id="agreeSignature">
+
+      <div id="alcoholBlock" class="hidden">
+        <h2 style="margin-top:20px">Alcohol Addendum</h2>
+        <div class="terms">
+          <ul>
+            <li>Any event with minors present must not exceed 10 minors for every adult over 21 when alcohol is served.</li>
+            <li>Consumption of alcohol by minors is expressly prohibited. Local Law Enforcement will be called for non-compliance.</li>
+            <li>No sale of alcoholic beverages is allowed at any time.</li>
+            <li>Admission may not be charged for any private event in the clubhouse.</li>
+            <li>Keg beer is allowed in designated areas with prior approval from PWHOA.</li>
+            <li>The Lessee is responsible for any damage occurring as a result of the event in the clubhouse and surrounding areas including the parking lot and pool areas.</li>
+            <li>Any spills not completely cleaned will incur an additional cleaning fee.</li>
+          </ul>
+        </div>
+        <label class="check"><input type="checkbox" id="alcoholAgree"> I have read and agree to the Alcohol Addendum.</label>
+        <label for="alcoholSignature">Type your full name to sign the addendum</label><input type="text" id="alcoholSignature">
+      </div>
+    </div>
+
+    <div class="card hidden" id="payCard">
+      <h2><span class="step">5</span>Review &amp; book</h2>
+      <div class="total"><span id="feeLabel">Usage fee</span><span id="feeAmt"></span></div>
+      <div class="total"><span>Security deposit (returned if checklist complete)</span><span id="depAmt"></span></div>
+      <div class="total big"><span>Charged to your AppFolio account</span><span id="totAmt"></span></div>
+      <p class="note">Your booking is confirmed as soon as you submit. Cancelling 7 days or less before the event forfeits the usage fee.</p>
+      <button class="btn" id="submit" type="button">Book the clubhouse</button>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+
+  <div id="done" class="card done hidden">
+    <div class="tick">&#10003;</div>
+    <h1>You're booked</h1>
+    <p id="doneText"></p>
+    <p class="note">A confirmation with the agreement and exit checklist has been emailed to you.</p>
+  </div>
+</div>
+
+<script>
+  var A = null, view = null, selDate = null, selSlot = null;
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function iso(y, m, d) { return y + '-' + pad(m + 1) + '-' + pad(d); }
+  function pretty(s) {
+    var d = new Date(Date.UTC(+s.slice(0,4), +s.slice(5,7) - 1, +s.slice(8,10)));
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()] + ', ' + MONTHS[d.getUTCMonth()] + ' ' + d.getUTCDate();
+  }
+
+  // Which slots are still open on a date (respects holidays, same-day cutoffs, and taken halves).
+  function openSlots(d) {
+    if (d < A.today || d > A.maxDate) return [];
+    var taken = A.taken[d] || [];
+    var ends = { AM: 15 * 60 + 30, PM: 24 * 60, FULL: 24 * 60 };
+    var keys = A.holidays[d] ? ['FULL'] : ['AM', 'PM', 'FULL'];
+    return keys.filter(function (k) {
+      if (d === A.today && A.nowMinutes >= ends[k]) return false;
+      return !taken.some(function (t) { return k === 'FULL' || t === 'FULL' || t === k; });
+    });
+  }
+
+  function draw() {
+    var y = view.y, m = view.m;
+    $('monthLabel').textContent = MONTHS[m] + ' ' + y;
+    $('prev').disabled = iso(y, m, 1) <= A.today.slice(0, 8) + '01';
+    $('next').disabled = (m === 11 ? iso(y + 1, 0, 1) : iso(y, m + 1, 1)) > A.maxDate;
+    var g = $('grid'); g.innerHTML = '';
+    ['S','M','T','W','T','F','S'].forEach(function (w) { var e = document.createElement('div'); e.className = 'dow'; e.textContent = w; g.appendChild(e); });
+    var first = new Date(y, m, 1).getDay(), days = new Date(y, m + 1, 0).getDate();
+    for (var i = 0; i < first; i++) { var b = document.createElement('div'); b.className = 'day blank'; g.appendChild(b); }
+    for (var d = 1; d <= days; d++) {
+      var key = iso(y, m, d), open = openSlots(key), el = document.createElement('button');
+      el.type = 'button'; el.className = 'day'; el.innerHTML = d;
+      var hol = A.holidays[key];
+      if (hol) { el.className += ' holiday'; el.innerHTML += '<small>' + hol.replace(/'s Day|'s Eve| Day/g, '') + '</small>'; }
+      if (!open.length) { el.className += ' off'; el.disabled = true; }
+      else if ((A.taken[key] || []).length) el.className += ' partial';
+      if (key === selDate) el.className += ' sel';
+      el.onclick = (function (k) { return function () { pickDate(k); }; })(key);
+      g.appendChild(el);
+    }
+  }
+
+  function pickDate(k) {
+    selDate = k; selSlot = null; draw();
+    $('slotDate').textContent = pretty(k) + (A.holidays[k] ? ' (' + A.holidays[k] + ')' : '');
+    var open = openSlots(k), box = $('slots'); box.innerHTML = '';
+    var keys = A.holidays[k] ? ['FULL'] : ['AM', 'PM', 'FULL'];
+    keys.forEach(function (key) {
+      var s = A.slots[key], fee = A.holidays[k] ? A.holidayFee : s.fee, b = document.createElement('button');
+      b.type = 'button'; b.className = 'slot';
+      var avail = open.indexOf(key) >= 0;
+      b.innerHTML = '<div><b>' + s.label + '</b><span>' + s.start + ' to ' + s.end + (avail ? '' : ' · taken') + '</span></div><b>$' + fee + '</b>';
+      b.disabled = !avail;
+      b.onclick = function () { selSlot = key; [].forEach.call(box.children, function (c) { c.classList.remove('sel'); }); b.classList.add('sel'); reveal(); };
+      box.appendChild(b);
+    });
+    $('slotCard').classList.remove('hidden');
+    ['detailsCard','agreeCard','payCard'].forEach(function (id) { $(id).classList.add('hidden'); });
+    $('slotCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function reveal() {
+    ['detailsCard','agreeCard','payCard'].forEach(function (id) { $(id).classList.remove('hidden'); });
+    var fee = A.holidays[selDate] ? A.holidayFee : A.slots[selSlot].fee;
+    $('feeLabel').textContent = 'Usage fee (' + A.slots[selSlot].label.toLowerCase() + (A.holidays[selDate] ? ', holiday' : '') + ')';
+    $('feeAmt').textContent = '$' + fee;
+    $('depAmt').textContent = '$' + A.deposit;
+    $('totAmt').textContent = '$' + (fee + A.deposit);
+  }
+
+  function alcohol() { var r = document.querySelector('input[name=alcohol]:checked'); return r ? r.value : ''; }
+
+  function submit() {
+    var e = $('err'); e.textContent = '';
+    var p = {
+      date: selDate, slot: selSlot,
+      name: $('name').value, address: $('address').value, cell: $('cell').value, email: $('email').value,
+      alcohol: alcohol(), agree: $('agree').checked, agreeSignature: $('agreeSignature').value,
+      alcoholAgree: $('alcoholAgree').checked, alcoholSignature: $('alcoholSignature').value
+    };
+    var missing = [];
+    if (!p.date || !p.slot) missing.push('a date and time');
+    if (!p.name.trim()) missing.push('your name');
+    if (!p.address.trim()) missing.push('your address');
+    if (!p.cell.trim()) missing.push('a cell phone');
+    if (!/^\S+@\S+\.\S+$/.test(p.email.trim())) missing.push('a valid email');
+    if (!p.alcohol) missing.push('whether alcohol will be served');
+    if (!p.agree || !p.agreeSignature.trim()) missing.push('your agreement checkbox and typed signature');
+    if (p.alcohol === 'Yes' && (!p.alcoholAgree || !p.alcoholSignature.trim())) missing.push('the Alcohol Addendum checkbox and signature');
+    if (missing.length) { e.textContent = 'Please add ' + missing.join(', ') + '.'; return; }
+    var btn = $('submit'); btn.disabled = true; btn.textContent = 'Booking…';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        $('form').classList.add('hidden'); $('done').classList.remove('hidden');
+        $('doneText').textContent = r.date + ', ' + r.slot.toLowerCase() + ' (' + r.start + ' to ' + r.end + '). $' + r.fee + ' usage fee + $' + r.deposit + ' deposit will be charged to your AppFolio account. Booking ID ' + r.id + '.';
+        window.scrollTo(0, 0);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false; btn.textContent = 'Book the clubhouse';
+        e.textContent = err.message || String(err);
+        load(); // refresh availability in case the slot was just taken
+      })
+      .submitBooking(p);
+  }
+
+  function load() {
+    google.script.run.withSuccessHandler(function (a) {
+      A = a;
+      if (!view) view = { y: +a.today.slice(0, 4), m: +a.today.slice(5, 7) - 1 };
+      draw();
+      if (selDate && openSlots(selDate).indexOf(selSlot) < 0) pickDate(selDate);
+    }).withFailureHandler(function () { $('grid').innerHTML = '<div class="dow">Could not load availability. Please refresh.</div>'; }).getAvailability();
+  }
+
+  $('prev').onclick = function () { view.m--; if (view.m < 0) { view.m = 11; view.y--; } draw(); };
+  $('next').onclick = function () { view.m++; if (view.m > 11) { view.m = 0; view.y++; } draw(); };
+  [].forEach.call(document.querySelectorAll('input[name=alcohol]'), function (r) {
+    r.onchange = function () { $('alcoholBlock').classList.toggle('hidden', alcohol() !== 'Yes'); };
+  });
+  $('submit').onclick = submit;
+  load();
+</script>
+</body>
+</html>
