@@ -48,7 +48,7 @@ function dumpLeadComments() {
   writeLeadTab_(ss, LEAD_COMMENTS_SHEET_NAME, LEAD_COMMENTS_HEADER, rows.map(function (r) {
     return LEAD_COMMENTS_HEADER.map(function (h) { return r[h] === undefined ? '' : r[h]; });
   }));
-  writeLeadTab_(ss, LEAD_COUNTS_SHEET_NAME, ['Property', 'Leads', 'WithComments', 'CommentsBeyondShowing'],
+  writeLeadTab_(ss, LEAD_COUNTS_SHEET_NAME, ['Property', 'Leads', 'WithComments', 'AsksForShowing', 'ShowingRate', 'CommentsBeyondShowing'],
     leadCounts_(rows));
 
   Logger.log('Wrote ' + rows.length + ' guest cards (' + LEAD_COMMENTS_DAYS + ' days)' +
@@ -90,13 +90,20 @@ function readLeadComment_(msg) {
 function leadCounts_(rows) {
   var byProp = {};
   rows.forEach(function (r) {
-    var c = byProp[r.Property] || (byProp[r.Property] = { leads: 0, withComments: 0, beyond: 0 });
+    var c = byProp[r.Property] || (byProp[r.Property] = { leads: 0, withComments: 0, showing: 0, beyond: 0 });
     c.leads++;
     if (r.Comments) c.withComments++;
+    if (r.AsksForShowing === 'SHOWING') c.showing++;
     if (r.AsksForShowing === 'NO') c.beyond++;
   });
   return Object.keys(byProp)
-    .map(function (p) { return [p, byProp[p].leads, byProp[p].withComments, byProp[p].beyond]; })
+    .map(function (p) {
+      var c = byProp[p];
+      // Share of commenting leads whose comment asks for a showing — the
+      // "they just want to book" signal. Blank when nobody commented.
+      var rate = c.withComments ? Math.round(100 * c.showing / c.withComments) + '%' : '';
+      return [p, c.leads, c.withComments, c.showing, rate, c.beyond];
+    })
     .sort(function (a, b) { return b[1] - a[1]; });
 }
 
