@@ -134,7 +134,9 @@ function addressKey_(addr) {
 
 function fetchActiveProperties_() {
   const p = PropertiesService.getScriptProperties();
-  const url = p.getProperty('SUPABASE_URL'), key = p.getProperty('SUPABASE_SERVICE_KEY');
+  // Trim stray spaces/quotes picked up when pasting into Script Properties.
+  const clean = v => String(v || '').trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+  const url = clean(p.getProperty('SUPABASE_URL')), key = clean(p.getProperty('SUPABASE_SERVICE_KEY'));
   if (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_KEY in Script Properties');
   const res = UrlFetchApp.fetch(
     `${url}/rest/v1/dim_property?select=canonical_address,af_property_name,property_type,af_account&active=eq.true&limit=5000`,
