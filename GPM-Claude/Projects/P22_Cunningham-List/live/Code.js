@@ -4,6 +4,7 @@
 // Thursday trigger. Safe to re-run.
 function setup() {
   addOakwoodRow_();
+  removeRows_(['1044 Muskegon', '1133 Dogwood']);   // no longer managed (Matt, 2026-10-14)
   ScriptApp.getProjectTriggers()
     .filter(t => t.getHandlerFunction() === 'weeklyRun')
     .forEach(t => ScriptApp.deleteTrigger(t));
@@ -159,6 +160,20 @@ function addOakwoodRow_() {
   sh.appendRow(['Oakwood Ave - Joy Smith', '2201 Oakwood Ave NE Grand Rapids, MI 49505',
                 1, 'Mike Green', '', 'Single-Family', 'Joy Smith']);
   Logger.log('Added 2201 Oakwood Ave NE.');
+}
+
+// Deletes Truth rows whose address matches one of the given keys.
+// Bottom-up so earlier row numbers stay valid.
+function removeRows_(addresses) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(CONFIG.TAB);
+  const targets = new Set(addresses.map(addressKey_));
+  const rows = readAssignments_();
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (targets.has(addressKey_(rows[i].address))) {
+      sh.deleteRow(i + 2);
+      Logger.log('Removed ' + rows[i].address);
+    }
+  }
 }
 
 function csvCell_(v) {
