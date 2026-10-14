@@ -6,7 +6,7 @@ const CONFIG = {
 
   // Leave blank until Blake confirms the address. While blank, the weekly
   // list goes to REPORT_TO only (dry run) and nothing reaches Cunningham.
-  CUNNINGHAM_EMAIL: '',
+  CUNNINGHAM_EMAIL: 'support@newtownanswering.com',
 
   REPORT_TO: 'matt@greenpropertymgt.com',
   EXPORT_FOLDER_NAME: 'Cunningham Property Lists',
