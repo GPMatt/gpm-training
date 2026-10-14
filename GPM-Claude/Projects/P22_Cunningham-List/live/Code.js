@@ -50,12 +50,14 @@ function exportList(testOnly) {
   const body =
     `Hello,\n\nAttached is Green Property Management's current property list ` +
     `(${list.length} properties) with the property manager for each address. ` +
-    `This replaces any earlier list.\n\nThank you,\nGreen Property Management`;
+    `This replaces any earlier list.\n\nIf you have any questions, please reach out to ${CONFIG.CONTACT_NAME} ` +
+    `at ${CONFIG.CONTACT_EMAIL}.\n\nThank you,\nGreen Property Management`;
   MailApp.sendEmail({
     to: live ? CONFIG.CUNNINGHAM_EMAIL : CONFIG.REPORT_TO,
     cc: live ? CONFIG.REPORT_TO : '',
     subject: (live ? '' : '[DRY RUN - not sent to Cunningham] ') +
              `Green Property Management - Property List ${date}`,
+    replyTo: CONFIG.CONTACT_EMAIL,
     body: body,
     attachments: [blob],
   });

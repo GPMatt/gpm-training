@@ -9,6 +9,10 @@ const CONFIG = {
   CUNNINGHAM_EMAIL: 'support@newtownanswering.com',
 
   REPORT_TO: 'matt@greenpropertymgt.com',
+
+  // Named in the Cunningham email as the person to contact; replies go here too.
+  CONTACT_NAME: 'Blake Roush',
+  CONTACT_EMAIL: 'blake@greenpropertymgt.com',
   EXPORT_FOLDER_NAME: 'Cunningham Property Lists',
 
   // Thursday, 7am Detroit time (the warehouse pipeline ingests Wednesday).
