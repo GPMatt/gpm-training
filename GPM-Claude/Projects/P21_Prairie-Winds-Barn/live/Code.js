@@ -13,7 +13,7 @@
  *   share a day, no buffer between them.
  * - Holidays (Holidays tab, editable): full day only, $150.
  * - $200 security deposit on every booking.
- * - Fee + deposit are charged to the homeowner's AppFolio ledger by staff, not paid here.
+ * - Fee + deposit are charged to the homeowner's AppFolio tenant ledger by staff, not paid here.
  * - Instant confirm; same-day booking allowed. No Google Calendar: the Bookings tab
  *   IS the calendar, and the page greys out taken slots from it.
  * - Cancellation (per the agreement): cancelling 7 days or less before the event
@@ -29,7 +29,7 @@
 
 var CONFIG = {
   // While true, every staff email goes to Matt instead of Blake.
-  TEST_MODE: true,
+  TEST_MODE: false,
   STAFF_EMAIL: 'blake@greenpropertymgt.com',
   TEST_STAFF_EMAIL: 'matt@greenpropertymgt.com',
   TZ: 'America/Detroit',
@@ -371,7 +371,7 @@ function sendResidentConfirmation_(b) {
     '<p>Hi ' + esc_(b['Resident Name']) + ',</p>' +
     '<p>Your Prairie Winds clubhouse reservation is confirmed.</p>' + detailsTable_(b) +
     '<p>The $' + esc_(b['Usage Fee']) + ' usage fee and the $' + esc_(b['Deposit']) +
-    ' security deposit will be charged to your AppFolio account. The deposit is returned after the event ' +
+    ' security deposit will be charged to your AppFolio tenant ledger. The deposit is returned after the event ' +
     'if the exit checklist is complete, nothing is damaged or lost, and no clubhouse rules are broken.</p>' +
     '<p><b>Location:</b> ' + esc_(CONFIG.ADDRESS) + '. The rental covers the clubhouse only, not the ' +
     'Eastbrook office space, pool, patio, grill, or outdoor use of the parking lot or grass. Eastbrook Homes ' +
@@ -397,7 +397,7 @@ function sendStaffNotice_(b) {
     '<p>New Prairie Winds clubhouse booking (confirmed automatically).</p>' + detailsTable_(b) +
     '<p><b>To do:</b></p><ol>' +
     '<li>Post the $' + esc_(b['Usage Fee']) + ' usage fee and $' + esc_(b['Deposit']) +
-    ' deposit to the homeowner\'s AppFolio ledger, then tick "AppFolio Charges Posted?" in the Sheet.</li>' +
+    ' deposit to the homeowner\'s AppFolio tenant ledger, then tick "AppFolio Charges Posted?" in the Sheet.</li>' +
     '<li>Forward to the clubhouse committee for the walkthrough.</li></ol>' +
     '<p>Agreement signed as: ' + esc_(b['Agreement Signed (typed name)']) +
     (b['Alcohol?'] === 'Yes' ? '<br>Alcohol Addendum signed as: ' + esc_(b['Alcohol Addendum Signed (typed name)']) : '') +
@@ -453,4 +453,10 @@ function prettyDate_(iso) {
   var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
   return days[d.getUTCDay()] + ', ' + months[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+}
+
+/** One-time: give staff edit access to the bookings Sheet (owned by automation@). */
+function shareWithStaff() {
+  SpreadsheetApp.getActive().addEditors(['matt@greenpropertymgt.com', 'blake@greenpropertymgt.com']);
+  Logger.log('Editors: ' + SpreadsheetApp.getActive().getEditors().map(function (u) { return u.getEmail(); }).join(', '));
 }

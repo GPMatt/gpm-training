@@ -92,7 +92,7 @@
       <div class="terms">
         <p>You are requesting the rental of the community clubhouse. This does not include access to the Eastbrook office space, the pool, patio, grill, or any outdoor use of the parking lot or grassy space.</p>
         <h3>Fees</h3>
-        <p>Half day $25 (morning: out by 3:30 PM; evening: 3:30 PM to midnight). Full day $50 (out by midnight). Holiday full day $150. A $200 security deposit is also required. The usage fee and deposit are charged to your AppFolio account.</p>
+        <p>Half day $25 (morning: out by 3:30 PM; evening: 3:30 PM to midnight). Full day $50 (out by midnight). Holiday full day $150. A $200 security deposit is also required. The usage fee and deposit are charged to your AppFolio tenant ledger.</p>
         <p>Rentals during May and June, and rentals between and including Thanksgiving Day and New Year's Day, are subject to a $30 cancellation fee.</p>
         <h3>Terms</h3>
         <p>1) The security deposit will be returned after the event, provided the member and a clubhouse committee member have completed the checklist, no damage or loss has occurred, and there have been no infractions of the clubhouse rules.</p>
@@ -141,7 +141,7 @@
       <h2><span class="step">5</span>Review &amp; book</h2>
       <div class="total"><span id="feeLabel">Usage fee</span><span id="feeAmt"></span></div>
       <div class="total"><span>Security deposit (returned if checklist complete)</span><span id="depAmt"></span></div>
-      <div class="total big"><span>Charged to your AppFolio account</span><span id="totAmt"></span></div>
+      <div class="total big"><span>Charged to your AppFolio tenant ledger</span><span id="totAmt"></span></div>
       <p class="note">Your booking is confirmed as soon as you submit. Cancelling 7 days or less before the event forfeits the usage fee.</p>
       <button class="btn" id="submit" type="button">Book the clubhouse</button>
       <div class="err" id="err"></div>
@@ -254,7 +254,7 @@
     google.script.run
       .withSuccessHandler(function (r) {
         $('form').classList.add('hidden'); $('done').classList.remove('hidden');
-        $('doneText').textContent = r.date + ', ' + r.slot.toLowerCase() + ' (' + r.start + ' to ' + r.end + '). $' + r.fee + ' usage fee + $' + r.deposit + ' deposit will be charged to your AppFolio account. Booking ID ' + r.id + '.';
+        $('doneText').textContent = r.date + ', ' + r.slot.toLowerCase() + ' (' + r.start + ' to ' + r.end + '). $' + r.fee + ' usage fee + $' + r.deposit + ' deposit will be charged to your AppFolio tenant ledger. Booking ID ' + r.id + '.';
         window.scrollTo(0, 0);
       })
       .withFailureHandler(function (err) {
