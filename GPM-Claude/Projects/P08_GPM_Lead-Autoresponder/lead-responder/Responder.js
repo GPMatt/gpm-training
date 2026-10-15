@@ -18,6 +18,9 @@ var RESPONDER_SEARCH = 'from:guestcards@appfolio.com newer_than:2d';
 var REPEAT_WINDOW_DAYS = 14;  // one auto-reply per prospect per property in this window
 var MAX_ERROR_RETRIES = 3;
 var RESPONDER_TIME_BUDGET_MS = 4.5 * 60 * 1000;
+var ALERT_EMAIL = 'matt@greenpropertymgt.com'; // copied on every "no posted unit" alert
+var OFFICE_DAYS = [1, 2, 3, 4, 5];             // Mon-Fri (ISO weekday numbers)
+var OFFICE_START_HOUR = 9, OFFICE_END_HOUR = 17; // 9:00-17:00 America/Detroit
 
 function installResponder() {
   var props = PropertiesService.getScriptProperties();
@@ -87,7 +90,17 @@ function handleGuestCard_(msg, profiles, listings, history) {
   if (p.Status === 'Live' && p.Missing) return logRow_(msg, 'BLOCKED', card, match, {}, '', 'Row is Live but missing: ' + p.Missing);
 
   var key = card.email + '|' + p.Property;
-  if (history.recent[key] && Date.now() - history.recent[key] < REPEAT_WINDOW_DAYS * 864e5) {
+  var answeredRecently = history.recent[key] && Date.now() - history.recent[key] < REPEAT_WINDOW_DAYS * 864e5;
+
+  // Nothing posted for a property they just inquired about means the listing
+  // and the lead don't line up — the PM (and Matt) must look. The prospect
+  // only gets the holding reply when the office is closed.
+  if (match.outcome === 'NO_VACANCY') {
+    var afterHours = !isOfficeHours_(msg.getDate());
+    sendNoListingAlert_(p, card, msg, afterHours && !answeredRecently);
+    if (!afterHours) return logRow_(msg, 'ALERT', card, match, {}, '', 'No posted unit found; PM alerted, prospect left to the PM (office hours)');
+    if (answeredRecently) return logRow_(msg, 'ALERT', card, match, {}, '', 'No posted unit found; PM alerted; prospect already answered recently');
+  } else if (answeredRecently) {
     return logRow_(msg, 'SKIP', card, match, {}, '', 'Already answered this prospect for this property in the last ' + REPEAT_WINDOW_DAYS + ' days');
   }
 
@@ -105,7 +118,43 @@ function handleGuestCard_(msg, profiles, listings, history) {
   GmailApp.sendEmail(to, subject, mail.text, options);
   history.recent[key] = Date.now();
 
-  return logRow_(msg, p.Status === 'Live' ? 'SENT' : 'TEST', card, match, mail, to, match.reason);
+  var action = (match.outcome === 'NO_VACANCY' ? 'ALERT+' : '') + (p.Status === 'Live' ? 'SENT' : 'TEST');
+  return logRow_(msg, action, card, match, mail, to,
+    match.outcome === 'NO_VACANCY' ? 'No posted unit found; PM alerted; after-hours holding reply sent' : match.reason);
+}
+
+function isOfficeHours_(date) {
+  var day = Number(Utilities.formatDate(date, 'America/Detroit', 'u'));
+  var hour = Number(Utilities.formatDate(date, 'America/Detroit', 'H'));
+  return OFFICE_DAYS.indexOf(day) >= 0 && hour >= OFFICE_START_HOUR && hour < OFFICE_END_HOUR;
+}
+
+// To the PM, cc Matt: the lead could not be matched to a posted unit, so no
+// listing links went out. Test rows tag the subject so nobody chases a test.
+function sendNoListingAlert_(p, card, msg, prospectGetsHoldingReply) {
+  var to = p.PMEmail || ALERT_EMAIL;
+  var subject = (p.Status === 'Test' ? '[TEST] ' : '') + 'Lead not auto-answered: ' + p.Property + ' — no posted unit found';
+  var lines = [
+    'A guest card came in for ' + p.Property + ', but nothing is posted to the website for it right now,',
+    'so the auto-responder could not send listing links.',
+    '',
+    prospectGetsHoldingReply
+      ? 'It came in after hours, so the prospect got a short holding reply saying you will follow up.'
+      : 'The prospect has NOT been emailed. Please follow up with them directly.',
+    '',
+    'Prospect: ' + (card.name || '(no name)'),
+    'Email: ' + (card.email || '(none)'),
+    'Phone: ' + (card.phone || '(none)'),
+    'Card: ' + (card.headline || '') + (card.interestedIn ? ' / ' + card.interestedIn : ''),
+    'Source: ' + (card.source || ''),
+    'Received: ' + Utilities.formatDate(msg.getDate(), 'America/Detroit', 'EEE M/d h:mm a'),
+    'Comments: ' + (card.comments || '(none)'),
+    '',
+    'If the unit should be posted, post it to the website in AppFolio so the next lead gets links automatically.'
+  ];
+  var options = { name: SENDER_NAME };
+  if (to.toLowerCase() !== ALERT_EMAIL) options.cc = ALERT_EMAIL;
+  GmailApp.sendEmail(to, subject, lines.join('\n'), options);
 }
 
 function logRow_(msg, action, card, match, mail, sentTo, reason) {

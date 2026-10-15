@@ -7,7 +7,6 @@
 
 var PREVIEW_FALLBACK_EMAIL = 'matt@greenpropertymgt.com';
 var SENDER_NAME = 'Green Property Management Leasing';
-var MAX_UNITS_SHOWN = 6;
 
 var LINK_LABELS = {
   ShowingLink: 'BOOK A SHOWING',
@@ -98,25 +97,44 @@ function renderEmail_(property, profiles, firstName, match) {
 // PM's AppFolio calendar has open times — a Book-a-showing button. A unit
 // whose calendar is empty never gets a showing link (it would dead-end).
 function unitsBlock_(property, match, pm) {
+  // One unit per bedroom type (Studio, 1 bd, 2 bd...): the prospect sees the
+  // range of what's open without a wall of near-identical cards. Within a
+  // type: the unit they asked about, then a real unit over a wait list, then
+  // one they can book a showing for, then the soonest available.
   var list = (match.building || []).slice();
-  list.sort(function (a, b) {
+  var slots = list.length ? showingSlots_(list) : {};
+  var rank = function (l) {
+    return [match.unit && l.uid === match.unit.uid ? 0 : 1, isWaitList_(l), (slots[l.uid] > 0 || property.ShowingLink) ? 0 : 1,
+      availableSortKey_(l)];
+  };
+  var better = function (a, b) {
+    var ra = rank(a), rb = rank(b);
+    for (var i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    return 0;
+  };
+  var byBeds = {};
+  list.forEach(function (l) {
+    var k = bedKey_(l);
+    if (!byBeds[k] || better(l, byBeds[k]) < 0) byBeds[k] = l;
+  });
+  var shown = Object.keys(byBeds).map(function (k) { return byBeds[k]; });
+  shown.sort(function (a, b) {
     if (match.unit && a.uid === match.unit.uid) return -1;
     if (match.unit && b.uid === match.unit.uid) return 1;
-    return (isWaitList_(a) - isWaitList_(b)) || (availableSortKey_(a) - availableSortKey_(b));
+    return bedSortValue_(a) - bedSortValue_(b);
   });
-  var shown = list.slice(0, MAX_UNITS_SHOWN);
-  var slots = shown.length ? showingSlots_(shown) : {};
   var bookable = shown.filter(function (l) { return slots[l.uid] > 0 || property.ShowingLink; }).length;
 
   if (!shown.length) {
-    var none = 'We don\'t have a unit posted at ' + property.Property + ' right now. Reply to this email and ' + pm +
-      ' will let you know as soon as one opens up.';
+    // Only sent after hours (Responder.js); the PM is alerted to follow up.
+    var none = pm + ' will follow up with you about current availability at ' + property.Property +
+      ' on the next business day. You can also reply to this email.';
     return { text: none, html: escapeHtml_(none), shown: 0, bookable: 0 };
   }
 
   var intro = match.unit
-    ? 'Good news: the apartment you asked about is still available.' + (shown.length > 1 ? ' Here are the other openings too:' : '')
-    : 'Here is what is available right now:';
+    ? 'Good news: the apartment you asked about is still available.' + (shown.length > 1 ? ' Other floor plans open right now:' : '')
+    : 'Here is what is open right now, one of each floor plan:';
   var text = [intro, ''], html = ['<p style="margin:0 0 8px">' + escapeHtml_(intro) + '</p>'];
 
   shown.forEach(function (l) {
@@ -159,6 +177,16 @@ function unitLabel_(l) {
     .replace(/\s+-\s+[^,]+(?=,\s*(?:apt|unit)\b)/i, '')  // "1960 Burton St SE - 1960 IVA01, Apt 01"
     .replace(/,\s*-\s*/g, ', ')                           // "90 Wealthy Street SE, - 201"
     .replace(/\s*,\s*(,\s*)+/g, ', ').replace(/\s+,/g, ',').replace(/,\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+// "2 bd / 1.5 ba" → "2 bd"; "Studio / 1 ba" → "studio".
+function bedKey_(l) {
+  return String(l.bedBath || '').split('/')[0].trim().toLowerCase() || '?';
+}
+
+function bedSortValue_(l) {
+  var k = bedKey_(l);
+  return /studio/.test(k) ? 0 : (parseFloat(k) || 99);
 }
 
 function isWaitList_(l) {
