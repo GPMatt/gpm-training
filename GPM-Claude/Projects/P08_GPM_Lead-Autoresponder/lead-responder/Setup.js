@@ -52,7 +52,7 @@ var DEFAULTS = [
   ['IncomeMultiple', '', 'e.g. 3 (income must be 3x the monthly rent)'],
   ['CosignerPolicy', '', 'e.g. "Accepted when income or credit falls short"'],
   ['Section8Policy', '', 'e.g. "Accepted" / "Not accepted"'],
-  ['ApplicationFee', '', 'e.g. $50 per adult'],
+  ['ApplicationFee', '$50', 'Company-wide application fee'],
   ['SignOff', 'Green Property Management Leasing Team', 'Last line of every email']
 ];
 

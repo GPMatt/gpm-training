@@ -28,8 +28,23 @@ function installResponder() {
   var exists = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processNewGuestCards'; });
   if (!exists) ScriptApp.newTrigger('processNewGuestCards').timeBased().everyMinutes(5).create();
   responderLogSheet_();
+  fillBlankDefaults_();
   Logger.log('Responder on. Answers guest cards received after ' + new Date(Number(props.getProperty('RESPONDER_START'))) +
     '. Only rows with Status Test or Live send anything.');
+}
+
+// Writes code defaults (e.g. ApplicationFee $50) into blank Defaults-tab
+// cells so the sheet shows what the emails actually say.
+function fillBlankDefaults_() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(DEFAULTS_TAB);
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+  DEFAULTS.forEach(function (d) {
+    if (!d[1]) return;
+    rows.forEach(function (r, i) {
+      if (r[0] === d[0] && String(r[1]).trim() === '') sheet.getRange(i + 2, 2).setValue(d[1]);
+    });
+  });
 }
 
 function uninstallResponder() {

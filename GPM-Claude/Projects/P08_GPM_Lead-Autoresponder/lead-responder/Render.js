@@ -42,9 +42,12 @@ function loadProfiles_() {
     return obj;
   });
 
+  // Code defaults (Setup.gs DEFAULTS, e.g. the $50 application fee) apply
+  // when the Defaults tab cell is blank; a value typed in the sheet wins.
   var defaults = {};
+  DEFAULTS.forEach(function (d) { if (d[1]) defaults[d[0]] = d[1]; });
   ss.getSheetByName(DEFAULTS_TAB).getDataRange().getValues().slice(1).forEach(function (row) {
-    if (row[0]) defaults[row[0]] = String(row[1]).trim();
+    if (row[0] && String(row[1]).trim()) defaults[row[0]] = String(row[1]).trim();
   });
 
   var t = ss.getSheetByName(TEMPLATE_TAB).getRange(1, 2, 2, 1).getValues();
