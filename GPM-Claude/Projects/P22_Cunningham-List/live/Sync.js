@@ -10,7 +10,7 @@ const PUBLIC = {
   PROPS_TAB: 'Properties',
   CONTACTS_TAB: 'PM Contacts',
   CONTACT_HEADERS: ['Name', 'Role', 'Email', 'Phone'],
-  EXTRA_CONTACTS: ['Jason'],   // not a PM on Truth, but Cunningham should have him
+  EXTRA_CONTACTS: [],   // contacts beyond the PMs on Truth (Jason Holmes is already a PM there)
 };
 
 // Run once from the editor. Creates the sheet (if not already made), installs
