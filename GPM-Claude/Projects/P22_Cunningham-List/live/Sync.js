@@ -9,7 +9,7 @@ const PUBLIC = {
   NAME: 'GPM Property List - Cunningham',
   PROPS_TAB: 'Properties',
   CONTACTS_TAB: 'PM Contacts',
-  CONTACT_HEADERS: ['Name', 'Role', 'Email', 'Phone'],
+  CONTACT_HEADERS: ['Name', 'Role', 'Email'],
   EXTRA_CONTACTS: [],   // contacts beyond the PMs on Truth (Jason Holmes is already a PM there)
 };
 
@@ -30,10 +30,10 @@ function setupPublicSheet() {
     const contacts = ss.insertSheet(PUBLIC.CONTACTS_TAB);
     const pms = [...new Set(buildList_().map(r => r[1]).filter(Boolean))];
     const names = pms.concat(PUBLIC.EXTRA_CONTACTS.filter(n => !pms.includes(n)));
-    contacts.getRange(1, 1, 1, 4).setValues([PUBLIC.CONTACT_HEADERS]).setFontWeight('bold');
-    contacts.getRange(2, 1, names.length, 4).setValues(names.map(n => [n, '', '', '']));
+    const w = PUBLIC.CONTACT_HEADERS.length;
+    contacts.getRange(1, 1, 1, w).setValues([PUBLIC.CONTACT_HEADERS]).setFontWeight('bold');
+    contacts.getRange(2, 1, names.length, w).setValues(names.map(n => [n].concat(Array(w - 1).fill(''))));
     contacts.setFrozenRows(1);
-    contacts.getRange('C:D').setNumberFormat('@');   // keep phone numbers as typed
     Logger.log('Created ' + ss.getUrl());
   }
 
@@ -78,13 +78,15 @@ function publicSheet_() {
   return id ? SpreadsheetApp.openById(id) : null;
 }
 
-// [{name, role, email, phone}] from the PM Contacts tab.
+// [{name, role, email}] from the PM Contacts tab. Columns are found by header,
+// so reordering or adding columns on the tab doesn't shift the output.
 function readContacts_() {
   const ss = publicSheet_();
   if (!ss) return [];
-  const values = ss.getSheetByName(PUBLIC.CONTACTS_TAB).getDataRange().getValues().slice(1);
-  return values
-    .filter(r => String(r[0]).trim())
-    .map(r => ({ name: String(r[0]).trim(), role: String(r[1]).trim(),
-                 email: String(r[2]).trim(), phone: String(r[3]).trim() }));
+  const values = ss.getSheetByName(PUBLIC.CONTACTS_TAB).getDataRange().getValues();
+  const h = values[0].map(v => String(v).trim().toLowerCase());
+  const get = (r, name) => { const i = h.indexOf(name); return i < 0 ? '' : String(r[i]).trim(); };
+  return values.slice(1)
+    .filter(r => get(r, 'name'))
+    .map(r => ({ name: get(r, 'name'), role: get(r, 'role'), email: get(r, 'email') }));
 }
