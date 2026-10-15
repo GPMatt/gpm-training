@@ -26,8 +26,9 @@ var PROPERTY_COLUMNS = [
 
 var PROPERTY_HEADER_NOTES = {
   MatchPhrases: 'Lowercase phrases, separated by ";". A lead email that contains any of them belongs to this property. Use street NUMBER + street (e.g. "1960 burton"), never a bare street name.',
-  ShowingLink: 'AppFolio self-booking link for this property\'s showing blocks.',
-  ApplyLink: 'AppFolio online application link.',
+  ShowingLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio booking page, and only when the PM\'s showing calendar has open times.',
+  ApplyLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio application.',
+  RentRange: 'Optional. Each email already shows the live rent of every posted unit.',
   VirtualTourLink: 'Optional. Leave blank if there is no video tour.',
   CreditMin: 'Leave blank to use the company default (Defaults tab). Fill in only if this property is different.',
   IncomeMultiple: 'Leave blank to use the company default.',
@@ -40,10 +41,10 @@ var PROPERTY_HEADER_NOTES = {
 };
 
 // Required before Live. Overrides fall back to Defaults, so they are checked
-// against both.
+// against both. Showing/apply links and rent are NOT required: they come live
+// from the AppFolio listings for every lead.
 var REQUIRED = [
-  ['PM', 'PM'], ['PMEmail', 'PM email'], ['ShowingLink', 'Showing link'], ['ApplyLink', 'Apply link'],
-  ['RentRange', 'Rent'], ['Pets', 'Pets'], ['LeaseLengths', 'Lease lengths']
+  ['PM', 'PM'], ['PMEmail', 'PM email'], ['Pets', 'Pets'], ['LeaseLengths', 'Lease lengths']
 ];
 
 var DEFAULTS = [
@@ -82,13 +83,9 @@ var TEMPLATE_SUBJECT = 'Your inquiry about {{Property}}';
 var TEMPLATE_BODY = [
   'Hi {{FirstName}},',
   '',
-  'Thanks for your interest in {{Property}}! The fastest way to see it is to pick a showing time that works for you:',
+  'Thanks for your interest in {{Property}}!',
   '',
-  '{{ShowingLink}}',
-  '',
-  'Ready to move forward? You can apply online right now:',
-  '',
-  '{{ApplyLink}}',
+  '{{Units}}',
   '',
   'WHAT YOU NEED TO QUALIFY',
   '• Credit score of {{CreditMin}} or higher',
@@ -109,6 +106,11 @@ var TEMPLATE_BODY = [
   '',
   '{{SignOff}}'
 ].join('\n');
+
+var TEMPLATE_HELP = 'Placeholders in {{double braces}} are filled from the property\'s row (or the Defaults tab). ' +
+  'A line whose placeholder is blank is dropped. {{Units}} is the live list of posted units, each with Apply and ' +
+  '(when the showing calendar has open times) Book-a-showing buttons. {{About}} is the optional write-up doc. ' +
+  '{{FirstName}} comes from the lead. One template for every property — edit it here only.';
 
 function setupProfilesSheet() {
   var props = PropertiesService.getScriptProperties();
@@ -146,9 +148,7 @@ function buildTemplateTab_(ss) {
   sheet.getRange(1, 1, 3, 2).setValues([
     ['Subject', TEMPLATE_SUBJECT],
     ['Body', TEMPLATE_BODY],
-    ['How it works', 'Placeholders in {{double braces}} are filled from the property\'s row (or the Defaults tab). ' +
-      'A line whose placeholder is blank is dropped. {{ShowingLink}}, {{ApplyLink}} and {{VirtualTourLink}} become buttons/links. ' +
-      '{{About}} is the optional write-up doc. {{FirstName}} comes from the lead. One template for every property — edit it here only.']
+    ['How it works', TEMPLATE_HELP]
   ]);
   sheet.getRange(1, 1, 3, 1).setFontWeight('bold');
   sheet.setColumnWidth(1, 120); sheet.setColumnWidth(2, 720);

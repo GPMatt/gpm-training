@@ -1,0 +1,163 @@
+// GPM Lead Responder — the auto-reply itself
+//
+// processNewGuestCards() runs every 5 minutes (installResponder() in
+// Responder.gs sets that up). For each new AppFolio guest-card email in this
+// mailbox it finds the property row and the live listings, then acts on the
+// row's Status:
+//   Draft → nothing sent (logged only)
+//   Test  → the email the prospect WOULD get goes to the PM instead
+//   Live  → the email goes to the prospect, with Reply-To set to the PM
+// Every decision is written to the ResponderLog tab of the profiles sheet.
+// Only guest cards received AFTER installResponder() was first run are
+// answered, so turning it on never replies to old leads.
+
+var RESPONDER_LOG_TAB = 'ResponderLog';
+var RESPONDER_LOG_HEADER = ['Logged', 'Received', 'Action', 'Property', 'Status', 'SentTo', 'Prospect', 'ProspectEmail',
+  'Outcome', 'Unit', 'UnitsShown', 'Bookable', 'Reason', 'Headline', 'MsgId'];
+var RESPONDER_SEARCH = 'from:guestcards@appfolio.com newer_than:2d';
+var REPEAT_WINDOW_DAYS = 14;  // one auto-reply per prospect per property in this window
+var MAX_ERROR_RETRIES = 3;
+var RESPONDER_TIME_BUDGET_MS = 4.5 * 60 * 1000;
+
+function installResponder() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('RESPONDER_START')) props.setProperty('RESPONDER_START', String(Date.now()));
+  var exists = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'processNewGuestCards'; });
+  if (!exists) ScriptApp.newTrigger('processNewGuestCards').timeBased().everyMinutes(5).create();
+  responderLogSheet_();
+  Logger.log('Responder on. Answers guest cards received after ' + new Date(Number(props.getProperty('RESPONDER_START'))) +
+    '. Only rows with Status Test or Live send anything.');
+}
+
+function uninstallResponder() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'processNewGuestCards') ScriptApp.deleteTrigger(t);
+  });
+  Logger.log('Responder off.');
+}
+
+function processNewGuestCards() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return; // previous run still going
+  try {
+    var startedAt = Date.now();
+    var since = Number(PropertiesService.getScriptProperties().getProperty('RESPONDER_START'));
+    if (!since) return;
+
+    var log = responderLogSheet_();
+    var history = readResponderHistory_(log);
+    var profiles = null, listings = null, rows = [];
+
+    var threads = GmailApp.search(RESPONDER_SEARCH, 0, 100);
+    var messages = [];
+    GmailApp.getMessagesForThreads(threads).forEach(function (msgs) {
+      msgs.forEach(function (m) {
+        if (m.getDate().getTime() < since) return;
+        if (m.getFrom().indexOf('guestcards@appfolio.com') < 0) return;
+        if (history.done[m.getId()]) return;
+        messages.push(m);
+      });
+    });
+    messages.sort(function (a, b) { return a.getDate() - b.getDate(); });
+
+    for (var i = 0; i < messages.length && Date.now() - startedAt < RESPONDER_TIME_BUDGET_MS; i++) {
+      var msg = messages[i];
+      try {
+        profiles = profiles || loadProfiles_();
+        listings = listings || fetchAllListings_();
+        rows.push(handleGuestCard_(msg, profiles, listings, history));
+      } catch (err) {
+        rows.push(logRow_(msg, 'ERROR', null, null, {}, '', String(err && err.message || err)));
+      }
+    }
+    if (rows.length) log.getRange(log.getLastRow() + 1, 1, rows.length, RESPONDER_LOG_HEADER.length).setValues(rows);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleGuestCard_(msg, profiles, listings, history) {
+  var card = parseGuestCard_(msg.getSubject(), msg.getBody());
+  var match = matchCard_(card, listings, profiles.properties);
+  var p = match.profile;
+
+  if (match.outcome === 'NO_PROFILE' || match.outcome === 'AMBIGUOUS') return logRow_(msg, 'SKIP', card, match, {}, '', match.reason);
+  if (p.Status !== 'Test' && p.Status !== 'Live') return logRow_(msg, 'SKIP', card, match, {}, '', 'Row is ' + (p.Status || 'blank'));
+  if (!card.email) return logRow_(msg, 'SKIP', card, match, {}, '', 'No prospect email on the guest card');
+  if (p.Status === 'Live' && p.Missing) return logRow_(msg, 'BLOCKED', card, match, {}, '', 'Row is Live but missing: ' + p.Missing);
+
+  var key = card.email + '|' + p.Property;
+  if (history.recent[key] && Date.now() - history.recent[key] < REPEAT_WINDOW_DAYS * 864e5) {
+    return logRow_(msg, 'SKIP', card, match, {}, '', 'Already answered this prospect for this property in the last ' + REPEAT_WINDOW_DAYS + ' days');
+  }
+
+  var mail = renderEmail_(p, profiles, firstName_(card.name), match);
+  var to, subject;
+  if (p.Status === 'Live') {
+    to = card.email;
+    subject = mail.subject;
+  } else {
+    to = p.PMEmail || PREVIEW_FALLBACK_EMAIL;
+    subject = '[TEST — would go to ' + card.email + '] ' + mail.subject;
+  }
+  var options = { htmlBody: mail.html, name: SENDER_NAME };
+  if (p.PMEmail) options.replyTo = p.PMEmail;
+  GmailApp.sendEmail(to, subject, mail.text, options);
+  history.recent[key] = Date.now();
+
+  return logRow_(msg, p.Status === 'Live' ? 'SENT' : 'TEST', card, match, mail, to, match.reason);
+}
+
+function logRow_(msg, action, card, match, mail, sentTo, reason) {
+  card = card || {};
+  match = match || {};
+  return [new Date(), msg.getDate(), action, match.profile ? match.profile.Property : '', match.profile ? match.profile.Status : '',
+    sentTo || '', card.name || '', card.email || '', match.outcome || '', match.unit ? match.unit.address : '',
+    mail.unitsShown === undefined ? '' : mail.unitsShown, mail.bookable === undefined ? '' : mail.bookable,
+    reason || '', card.headline || '', msg.getId()];
+}
+
+// done: message IDs already handled (an ERROR counts once it has failed
+// MAX_ERROR_RETRIES times). recent: last SENT/TEST time per prospect|property.
+function readResponderHistory_(log) {
+  var done = {}, errors = {}, recent = {};
+  var n = log.getLastRow() - 1;
+  if (n > 0) {
+    var take = Math.min(n, 5000);
+    var col = function (name) { return RESPONDER_LOG_HEADER.indexOf(name); };
+    log.getRange(log.getLastRow() - take + 1, 1, take, RESPONDER_LOG_HEADER.length).getValues().forEach(function (r) {
+      var id = r[col('MsgId')], action = r[col('Action')];
+      if (action === 'ERROR') {
+        errors[id] = (errors[id] || 0) + 1;
+        if (errors[id] >= MAX_ERROR_RETRIES) done[id] = true;
+      } else {
+        done[id] = true;
+      }
+      if (action === 'SENT' || action === 'TEST') {
+        var key = String(r[col('ProspectEmail')]).toLowerCase() + '|' + r[col('Property')];
+        recent[key] = Math.max(recent[key] || 0, new Date(r[col('Logged')]).getTime());
+      }
+    });
+  }
+  return { done: done, recent: recent };
+}
+
+function responderLogSheet_() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(RESPONDER_LOG_TAB);
+  if (!sheet) {
+    sheet = ss.insertSheet(RESPONDER_LOG_TAB);
+    sheet.getRange(1, 1, 1, RESPONDER_LOG_HEADER.length).setValues([RESPONDER_LOG_HEADER]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// "chandler unknown" → "Chandler"; anything odd → "there".
+function firstName_(name) {
+  var first = String(name || '').trim().split(/\s+/)[0] || '';
+  if (!/^[A-Za-z][A-Za-z'-]{1,}$/.test(first) || /^unknown$/i.test(first)) return 'there';
+  // Keep "JoNisa" as typed; only fix all-lowercase or ALL-CAPS names.
+  if (first === first.toLowerCase() || first === first.toUpperCase()) first = first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  return first;
+}

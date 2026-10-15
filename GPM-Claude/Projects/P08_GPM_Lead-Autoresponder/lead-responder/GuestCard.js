@@ -19,7 +19,7 @@ function parseGuestCard_(subject, html) {
   return {
     kind: head ? head[1].charAt(0).toUpperCase() + head[1].slice(1).toLowerCase() : '',
     headline: head ? head[2].trim() : '',
-    interestedIn: line(/Interested in:\s*([^\n]+)/i),
+    interestedIn: line(/Interested in:[ \t]*([^\n]*)/i),
     account: (String(html).match(/https?:\/\/([a-z0-9-]+)\.appfolio\.com\/users\//i) || [])[1] || '',
     name: contact[0] || '',
     email: email.toLowerCase(),

@@ -93,3 +93,44 @@ function applyProfileUpdates() {
 
   Logger.log(log.join('\n') + '\n' + ss.getUrl());
 }
+
+// applyResponderUpgrade() (Updates.gs) — run once before turning the responder
+// on. Safe to re-run.
+//   1. Merges the duplicate "2700 Clyde Park Ave SW" row into Woods Edge
+//      (same property; two rows made every Clyde Park lead ambiguous).
+//   2. Writes the new template ({{Units}} = live posted units) to the Template tab.
+//   3. Rewrites the Missing formulas and header notes: showing/apply links
+//      and rent now come live from AppFolio, so they are no longer required.
+function applyResponderUpgrade() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i + 1; });
+  var log = [];
+
+  var names = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  var clyde = names.indexOf('2700 Clyde Park Ave SW');
+  if (clyde >= 0) { sheet.deleteRow(clyde + 2); log.push('Removed duplicate row 2700 Clyde Park Ave SW'); }
+  names = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  var woods = names.indexOf('Woods Edge Apartments');
+  if (woods >= 0) {
+    sheet.getRange(woods + 2, col.MatchPhrases).setValue('woods edge; 2715 mckee; 2700 clyde park; 28th and clyde park');
+    sheet.getRange(woods + 2, col.Notes).setValue('Leads arrive as "Woods Edge Apartments", "2715 McKee" or "2700 Clyde Park Ave SW" — all one property.');
+    log.push('Woods Edge now matches all three names');
+  }
+
+  var tpl = ss.getSheetByName(TEMPLATE_TAB);
+  tpl.getRange(1, 2, 3, 1).setValues([[TEMPLATE_SUBJECT], [TEMPLATE_BODY], [TEMPLATE_HELP]]);
+  log.push('Template updated');
+
+  var formulas = [];
+  for (var r = 2; r <= 100; r++) formulas.push([missingFormula_(col, r)]);
+  sheet.getRange(2, col.Missing, formulas.length, 1).setFormulas(formulas);
+  Object.keys(PROPERTY_HEADER_NOTES).forEach(function (name) {
+    if (col[name]) sheet.getRange(1, col[name]).setNote(PROPERTY_HEADER_NOTES[name]);
+  });
+  log.push('Missing formulas + header notes updated');
+
+  Logger.log(log.join('\n') + '\n' + ss.getUrl());
+}

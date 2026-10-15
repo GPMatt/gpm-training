@@ -4,7 +4,8 @@
 // is posted to the website at that moment, so links never go stale. Each
 // AppFolio account has its own public page.
 
-var LISTING_ACCOUNTS = ['greenproperty11', 'greenproperty', 'greenproperty7', 'greenproperty9', 'hilltoprealtymanagement'];
+// hilltoprealtymanagement (Jefferson) is deliberately left out of this project.
+var LISTING_ACCOUNTS = ['greenproperty11', 'greenproperty', 'greenproperty7', 'greenproperty9'];
 var LISTINGS_CACHE_SECONDS = 10 * 60;
 var SLOTS_CACHE_SECONDS = 60 * 60;
 var SLOT_LOOKAHEAD_DAYS = 14; // AppFolio returns 4 days per request
