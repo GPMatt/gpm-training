@@ -65,7 +65,13 @@ function renderEmail_(property, profiles, firstName, match) {
   values.FirstName = firstName || 'there';
   values.About = readWriteup_(property.WriteupDoc);
   var units = unitsBlock_(property, match || { building: [] }, values.PM || 'our leasing team');
+  // Older Template tabs have no {{Tour}} line: keep the tour note under the units.
+  if (profiles.body.indexOf('{{Tour}}') < 0 && units.tour) {
+    units.text += '\n\n' + units.tour;
+    units.html += '<p style="margin:0 0 8px">' + escapeHtml_(units.tour) + '</p>';
+  }
   values.Units = units.text;
+  values.Tour = units.tour;
 
   var htmlLines = [], textLines = [];
   profiles.body.split('\n').forEach(function (line) {
@@ -80,6 +86,7 @@ function renderEmail_(property, profiles, firstName, match) {
         return '<a href="' + escapeHtml_(values[k]) + '"><strong>' + LINK_LABELS[k] + '</strong></a>';
       }
       if (k === 'Units') return units.html;
+      if (k === 'Tour') return escapeHtml_(values.Tour);
       if (k === 'About') {
         return '<strong>ABOUT ' + escapeHtml_(values.Property).toUpperCase() + '</strong><br>' +
           escapeHtml_(values.About).replace(/\n/g, '<br>');
@@ -94,6 +101,11 @@ function renderEmail_(property, profiles, firstName, match) {
     var next = textLines.slice(i + 1).filter(function (l) { return l.trim(); })[0] || '';
     if (next.indexOf('•') !== 0) { textLines.splice(i, 1); htmlLines.splice(i, 1); }
   }
+
+  // Headings ("WHAT YOU NEED TO QUALIFY") in bold.
+  textLines.forEach(function (l, i) {
+    if (/^[A-Z][A-Z0-9 &'/-]+$/.test(l)) htmlLines[i] = '<strong>' + htmlLines[i] + '</strong>';
+  });
 
   // Collapse the blank lines left behind by dropped sections.
   var html = htmlLines.join('<br>').replace(/(<br>){3,}/g, '<br><br>');
@@ -139,7 +151,7 @@ function unitsBlock_(property, match, pm) {
     // Only sent after hours (Responder.js); the PM is alerted to follow up.
     var none = pm + ' will follow up with you about current availability at ' + property.Property +
       ' on the next business day. You can also reply to this email.';
-    return { text: none, html: escapeHtml_(none), shown: 0, bookable: 0 };
+    return { text: none, html: escapeHtml_(none), shown: 0, bookable: 0, tour: '' };
   }
 
   var intro = match.unit
@@ -171,12 +183,9 @@ function unitsBlock_(property, match, pm) {
     text.push('', 'See all ' + list.length + ' available units: ' + allUrl);
     html.push('<p style="margin:0 0 8px"><a href="' + escapeHtml_(allUrl) + '">See all ' + list.length + ' available units</a></p>');
   }
-  if (!bookable) {
-    var tour = 'Want to see it first? Reply to this email and ' + pm + ' will set up a time.';
-    text.push('', tour);
-    html.push('<p style="margin:0 0 8px">' + escapeHtml_(tour) + '</p>');
-  }
-  return { text: text.join('\n'), html: html.join(''), shown: shown.length, bookable: bookable };
+  // Placed by the template's {{Tour}} line, after the qualifying criteria.
+  var tour = bookable ? '' : 'Want to see it first? Reply to this email and ' + pm + ' will set up a time.';
+  return { text: text.join('\n'), html: html.join(''), shown: shown.length, bookable: bookable, tour: tour };
 }
 
 // "33 Lafayette Ave SE, Apt 07, Grand Rapids, MI 49503" → "33 Lafayette Ave SE, Apt 07".

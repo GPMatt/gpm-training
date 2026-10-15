@@ -95,6 +95,8 @@ var TEMPLATE_BODY = [
   '• Housing vouchers (Section 8): {{Section8Policy}}',
   '• Application fee: {{ApplicationFee}}',
   '',
+  '{{Tour}}',
+  '',
   'QUICK FACTS',
   '• Rent: {{RentRange}}',
   '• Pets: {{Pets}}',
@@ -110,7 +112,8 @@ var TEMPLATE_BODY = [
 
 var TEMPLATE_HELP = 'Placeholders in {{double braces}} are filled from the property\'s row (or the Defaults tab). ' +
   'A line whose placeholder is blank is dropped. {{Units}} is the live list of posted units, each with Apply and ' +
-  '(when the showing calendar has open times) Book-a-showing buttons. {{About}} is the optional write-up doc. ' +
+  '(when the showing calendar has open times) Book-a-showing buttons. {{Tour}} is the "Want to see it first? Reply..." ' +
+  'line, only present when no unit has open showing times. {{About}} is the optional write-up doc. ' +
   '{{FirstName}} comes from the lead. One template for every property — edit it here only.';
 
 function setupProfilesSheet() {

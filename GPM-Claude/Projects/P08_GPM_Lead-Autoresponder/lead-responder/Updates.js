@@ -134,3 +134,11 @@ function applyResponderUpgrade() {
 
   Logger.log(log.join('\n') + '\n' + ss.getUrl());
 }
+
+// updateTemplate() (Updates.gs) — writes the current TEMPLATE_SUBJECT/BODY/HELP
+// from Setup.gs to the Template tab. Safe to re-run.
+function updateTemplate() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  ss.getSheetByName(TEMPLATE_TAB).getRange(1, 2, 3, 1).setValues([[TEMPLATE_SUBJECT], [TEMPLATE_BODY], [TEMPLATE_HELP]]);
+  Logger.log('Template updated\n' + ss.getUrl());
+}
