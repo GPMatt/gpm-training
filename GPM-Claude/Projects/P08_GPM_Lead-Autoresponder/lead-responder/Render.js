@@ -85,6 +85,13 @@ function renderEmail_(property, profiles, firstName, match) {
     }));
   });
 
+  // A section heading ("QUICK FACTS") whose bullets were all dropped goes too.
+  for (var i = textLines.length - 1; i >= 0; i--) {
+    if (!/^[A-Z][A-Z0-9 &'/-]+$/.test(textLines[i])) continue;
+    var next = textLines.slice(i + 1).filter(function (l) { return l.trim(); })[0] || '';
+    if (next.indexOf('•') !== 0) { textLines.splice(i, 1); htmlLines.splice(i, 1); }
+  }
+
   // Collapse the blank lines left behind by dropped sections.
   var html = htmlLines.join('<br>').replace(/(<br>){3,}/g, '<br><br>');
   var text = textLines.join('\n').replace(/\n{3,}/g, '\n\n');
