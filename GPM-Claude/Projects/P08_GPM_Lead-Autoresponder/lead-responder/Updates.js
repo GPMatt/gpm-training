@@ -1,0 +1,95 @@
+// GPM Lead Responder — one-off edits to the Lead Response Profiles sheet
+//
+// applyProfileUpdates() (Updates.gs) is safe to run more than once: rows are
+// found by their Property name, new rows are only added if missing, and
+// only the cells listed here are written.
+
+// Prospect-facing names: {{Property}} goes into the email subject and body,
+// so "Prospect Ave - Prospect" (the AppFolio name) is kept in Notes instead.
+var COSIGNER_POLICY_STANDARD =
+  'Accepted if you have no credit history or your income is under 3x the rent. ' +
+  'A cosigner does not make up for a credit score below the minimum.';
+
+var MIKE = { PM: 'Mike Green', PMEmail: 'mike@greenpropertymgt.com',
+  CreditMin: 625, IncomeMultiple: 3, CosignerPolicy: COSIGNER_POLICY_STANDARD };
+
+var NEW_ROWS = [
+  { Property: 'The Oakwood', MatchPhrases: 'the oakwood; 547 cherry',
+    Notes: 'AppFolio: The Oakwood (547 Cherry St SE).' },
+  { Property: 'Cardinal Point', MatchPhrases: 'cardinal point; 445 knapp',
+    Notes: 'AppFolio: Cardinal Point (445 Knapp St NE). 2869 Knapp is a different property.' },
+  { Property: '33 Lafayette Ave SE', MatchPhrases: '33 lafayette',
+    Notes: 'AppFolio: Lafayette Ave - Lafayette. "33 lafayette" must match as a whole number: 1033 Lafayette Ave SE is a different owner.' },
+  { Property: '323 Prospect Ave NE', MatchPhrases: '323 prospect',
+    Notes: 'AppFolio: Prospect Ave - Prospect.' }
+];
+
+// From the Property Manager & Tech Assignments sheet ("Truth" tab), 2026-10-15.
+var PM_BY_PROPERTY = {
+  'Victory on Leonard': ['Jody Betsch', 'jody@greenpropertymgt.com'],
+  'Indian Village Apartments': ['Jody Betsch', 'jody@greenpropertymgt.com'],
+  'Wealthy & Sheldon Apartments': ['Blake Roush', 'blake@greenpropertymgt.com'],
+  '917 Park St SW': ['Jody Betsch', 'jody@greenpropertymgt.com'],
+  '2700 Clyde Park Ave SW': ['Blake Roush', 'blake@greenpropertymgt.com'],
+  '730 Leonard Apartments': ['Blake Roush', 'blake@greenpropertymgt.com'],
+  'Woods Edge Apartments': ['Blake Roush', 'blake@greenpropertymgt.com'],
+  'Eaglebrook Apartments': ['Blake Roush', 'blake@greenpropertymgt.com'],
+  '329 Lyon St NE': ['Jody Betsch', 'jody@greenpropertymgt.com']
+};
+
+var REMOVE_PROPERTIES = ['28 Gold Ave SW'];
+
+function applyProfileUpdates() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i + 1; });
+
+  var rowOf = function (name) {
+    var names = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
+    for (var i = 0; i < names.length; i++) if (String(names[i][0]).trim() === name) return i + 2;
+    return 0;
+  };
+  // Writes into the existing row so the Missing formula and dropdowns stay.
+  var setCells = function (r, values) {
+    Object.keys(values).forEach(function (k) { sheet.getRange(r, col[k]).setValue(values[k]); });
+  };
+  var log = [];
+
+  REMOVE_PROPERTIES.forEach(function (name) {
+    var r = rowOf(name);
+    if (r) { sheet.deleteRow(r); log.push('Removed ' + name); }
+  });
+
+  Object.keys(PM_BY_PROPERTY).forEach(function (name) {
+    var r = rowOf(name);
+    if (!r) { log.push('NOT FOUND, skipped PM: ' + name); return; }
+    setCells(r, { PM: PM_BY_PROPERTY[name][0], PMEmail: PM_BY_PROPERTY[name][1] });
+    log.push('PM ' + PM_BY_PROPERTY[name][0] + ' → ' + name);
+  });
+
+  NEW_ROWS.forEach(function (row) {
+    var r = rowOf(row.Property);
+    if (!r) {
+      r = 2;
+      while (sheet.getRange(r, 1).getValue() !== '') r++;
+      setCells(r, { Property: row.Property, Status: 'Draft' });
+      log.push('Added ' + row.Property);
+    }
+    var values = { MatchPhrases: row.MatchPhrases, Notes: row.Notes };
+    Object.keys(MIKE).forEach(function (k) { values[k] = MIKE[k]; });
+    setCells(r, values);
+  });
+
+  // Woods Edge Apartments IS 2700 Clyde Park Ave SW (same property in the
+  // Truth sheet); both rows are kept for now, flagged so only one goes Live.
+  ['Woods Edge Apartments', '2700 Clyde Park Ave SW'].forEach(function (name) {
+    var r = rowOf(name);
+    if (r) setCells(r, { Notes: 'Same property as ' +
+      (name === 'Woods Edge Apartments' ? '2700 Clyde Park Ave SW' : 'Woods Edge Apartments') +
+      ' — merge before either row goes Live, or prospects get two emails.' });
+  });
+
+  Logger.log(log.join('\n') + '\n' + ss.getUrl());
+}
