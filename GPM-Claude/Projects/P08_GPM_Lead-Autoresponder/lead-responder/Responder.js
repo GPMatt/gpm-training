@@ -4,6 +4,7 @@
 // Responder.gs sets that up). For each new AppFolio guest-card email in this
 // mailbox it finds the property row and the live listings, then acts on the
 // row's Status:
+//   Off   → ignored completely: nothing sent, nothing logged
 //   Draft → nothing sent (logged only)
 //   Test  → the email the prospect WOULD get goes to the PM instead
 //   Live  → the email goes to the prospect, with Reply-To set to the PM
@@ -29,6 +30,7 @@ function installResponder() {
   if (!exists) ScriptApp.newTrigger('processNewGuestCards').timeBased().everyMinutes(5).create();
   responderLogSheet_();
   fillBlankDefaults_();
+  ensureStatusDropdown_();
   Logger.log('Responder on. Answers guest cards received after ' + new Date(Number(props.getProperty('RESPONDER_START'))) +
     '. Only rows with Status Test or Live send anything.');
 }
@@ -64,6 +66,8 @@ function processNewGuestCards() {
 
     var log = responderLogSheet_();
     var history = readResponderHistory_(log);
+    var quiet = loadQuietIds_();
+    Object.keys(quiet).forEach(function (id) { history.done[id] = true; });
     var profiles = null, listings = null, rows = [];
 
     var threads = GmailApp.search(RESPONDER_SEARCH, 0, 100);
@@ -83,11 +87,13 @@ function processNewGuestCards() {
       try {
         profiles = profiles || loadProfiles_();
         listings = listings || fetchAllListings_();
-        rows.push(handleGuestCard_(msg, profiles, listings, history));
+        var row = handleGuestCard_(msg, profiles, listings, history);
+        if (row) rows.push(row); else quiet[msg.getId()] = Date.now();
       } catch (err) {
         rows.push(logRow_(msg, 'ERROR', null, null, {}, '', String(err && err.message || err)));
       }
     }
+    saveQuietIds_(quiet);
     if (rows.length) log.getRange(log.getLastRow() + 1, 1, rows.length, RESPONDER_LOG_HEADER.length).setValues(rows);
   } finally {
     lock.releaseLock();
@@ -100,6 +106,7 @@ function handleGuestCard_(msg, profiles, listings, history) {
   var p = match.profile;
 
   if (match.outcome === 'NO_PROFILE' || match.outcome === 'AMBIGUOUS') return logRow_(msg, 'SKIP', card, match, {}, '', match.reason);
+  if (p.Status === 'Off') return null; // no log row; remembered in QUIET_IDS so it isn't re-read
   if (p.Status !== 'Test' && p.Status !== 'Live') return logRow_(msg, 'SKIP', card, match, {}, '', 'Row is ' + (p.Status || 'blank'));
   if (!card.email) return logRow_(msg, 'SKIP', card, match, {}, '', 'No prospect email on the guest card');
   if (p.Status === 'Live' && p.Missing) return logRow_(msg, 'BLOCKED', card, match, {}, '', 'Row is Live but missing: ' + p.Missing);
@@ -136,6 +143,39 @@ function handleGuestCard_(msg, profiles, listings, history) {
   var action = (match.outcome === 'NO_VACANCY' ? 'ALERT+' : '') + (p.Status === 'Live' ? 'SENT' : 'TEST');
   return logRow_(msg, action, card, match, mail, to,
     match.outcome === 'NO_VACANCY' ? 'No posted unit found; PM alerted; after-hours holding reply sent' : match.reason);
+}
+
+// Guest cards for Off rows: handled without a log row, so their IDs are kept
+// in a Script Property for a few days (longer than the 2-day search window).
+function loadQuietIds_() {
+  var raw = PropertiesService.getScriptProperties().getProperty('QUIET_IDS');
+  var ids = raw ? JSON.parse(raw) : {};
+  var cutoff = Date.now() - 4 * 864e5;
+  Object.keys(ids).forEach(function (id) { if (ids[id] < cutoff) delete ids[id]; });
+  return ids;
+}
+
+function saveQuietIds_(ids) {
+  PropertiesService.getScriptProperties().setProperty('QUIET_IDS', JSON.stringify(ids));
+}
+
+// Adds "Off" to the Status dropdown of an existing sheet.
+function ensureStatusDropdown_() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var c = header.indexOf('Status') + 1;
+  sheet.getRange(2, c, 99, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(STATUS_VALUES, true).build());
+  sheet.getRange(1, c).setNote(PROPERTY_HEADER_NOTES.Status);
+
+  // One time: every row still on Draft becomes Off, so nothing is logged
+  // for a property until someone deliberately moves it to Draft/Test/Live.
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('DRAFT_TO_OFF_DONE')) return;
+  var range = sheet.getRange(2, c, sheet.getLastRow() - 1, 1);
+  range.setValues(range.getValues().map(function (r) { return [r[0] === 'Draft' ? 'Off' : r[0]]; }));
+  props.setProperty('DRAFT_TO_OFF_DONE', '1');
 }
 
 function isOfficeHours_(date) {

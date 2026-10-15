@@ -12,6 +12,7 @@
 var SHARE_WITH = ['matt@greenpropertymgt.com'];
 
 var PROPERTIES_TAB = 'Properties';
+var STATUS_VALUES = ['Off', 'Draft', 'Test', 'Live'];
 var DEFAULTS_TAB = 'Defaults';
 var TEMPLATE_TAB = 'Template';
 
@@ -35,7 +36,7 @@ var PROPERTY_HEADER_NOTES = {
   CosignerPolicy: 'Leave blank to use the company default.',
   Section8Policy: 'Leave blank to use the company default.',
   WriteupDoc: 'Optional. Link to a Google Doc describing the property (neighborhood, amenities, parking). Do NOT put prices or policies in it — those live in this sheet so they cannot go out of date in two places.',
-  Status: 'Draft = no auto-reply (handled by hand). Test = the email goes to the PM instead of the prospect. Live = auto-sends to prospects.',
+  Status: 'Off = ignored completely (nothing sent, nothing logged). Draft = nothing sent, but each lead is logged in ResponderLog. Test = the email goes to the PM instead of the prospect. Live = auto-sends to prospects.',
   LastReviewed: 'Date the PM last checked this row. Turns yellow after 60 days.',
   Missing: 'Formula — what still needs filling before this property can go Live. Do not type here.'
 };
@@ -187,7 +188,7 @@ function buildPropertiesTab_(ss) {
   sheet.getRange(2, col.Missing, formulas.length, 1).setFormulas(formulas).setFontColor('#cc0000');
 
   sheet.getRange(2, col.Status, lastRow - 1, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(['Draft', 'Test', 'Live'], true).build());
+    SpreadsheetApp.newDataValidation().requireValueInList(STATUS_VALUES, true).build());
   sheet.getRange(2, col.LastReviewed, lastRow - 1, 1).setNumberFormat('m/d/yyyy').setDataValidation(
     SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
 
