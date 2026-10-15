@@ -27,17 +27,22 @@ function testRun() {
 
 // ---------- 1. Export ----------
 
-function exportList(testOnly) {
-  const rows = readAssignments_();
+// [address, pm] rows sent to Cunningham. Shared by the email export and the API.
+function buildList_() {
   const seen = new Set();
   const list = [];
-  rows.forEach(r => {
+  readAssignments_().forEach(r => {
     if (!r.address || r.units === 0) return;   // skips the 0-unit Watson corporate row
     const k = addressKey_(r.address);
     if (seen.has(k)) return;
     seen.add(k);
     list.push([r.address, r.pm]);
   });
+  return list;
+}
+
+function exportList(testOnly) {
+  const list = buildList_();
 
   const date = Utilities.formatDate(new Date(), 'America/Detroit', 'yyyy-MM-dd');
   const csv = [['Property Address', 'Property Manager']].concat(list)
