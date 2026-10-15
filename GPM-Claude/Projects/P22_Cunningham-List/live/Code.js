@@ -13,9 +13,12 @@ function setup() {
   Logger.log('Thursday trigger installed.');
 }
 
+// Cunningham bills $99 per emailed list (2026-10-15), so Thursdays no longer
+// email them; they read the live Cunningham sheet / API instead (Sync.js).
+// Matt still gets the discrepancy report on the current list.
 function weeklyRun() {
-  const sent = exportList();
-  sendDiscrepancyReport(sent);
+  const date = Utilities.formatDate(new Date(), 'America/Detroit', 'yyyy-MM-dd');
+  sendDiscrepancyReport({ list: buildList_(), date: date, label: 'on the live Cunningham sheet' });
 }
 
 // Full Thursday flow, but the list goes to REPORT_TO only. Nothing reaches
@@ -90,7 +93,7 @@ function sendDiscrepancyReport(sent) {
   const n = missingFromList.length + notInSupabase.length;
   const li = arr => arr.length ? '<ul>' + arr.join('') + '</ul>' : '<p><i>None.</i></p>';
   const html =
-    `<p>Compared the property list ${sent.live ? 'sent to Cunningham' : 'prepared (dry run)'} ` +
+    `<p>Compared the property list ${sent.label || (sent.live ? 'sent to Cunningham' : 'prepared (dry run)')} ` +
     `on ${sent.date} (${sent.list.length} properties) with the ${sb.length} active properties in Supabase ` +
     `(AppFolio rent roll). ${CONFIG.NOT_MANAGED.length} known not-managed properties are ignored.</p>` +
     `<h3>In AppFolio, missing from the list (${missingFromList.length})</h3>` +

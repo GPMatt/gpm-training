@@ -1,7 +1,8 @@
-// Read-only property list API for Cunningham, served from the Truth tab.
+// Read-only property list API for Cunningham, served from the Cunningham sheet
+// (see Sync.js), so the API and the shared sheet always say the same thing.
 // Deployed as a web app (execute as Matt, anyone with the link). Every call
 // must carry ?key=<API_KEY>; GAS web apps can't read request headers, so the
-// key rides in the URL. Only address + PM ever leave this endpoint.
+// key rides in the URL. Only address, PM and PM contacts leave this endpoint.
 //
 //   GET <web app url>?key=...                     -> full list
 //   GET <web app url>?key=...&address=2201 Oakwood -> matching properties only
@@ -13,16 +14,22 @@ function doGet(e) {
   const key = PropertiesService.getScriptProperties().getProperty('API_KEY');
   if (!key || p.key !== key) return json_({ ok: false, error: 'unauthorized' });
 
-  let list = buildList_().map(([address, pm]) => ({ address: address, property_manager: pm }));
+  const ss = publicSheet_();
+  if (!ss) return json_({ ok: false, error: 'not configured' });
+  const sh = ss.getSheetByName(PUBLIC.PROPS_TAB);
+  let list = sh.getDataRange().getValues().slice(1)
+    .filter(r => String(r[0]).trim())
+    .map(r => ({ address: String(r[0]).trim(), property_manager: String(r[1]).trim() }));
   if (p.address) {
     const k = addressKey_(p.address);
     list = list.filter(r => addressKey_(r.address) === k);
   }
   return json_({
     ok: true,
-    updated: new Date().toISOString(),
+    updated: String(sh.getRange('D1').getValue()).replace(/^.*Last updated /, ''),
     count: list.length,
     properties: list,
+    contacts: readContacts_(),
   });
 }
 
