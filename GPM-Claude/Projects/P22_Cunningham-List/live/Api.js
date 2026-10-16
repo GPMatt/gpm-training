@@ -12,7 +12,7 @@
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const key = PropertiesService.getScriptProperties().getProperty('API_KEY');
-  if (!key || p.key !== key) return json_({ ok: false, error: 'unauthorized' });
+  if (!key || urlKey_(e) !== key) return json_({ ok: false, error: 'unauthorized' });
 
   const ss = publicSheet_();
   if (!ss) return json_({ ok: false, error: 'not configured' });
@@ -39,6 +39,23 @@ function makeApiKey() {
   const key = Utilities.getUuid().replace(/-/g, '');
   PropertiesService.getScriptProperties().setProperty('API_KEY', key);
   Logger.log('API_KEY set: ' + key);
+}
+
+// The key, even when the link was mangled on the way to the caller: a link
+// copied out of a Gmail redirect arrives as ?key%3D<key>, which GAS doesn't
+// parse as a key param (Cunningham hit this 2026-10-16). Decode the raw query
+// string until it stops changing, then read key= from it.
+function urlKey_(e) {
+  if (e && e.parameter && e.parameter.key) return String(e.parameter.key).trim();
+  let qs = String((e && e.queryString) || '');
+  for (let i = 0; i < 3; i++) {
+    let next;
+    try { next = decodeURIComponent(qs); } catch (err) { break; }
+    if (next === qs) break;
+    qs = next;
+  }
+  const m = qs.match(/(?:^|[?&])key=([0-9a-f]{32})/i);
+  return m ? m[1] : '';
 }
 
 function json_(obj) {
