@@ -24,6 +24,8 @@ function doGet(e) {
     const k = addressKey_(p.address);
     list = list.filter(r => addressKey_(r.address) === k);
   }
+  // A-Z by address, numbers in numeric order (Cunningham asked, 2026-10-17).
+  list.sort((a, b) => a.address.localeCompare(b.address, undefined, { numeric: true, sensitivity: 'base' }));
   return json_({
     ok: true,
     updated: String(sh.getRange('D1').getValue()).replace(/^.*Last updated /, ''),
