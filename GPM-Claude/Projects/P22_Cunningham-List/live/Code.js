@@ -191,6 +191,18 @@ function addOakwoodRow_() {
   Logger.log('Added 2201 Oakwood Ave NE.');
 }
 
+// Run once from the editor: adds Christie (in AppFolio 11, missing from Truth;
+// PM Mike per Matt 2026-10-19). Its other 5 addresses come from EXTRA_ADDRESSES.
+function addChristieRow() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(CONFIG.TAB);
+  const exists = readAssignments_().some(r => addressKey_(r.address) === '5924 CHRISTIE');
+  if (exists) { Logger.log('Christie already on the sheet.'); return; }
+  // Tech, type and owner left blank: not known yet.
+  sh.appendRow(['Christie', '5924 Christie Ave SE, Kentwood, MI 49508', 6, 'Mike Green', '', '', '']);
+  syncPublicSheet();
+  Logger.log('Added 5924 Christie Ave SE and synced the Cunningham sheet.');
+}
+
 // Deletes Truth rows whose address matches one of the given keys.
 // Bottom-up so earlier row numbers stay valid.
 function removeRows_(addresses) {

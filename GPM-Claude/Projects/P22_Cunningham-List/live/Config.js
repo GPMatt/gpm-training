@@ -56,7 +56,7 @@ const CONFIG = {
     ['1958 Crestmoor Ct SE, Kentwood, MI 49508', '1956 Crestmoor'],
     ['3716 Groveland Ave SW, Wyoming, MI 49519', '3718 Groveland'],
     ['415 Sheldon Ave SE, Grand Rapids, MI 49503', '90 Wealthy'],       // Wealthy and Sheldon
-    // Christie: needs its own Truth row (5924 Christie) before these appear.
+    // Christie: Truth row added by addChristieRow() in Code.js.
     ['5926 Christie Ave SE, Kentwood, MI 49508', '5924 Christie'],
     ['5928 Christie Ave SE, Kentwood, MI 49508', '5924 Christie'],
     ['5930 Christie Ave SE, Kentwood, MI 49508', '5924 Christie'],
