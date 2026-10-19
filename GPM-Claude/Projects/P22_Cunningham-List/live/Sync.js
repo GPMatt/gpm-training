@@ -60,6 +60,8 @@ function syncPublicSheet() {
     if (!ss) throw new Error('No PUBLIC_SHEET_ID; run setupPublicSheet first');
     const list = buildList_();
     if (!list.length) throw new Error('Truth tab produced 0 properties; leaving the Cunningham sheet as is');
+    // Same A-Z order as the API, house numbers in numeric order.
+    list.sort((a, b) => String(a[0]).localeCompare(String(b[0]), undefined, { numeric: true, sensitivity: 'base' }));
 
     const sh = ss.getSheetByName(PUBLIC.PROPS_TAB);
     const stamp = Utilities.formatDate(new Date(), 'America/Detroit', 'yyyy-MM-dd h:mm a');
