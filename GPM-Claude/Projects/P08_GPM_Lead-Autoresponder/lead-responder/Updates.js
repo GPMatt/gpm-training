@@ -142,3 +142,38 @@ function updateTemplate() {
   ss.getSheetByName(TEMPLATE_TAB).getRange(1, 2, 3, 1).setValues([[TEMPLATE_SUBJECT], [TEMPLATE_BODY], [TEMPLATE_HELP]]);
   Logger.log('Template updated\n' + ss.getUrl());
 }
+
+// applyMikeAnswers() (Updates.gs) — Mike's 2026-10-19 email answers for his 4
+// properties: pets, lease lengths, Section 8. Only those cells are written;
+// Status is left alone. Safe to re-run.
+var MIKE_LEASE = '12 months or longer. After a 12-month lease you can request a short-term lease (fees apply).';
+var MIKE_ANSWERS = {
+  'The Oakwood': '$300 one-time pet fee (non-refundable), plus $55/mo per dog and $30/mo per cat',
+  'Cardinal Point': '$300 one-time pet fee (non-refundable), plus $50/mo per dog and $25/mo per cat',
+  '33 Lafayette Ave SE': '$300 one-time pet fee (non-refundable), plus $55/mo per dog and $30/mo per cat',
+  '323 Prospect Ave NE': '$300 one-time pet fee (non-refundable), plus $50/mo per dog and $25/mo per cat'
+};
+
+function applyMikeAnswers() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i + 1; });
+  var names = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  var log = [];
+
+  Object.keys(MIKE_ANSWERS).forEach(function (name) {
+    var i = names.indexOf(name);
+    if (i < 0) { log.push('NOT FOUND, skipped: ' + name); return; }
+    var r = i + 2;
+    sheet.getRange(r, col.Pets).setValue(MIKE_ANSWERS[name]);
+    sheet.getRange(r, col.LeaseLengths).setValue(MIKE_LEASE);
+    sheet.getRange(r, col.Section8Policy).setValue('Accepted');
+    SpreadsheetApp.flush();
+    log.push(name + ' (Status ' + sheet.getRange(r, col.Status).getValue() + ') → Missing: "' +
+      sheet.getRange(r, col.Missing).getDisplayValue() + '"');
+  });
+
+  Logger.log(log.join('\n') + '\n' + ss.getUrl());
+}
