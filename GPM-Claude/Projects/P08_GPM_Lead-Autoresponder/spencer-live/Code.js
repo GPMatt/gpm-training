@@ -45,10 +45,7 @@ var PROPERTIES = [
   // skipUnit leaves those emails alone, like any property we don't handle.
   { key: 'WEALTHY_SHELDON', displayName: 'Wealthy and Sheldon',
     match: ['wealthy and sheldon', 'wealthy & sheldon', '90 wealthy'],
-    skipUnit: /\bSuite\s+[A-C]\b/i,
-    // Unit matching here was written from the rent roll, not a real email —
-    // see checkUnitMatching_. Remove once a live pairing has been confirmed.
-    verifyUnitMatching: true }
+    skipUnit: /\bSuite\s+[A-C]\b/i }
 ];
 
 var SENDER_NAME = 'Spencer';
@@ -173,7 +170,6 @@ function handleShowingMessage_(message, ctx) {
     sendFormForShowing_(showing);
     message.markRead();
     known.keys[key] = true;
-    checkUnitMatching_(showing, card);
     return;
   }
 
@@ -184,32 +180,8 @@ function handleShowingMessage_(message, ctx) {
     escalateNoMatch_(showing);
     message.markRead();
     known.keys[key] = true;
-    checkUnitMatching_(showing, null);
   }
   // else: leave unread, try again next minute
-}
-
-// For a property flagged verifyUnitMatching: emails Matt (through the Errors
-// tab alert) when a real showing shows the assumed email format is wrong —
-// a unit that can't be read, or a prospect-booked showing that found no guest
-// card. Runs after the showing is fully handled and can never affect it.
-function checkUnitMatching_(showing, card) {
-  try {
-    if (!showing.property.verifyUnitMatching) return;
-    var problems = [];
-    if (!showing.unitKey) problems.push('the unit could not be read from the showing email (Unit line: "' + showing.unitText + '")');
-    if (card && !card.unitKey) problems.push('the unit could not be read from the guest card (subject: "' + (card.subject || '') + '")');
-    if (!card && !showing.staffBooked) problems.push('the prospect booked this themselves but no guest card was found, so Spencer was sent [NEED EMAIL]');
-    if (problems.length === 0) return;
-
-    logPreScreenError_(showing.property.displayName + ' MATCHING CHECK — ' + showing.name + ': ' + problems.join('; ') +
-      '. The matching for this property was built without a real email to copy, and this showing suggests it is off. ' +
-      (card ? 'The form WAS still sent to ' + card.email + '. ' : 'NO form was sent. ') +
-      'To fix: forward this showing email and its guest card from automation@ to Claude. Showing email subject: "' +
-      showing.subject + '", received ' + Utilities.formatDate(showing.received, TIME_ZONE, 'MMM d h:mm a') + '.', null);
-  } catch (err) {
-    Logger.log('checkUnitMatching_ failed: ' + err);
-  }
 }
 
 // Stops processing a showing email the automation can't handle: records it,
@@ -292,8 +264,10 @@ function parseShowingStart_(text) {
 //   Eaglebrook showing "5993 8th Ave SW, Apt C"             guest card "Eaglebrook Apartments - 5993C"
 //   IV         showing "1966 Burton St SE Apt 32"           guest card "1966 IVA32"
 //              showing "1960 Burton St SE - 1960 IVA05 Apt 05"
-// Wealthy and Sheldon is built from AppFolio's unit codes ("W 201", "S 303",
-// "W 102 ADA") — no live email pair had been seen when it was added.
+//   Wealthy    showing "90 Wealthy Street SE, - 301 Grand Rapids, MI 49503"   (2026-10-19)
+//              guest card often has no unit at all ("interested in 90 Wealthy Street SE,")
+// Wealthy and Sheldon's showing email drops the wing letter AppFolio uses
+// elsewhere ("W 201", "S 303"), so its key is the number alone on both sides.
 function unitKey_(propertyKey, text) {
   if (!text) return '';
   var m;
@@ -311,8 +285,9 @@ function unitKey_(propertyKey, text) {
     return m ? m[1] : '';
   }
   if (propertyKey === 'WEALTHY_SHELDON') {
-    m = text.match(/\b([WS])\s*-?\s*([1-4]0\d)\b/i);
-    return m ? m[1].toUpperCase() + m[2] : '';
+    m = text.match(/\b[WS]\s*-?\s*([1-4]0\d)\b/i) ||
+        text.match(/Wealthy\s+St(?:reet)?\.?\s+SE\s*,?\s*-\s*([1-4]0\d)\b/i);
+    return m ? m[1] : '';
   }
   return '';
 }
