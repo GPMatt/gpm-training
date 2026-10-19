@@ -20,7 +20,7 @@ var TEMPLATE_TAB = 'Template';
 // so a column can be moved in the sheet only if it moves here too.
 var PROPERTY_COLUMNS = [
   'Property', 'MatchPhrases', 'PM', 'PMEmail', 'ShowingLink', 'ApplyLink',
-  'RentRange', 'Pets', 'LeaseLengths', 'VirtualTourLink',
+  'RentRange', 'Pets', 'LeaseLengths', 'Special', 'SpecialEnds', 'VirtualTourLink',
   'CreditMin', 'IncomeMultiple', 'CosignerPolicy', 'Section8Policy',
   'WriteupDoc', 'Status', 'LastReviewed', 'Missing', 'Notes'
 ];
@@ -30,6 +30,8 @@ var PROPERTY_HEADER_NOTES = {
   ShowingLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio booking page, and only when the PM\'s showing calendar has open times.',
   ApplyLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio application.',
   RentRange: 'Optional. Each email already shows the live rent of every posted unit.',
+  Special: 'COPIED WORD FOR WORD into every email for this property, exactly as typed here, under "CURRENT SPECIAL". Write it the way you want prospects to read it, e.g. "First month free on a 13-month lease signed by Nov 30." Leave blank when there is no special. Clear or change it the day the special changes.',
+  SpecialEnds: 'Optional. Last day the special is offered. After this date the special is left out of emails automatically and this cell turns red. Leave blank if the special has no end date.',
   VirtualTourLink: 'Optional. Leave blank if there is no video tour.',
   CreditMin: 'Leave blank to use the company default (Defaults tab). Fill in only if this property is different.',
   IncomeMultiple: 'Leave blank to use the company default.',
@@ -88,6 +90,9 @@ var TEMPLATE_BODY = [
   '',
   '{{Units}}',
   '',
+  'CURRENT SPECIAL',
+  '• {{Special}}',
+  '',
   'WHAT YOU NEED TO QUALIFY',
   '• Credit score of {{CreditMin}} or higher',
   '• Combined household income of {{IncomeMultiple}}x the monthly rent',
@@ -113,7 +118,8 @@ var TEMPLATE_BODY = [
 var TEMPLATE_HELP = 'Placeholders in {{double braces}} are filled from the property\'s row (or the Defaults tab). ' +
   'A line whose placeholder is blank is dropped. {{Units}} is the live list of posted units, each with Apply and ' +
   '(when the showing calendar has open times) Book-a-showing buttons. {{Tour}} is the "Want to see it first? Reply..." ' +
-  'line, only present when no unit has open showing times. {{About}} is the optional write-up doc. ' +
+  'line, only present when no unit has open showing times. {{Special}} is the property\'s Special cell, ' +
+  'copied word for word, and left out when blank or past SpecialEnds. {{About}} is the optional write-up doc. ' +
   '{{FirstName}} comes from the lead. One template for every property — edit it here only.';
 
 function setupProfilesSheet() {
@@ -192,6 +198,8 @@ function buildPropertiesTab_(ss) {
 
   sheet.getRange(2, col.Status, lastRow - 1, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(STATUS_VALUES, true).build());
+  sheet.getRange(2, col.SpecialEnds, lastRow - 1, 1).setNumberFormat('m/d/yyyy').setDataValidation(
+    SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
   sheet.getRange(2, col.LastReviewed, lastRow - 1, 1).setNumberFormat('m/d/yyyy').setDataValidation(
     SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
 
@@ -204,6 +212,7 @@ function buildPropertiesTab_(ss) {
     SpreadsheetApp.newConditionalFormatRule()
       .whenFormulaSatisfied('=AND($' + letter('LastReviewed') + '2<>"",TODAY()-$' + letter('LastReviewed') + '2>60)')
       .setBackground('#fff2cc').setRanges([sheet.getRange(2, col.LastReviewed, lastRow - 1, 1)]).build(),
+    specialExpiredRule_(sheet, col, lastRow),
     SpreadsheetApp.newConditionalFormatRule()
       .whenTextEqualTo('Live').setBackground('#b6d7a8')
       .setRanges([sheet.getRange(2, col.Status, lastRow - 1, 1)]).build()
@@ -215,6 +224,14 @@ function buildPropertiesTab_(ss) {
   sheet.setColumnWidth(col.Missing, 260);
   sheet.setColumnWidth(col.Notes, 360);
   sheet.getRange(2, col.Notes, lastRow - 1, 1).setWrap(true);
+}
+
+// SpecialEnds in the past: the special is no longer being sent.
+function specialExpiredRule_(sheet, col, lastRow) {
+  var c = columnLetter_(col.SpecialEnds);
+  return SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + c + '2<>"",$' + c + '2<TODAY())')
+    .setBackground('#f4cccc').setRanges([sheet.getRange(2, col.SpecialEnds, lastRow - 1, 1)]).build();
 }
 
 function missingFormula_(col, r) {

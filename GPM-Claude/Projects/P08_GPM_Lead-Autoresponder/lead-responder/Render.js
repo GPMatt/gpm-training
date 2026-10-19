@@ -63,6 +63,7 @@ function renderEmail_(property, profiles, firstName, match) {
     if (property[k] !== '' && property[k] !== null) values[k] = String(property[k]);
   });
   values.FirstName = firstName || 'there';
+  if (specialExpired_(property.SpecialEnds)) values.Special = '';
   values.About = readWriteup_(property.WriteupDoc);
   var units = unitsBlock_(property, match || { building: [] }, values.PM || 'our leasing team');
   // Older Template tabs have no {{Tour}} line: keep the tour note under the units.
@@ -91,6 +92,7 @@ function renderEmail_(property, profiles, firstName, match) {
         return '<strong>ABOUT ' + escapeHtml_(values.Property).toUpperCase() + '</strong><br>' +
           escapeHtml_(values.About).replace(/\n/g, '<br>');
       }
+      if (k === 'Special') return escapeHtml_(values.Special).replace(/\n/g, '<br>');
       return escapeHtml_(values[k]);
     }));
   });
@@ -239,6 +241,15 @@ function availableSortKey_(l) {
 function button_(url, label, color) {
   return '<a href="' + escapeHtml_(url) + '" style="display:inline-block;margin-top:6px;padding:7px 14px;border-radius:4px;' +
     'background:' + color + ';color:#ffffff;text-decoration:none;font-weight:bold">' + label + '</a>';
+}
+
+// The special runs through the whole SpecialEnds day (Detroit time); blank = no end.
+function specialExpired_(ends) {
+  if (!ends) return false;
+  var end = ends instanceof Date ? ends : new Date(ends);
+  if (isNaN(end.getTime())) return false;
+  var tz = 'America/Detroit';
+  return Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd') > Utilities.formatDate(end, tz, 'yyyy-MM-dd');
 }
 
 // Optional write-up. An unreadable or empty doc never blocks the email — the

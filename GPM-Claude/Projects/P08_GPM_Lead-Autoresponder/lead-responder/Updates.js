@@ -177,3 +177,45 @@ function applyMikeAnswers() {
 
   Logger.log(log.join('\n') + '\n' + ss.getUrl());
 }
+
+// applySpecialsUpgrade() (Updates.gs) — adds the Special + SpecialEnds columns
+// after LeaseLengths and writes the template with its CURRENT SPECIAL section.
+// Inserting columns keeps the Missing formulas, dropdowns and colors (Sheets
+// shifts them). Safe to re-run: does nothing to the sheet once Special exists.
+function applySpecialsUpgrade() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var headerOf = function () {
+    var col = {};
+    sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].forEach(function (h, i) { col[h] = i + 1; });
+    return col;
+  };
+  var col = headerOf();
+  var log = [];
+
+  if (!col.Special) {
+    sheet.insertColumnsAfter(col.LeaseLengths, 2);
+    sheet.getRange(1, col.LeaseLengths + 1, 1, 2).setValues([['Special', 'SpecialEnds']])
+      .setFontWeight('bold').setBackground('#d9ead3');
+    col = headerOf();
+    var lastRow = 100;
+    sheet.getRange(2, col.Special, lastRow - 1, 2).clearDataValidations().clearFormat();
+    sheet.getRange(2, col.Special, lastRow - 1, 1).setWrap(true);
+    sheet.getRange(2, col.SpecialEnds, lastRow - 1, 1).setNumberFormat('m/d/yyyy').setDataValidation(
+      SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
+    sheet.setColumnWidth(col.Special, 320);
+    var rules = sheet.getConditionalFormatRules();
+    rules.push(specialExpiredRule_(sheet, col, lastRow));
+    sheet.setConditionalFormatRules(rules);
+    log.push('Added Special + SpecialEnds columns');
+  } else {
+    log.push('Special column already there');
+  }
+  ['Special', 'SpecialEnds'].forEach(function (name) {
+    sheet.getRange(1, col[name]).setNote(PROPERTY_HEADER_NOTES[name]);
+  });
+
+  ss.getSheetByName(TEMPLATE_TAB).getRange(1, 2, 3, 1).setValues([[TEMPLATE_SUBJECT], [TEMPLATE_BODY], [TEMPLATE_HELP]]);
+  log.push('Template updated (CURRENT SPECIAL section)');
+  Logger.log(log.join('\n') + '\n' + ss.getUrl());
+}
