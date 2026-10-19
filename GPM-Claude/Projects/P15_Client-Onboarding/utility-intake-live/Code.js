@@ -8,6 +8,8 @@
 //    yet.
 // 2. Full packet. Hands Blake and Laura the whole submission: every answered
 //    question and every upload.
+// 3. Completion notice. A bare "the form was completed" email (owner, address,
+//    unit count, nothing else) to NOTICE_EMAIL. No folder, no link.
 //
 // Flow: Jotform webhook -> doPost -> fetch the submission from Jotform's API
 // -> one private Drive folder per submission (details doc, photo ID, rent
@@ -41,6 +43,7 @@
 //   FULL_NOTIFY_EMAIL who gets the full packet email. Defaults to ADMIN_EMAIL
 //                     until shareFullParentFolder() sets it to Blake and Laura.
 //   FULL_SHARE_WITH   comma-separated viewers for shareFullParentFolder().
+//   NOTICE_EMAIL      who gets the completion notice. Defaults to matt@.
 //   FULL_PARENT_FOLDER_ID  written the first time it is needed.
 //   TEST_SUBMISSION_ID  optional. The two test functions at the bottom use
 //                     it, or the form's newest submission when it is unset.
@@ -68,6 +71,7 @@ const DEFAULT_FULL_SHARE_WITH = [
   'automation@greenpropertymgt.com'
 ].join(',');
 const FULL_PARENT_FOLDER_NAME = 'P15 Full Intake Packets';
+const DEFAULT_NOTICE_EMAIL = 'matt@greenpropertymgt.com';
 
 // Which form questions feed the handoff, matched on the question's label
 // because the labels are all we have a record of. If a label is reworded on
@@ -162,6 +166,7 @@ function webhookStatus() {
   Logger.log('Last refused:  ' + (prop_('LAST_REFUSED') || 'never'));
   Logger.log('Handoffs go to: ' + (prop_('NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL));
   Logger.log('Full packets go to: ' + (prop_('FULL_NOTIFY_EMAIL') || prop_('ADMIN_EMAIL') || DEFAULT_ADMIN_EMAIL));
+  Logger.log('Completion notices go to: ' + (prop_('NOTICE_EMAIL') || DEFAULT_NOTICE_EMAIL));
 }
 
 function setup() {
@@ -211,13 +216,14 @@ function fullParentFolder_() {
 
 // ---------------------------------------------------------------- core
 
-// `only` limits the run to 'utility' or 'full'; the webhook leaves it unset.
+// `only` limits the run to 'notice', 'utility' or 'full'; the webhook leaves it unset.
 function handleSubmission_(id, only) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
     const props = PropertiesService.getScriptProperties();
     const todo = [
+      { key: 'notice_' + id, name: 'notice', label: 'Completion notice', run: completionNotice_ },
       { key: 'done_' + id, name: 'utility', label: 'Utility handoff', run: utilityHandoff_ },
       { key: 'full_' + id, name: 'full', label: 'Full packet', run: fullPacket_ }
     ].filter(t => (!only || t.name === only) && !props.getProperty(t.key));
@@ -230,12 +236,17 @@ function handleSubmission_(id, only) {
     }
     const data = extract_(submission);
 
-    // The two are independent: one failing must not hold up the other.
+    // They are independent: one failing must not hold up the others.
     const result = {};
     const failures = [];
     todo.forEach(t => {
       try {
         const out = t.run(id, submission, data);
+        if (!out.folder) {
+          props.setProperty(t.key, 'sent');
+          result[t.name] = { sent: true };
+          return;
+        }
         props.setProperty(t.key, out.folder.getId());
         result[t.name] = { folderUrl: out.folder.getUrl(), docUrl: out.doc.getUrl(), problems: out.problems };
         if (out.problems.length) notifyAdmin_(id, new Error(t.label + ':\n' + out.problems.join('\n')), out.folder.getUrl());
@@ -584,6 +595,24 @@ function rowsHtml_(rows) {
     + '</table>';
 }
 
+// ---------------------------------------------------------------- completion notice
+
+// Just says the form was completed: owner, address, unit count. Nothing else,
+// on purpose, so it is safe to send to anyone.
+function completionNotice_(id, submission, data) {
+  const v = data.values;
+  const address = v.propertyAddress || 'address not given';
+  MailApp.sendEmail({
+    to: prop_('NOTICE_EMAIL') || DEFAULT_NOTICE_EMAIL,
+    subject: 'Onboarding form completed: ' + address.split(',')[0],
+    body: 'A new client completed the onboarding form.\n\n'
+      + 'Owner: ' + (v.entityName ? v.entityName + ' (' + v.ownerName + ')' : (v.ownerName || 'Not provided')) + '\n'
+      + 'Address: ' + address + '\n'
+      + 'Units: ' + (v.unitCount || 'Not provided') + '\n'
+  });
+  return {};
+}
+
 // ---------------------------------------------------------------- full packet
 
 // The whole submission for Blake and Laura: every answered question in form
@@ -758,11 +787,12 @@ function testSubmissionId_() {
   return String(newest.id);
 }
 
-// Runs both handoffs for the test submission, even if they ran before.
-// Emails Alaina as well as the full packet's recipients.
+// Runs everything for the test submission, even if it ran before. Emails
+// Alaina, the full packet's recipients and the completion notice.
 function processTestSubmission() {
   const id = testSubmissionId_();
-  PropertiesService.getScriptProperties().deleteProperty('done_' + id).deleteProperty('full_' + id);
+  PropertiesService.getScriptProperties().deleteProperty('done_' + id).deleteProperty('full_' + id)
+    .deleteProperty('notice_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id), null, 2));
 }
 
@@ -772,6 +802,14 @@ function processTestFullPacket() {
   const id = testSubmissionId_();
   PropertiesService.getScriptProperties().deleteProperty('full_' + id);
   Logger.log(JSON.stringify(handleSubmission_(id, 'full'), null, 2));
+}
+
+// Sends only the completion notice for the test submission, even if it was
+// sent before. Nothing goes to Alaina, Blake or Laura.
+function processTestNotice() {
+  const id = testSubmissionId_();
+  PropertiesService.getScriptProperties().deleteProperty('notice_' + id);
+  Logger.log(JSON.stringify(handleSubmission_(id, 'notice'), null, 2));
 }
 
 // Rewrites the details doc for the test submission inside the folder it
