@@ -41,6 +41,14 @@ function buildList_() {
     seen.add(k);
     list.push([r.address, r.pm]);
   });
+  // Extra street addresses inherit the PM of the Truth row they belong to.
+  const pmByKey = new Map(list.map(([addr, pm]) => [addressKey_(addr), pm]));
+  CONFIG.EXTRA_ADDRESSES.forEach(([addr, parent]) => {
+    const k = addressKey_(addr), pk = addressKey_(parent);
+    if (seen.has(k) || !pmByKey.has(pk)) return;
+    seen.add(k);
+    list.push([addr, pmByKey.get(pk)]);
+  });
   return list;
 }
 
@@ -78,6 +86,7 @@ function sendDiscrepancyReport(sent) {
   if (!sent) sent = lastSentList_();
   const sentKeys = new Map(sent.list.map(([addr, pm]) => [addressKey_(addr), { addr, pm }]));
   const ignore = new Set(CONFIG.NOT_MANAGED.map(addressKey_));
+  const extras = new Set(CONFIG.EXTRA_ADDRESSES.map(([addr]) => addressKey_(addr)));
 
   const sb = fetchActiveProperties_();
   const sbKeys = new Map();
@@ -88,7 +97,8 @@ function sendDiscrepancyReport(sent) {
     if (!sentKeys.has(k) && !ignore.has(k)) missingFromList.push(p);
   });
   const notInSupabase = [];     // on the list, not active in AppFolio/Supabase
-  sentKeys.forEach((v, k) => { if (!sbKeys.has(k)) notInSupabase.push(v); });
+  // Extra addresses aren't properties in AppFolio, so they'd always show here.
+  sentKeys.forEach((v, k) => { if (!sbKeys.has(k) && !extras.has(k)) notInSupabase.push(v); });
 
   const n = missingFromList.length + notInSupabase.length;
   const li = arr => arr.length ? '<ul>' + arr.join('') + '</ul>' : '<p><i>None.</i></p>';
