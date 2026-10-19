@@ -12,8 +12,11 @@ and commit the change. Numbers are stable: never renumber; gaps are removed item
 3. Inventory audit
 4. Rentvine
 5. CC Billing (P12, gpm-cc-billing). Open:
-   - Confirmation email to all cardholders is drafted in Gmail
-     ("CC Receipt Submissions - Confirmation Needed"), not yet sent.
+   - Confirmation email sent 2026-10-14. 7 of 14 confirmed; still waiting on
+     Laura, Alaina, John, Riley, Laura C, Joe, Isaac (asked Laura to nudge).
+     Follow-ups: move $153 gas + $191.50 towing to Laura's folder (per
+     Spencer), Jody's flagged wrong/duplicate receipts, Mike's wallet
+     receipts, check Blake's Amazon credits for Victory.
    - Duplicate "Laura-C" and "Laura C" cardholder folders in Drive
      "CC Receipts — By Cardholder": investigate read-only, change nothing in
      gpm-cc-billing without Matt's sign-off.
