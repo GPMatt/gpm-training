@@ -39,7 +39,7 @@ function buildList_() {
     const k = addressKey_(r.address);
     if (seen.has(k)) return;
     seen.add(k);
-    list.push([r.address, r.pm]);
+    list.push([normalizeAddress_(r.address) || r.address, r.pm]);   // Address.js
   });
   // Extra street addresses inherit the PM of the Truth row they belong to.
   const pmByKey = new Map(list.map(([addr, pm]) => [addressKey_(addr), pm]));
