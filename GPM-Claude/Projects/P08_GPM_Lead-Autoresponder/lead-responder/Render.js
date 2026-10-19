@@ -14,7 +14,14 @@ var LINK_LABELS = {
   VirtualTourLink: 'Watch the virtual tour'
 };
 
-function sendTestPreviews() {
+// sendTestPreviewsToMe() (Render.gs) sends the same previews to
+// PREVIEW_FALLBACK_EMAIL (Matt) instead of the PMs.
+function sendTestPreviewsToMe() {
+  sendTestPreviews(PREVIEW_FALLBACK_EMAIL);
+}
+
+function sendTestPreviews(toOverride) {
+  if (typeof toOverride !== 'string') toOverride = ''; // the editor's Run passes an event object
   var profiles = loadProfiles_();
   var listings = fetchAllListings_();
   var sent = 0;
@@ -24,7 +31,7 @@ function sendTestPreviews() {
     var match = matchCard_({ headline: p.Property, interestedIn: '', account: '', subject: '' }, listings, profiles.properties);
     if (match.outcome === 'NO_PROFILE' || match.outcome === 'AMBIGUOUS') match = { profile: p, unit: null, building: [], outcome: 'NO_VACANCY' };
     var mail = renderEmail_(p, profiles, 'Jordan', match);
-    var to = p.PMEmail || PREVIEW_FALLBACK_EMAIL;
+    var to = toOverride || p.PMEmail || PREVIEW_FALLBACK_EMAIL;
     GmailApp.sendEmail(to, '[TEST] ' + mail.subject, mail.text, { htmlBody: mail.html, name: SENDER_NAME });
     sent++;
   });
