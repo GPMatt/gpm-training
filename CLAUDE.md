@@ -26,6 +26,7 @@ and commit the change. Numbers are stable: never renumber; gaps are removed item
 14. RingCentral + Claude webinar: watch the recording and answer Alaina
 15. Reconcile bank accounts
 16. ACE price tracking
+17. Create a turn schedule
 
 Removed (done): 10 Van Audit Supabase grant, 11 GitHub Pages builds,
 13 missing receipts for invoice 231254,
