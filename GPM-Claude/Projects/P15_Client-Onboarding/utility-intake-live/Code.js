@@ -576,8 +576,9 @@ function sendHandoff_(data, notes, files, folder, id) {
     ['Photo ID', files.copied.photoId.length ? 'In the folder' : 'NOT in the folder'],
     ['Rent roll', files.copied.rentRoll.length ? 'In the folder' : 'None provided']
   ];
-  const html = '<p>A new owner intake form came in. Everything needed for the Consumers, DTE and water forms is '
-    + 'in this folder:</p><p><a href="' + folder.getUrl() + '">' + esc_(folder.getName()) + '</a></p>'
+  const html = folderButton_(folder)
+    + '<p>A new owner intake form came in. Everything needed for the Consumers, DTE and water forms is '
+    + 'in the folder above.</p>'
     + rowsHtml_(rows) + '<p><b>Read before filing</b></p><ul>'
     + notes.map(n => '<li>' + esc_(n) + '</li>').join('') + '</ul>'
     + '<p>The Social Security / tax ID number is in the details doc in the folder, not in this email.</p>';
@@ -586,6 +587,14 @@ function sendHandoff_(data, notes, files, folder, id) {
     subject: 'New owner intake: ' + address.split(',')[0] + ' - utility set-up',
     htmlBody: html
   });
+}
+
+// Big link at the top of the email: staff couldn't spot the folder-name link.
+function folderButton_(folder) {
+  const url = folder.getUrl();
+  return '<p><a href="' + url + '" style="display:inline-block;padding:12px 20px;background:#2e6b3a;color:#ffffff;'
+    + 'font-weight:bold;font-size:16px;text-decoration:none;border-radius:6px">Open the folder</a></p>'
+    + '<p style="font-size:12px;color:#555">' + esc_(folder.getName()) + '<br>' + esc_(url) + '</p>';
 }
 
 function rowsHtml_(rows) {
@@ -726,9 +735,9 @@ function sendFullPacket_(data, uploads, folder, doc) {
     ['Files uploaded', uploads.copied.map(u => u.label + (u.names.length ? '' : ' (could not be copied)')).join('\n')
       || 'None']
   ];
-  const html = '<p>A new owner intake form came in. Every answer and every file the owner uploaded is in this '
-    + 'folder:</p><p><a href="' + folder.getUrl() + '">' + esc_(folder.getName()) + '</a></p>'
-    + '<p>Start with the <a href="' + doc.getUrl() + '">full intake doc</a>.</p>'
+  const html = folderButton_(folder)
+    + '<p>A new owner intake form came in. Every answer and every file the owner uploaded is in the folder '
+    + 'above. Start with the <a href="' + doc.getUrl() + '">full intake doc</a>.</p>'
     + rowsHtml_(rows)
     + '<p>The Social Security / tax ID number and any bank account numbers are in the doc, not in this email. '
     + 'Alaina gets a separate email with what she needs for the utility set-up.</p>';
