@@ -29,6 +29,7 @@ priority order (set by Matt), not numeric order.
 9. Eaglebrook bird's-eye: relabel building 6025 as A-B-C-D (for Jason)
 12. Rotate the reception Jotform password
 14. RingCentral + Claude webinar: watch the recording and answer Alaina
+19. Hire a tech
 
 Removed (done): 10 Van Audit Supabase grant, 11 GitHub Pages builds,
 13 missing receipts for invoice 231254,
