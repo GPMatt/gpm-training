@@ -29,34 +29,48 @@ before the tenant leaves.
 - The first build step is the next business day after move-out. Weekends are not business days.
 - There's a buffer of 1+ business day before move-in.
 
-## Flow
-1. **Trigger.** The AppFolio tenant tickler is pulled DAILY into Supabase (Matt is
-   switching it from weekly). A morning job picks up new notices. The portal
-   email trigger is dropped.
-2. **PMO scheduling.** The PMO is due within 5 business days of notice, on Mondays
-   after 11am. All PMOs for that Monday are routed in drive order (P07 logic),
-   with no cap. Spencer confirms the route by Thursday EOD, then each PM gets a
-   reminder to send the entry notice via AppFolio.
-3. **PMO.** Spencer fills out the checklist in the custom web app (Jason's
-   existing checklist, optimized). Each answer picks a size from the duration
-   table.
-4. **Quotes.** If a step needs owner approval, the system emails a draft to
-   Laura and the PM to send to the owner. That step waits for a manual
-   "approved" trigger. Everything else books as normal.
-5. **Booking.** Outside vendors get an email plus an invite on the GPM Turns
-   calendar, sent automatically with no human approval. Jason assigns the
-   in-house tech for step 7.
-6. **Short notice.** If move-out is under 30 days away, the system sends Spencer
-   draft emails clearly stating he has to schedule these by hand.
-7. **Move-out walk.** Spencer walks the unit on move-out day or first thing the
-   next day. If he finds new scope, he books that vendor ASAP himself. If that
-   date pushes later steps, the system shifts them, auto-emails the affected
-   vendors, and sends Jason a summary.
-8. **Date change in the tickler after booking.** Alert Jason and Spencer only.
-   Nothing is rescheduled automatically.
-9. **Monday 30-min turn meeting.** The board shows every open turn and its
-   status, plus the next 45 days of vacates. It also shows rent-ready vs
-   move-in and weekly load per trade. **No alerts for overrun or capacity.**
+## Flow (revised 2026-11-02 evening; visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj)
+1. **Trigger.** The AppFolio tenant tickler is pulled DAILY into Supabase, in
+   the dashboard project (no Supabase project slots left). A "Notice" row =
+   turn with an UNCONFIRMED move-out date. A "Move-out" row = final date. No
+   date-change alerts are needed.
+2. **PMO time.** PROPOSED: an all-day "PMO needed by <date>" hold on the GPM
+   Turns calendar for the next Monday. Spencer drags it to a time, and the
+   system detects that. No routing and no confirmation email. (Not yet
+   approved by Matt.)
+3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
+   (fixtures, keys, rekey, filter size). Spencer completes a new scope section
+   (each of the 10 steps needed or not, plus its size, appliance make/model,
+   blind measurements). Both live in one web app. Subject to change.
+4. **Owner approval.** If the estimate is over the property's AppFolio
+   Maintenance Limit (already in Supabase weekly via the Work Order report,
+   fact_work_order.maintenance_limit), the step waits for a manual "approved"
+   trigger.
+5. **Booking.** Vendors get automatic calendar invites (date, window, address
+   and unit, scope, access). Under 30 days' notice is still automated (earliest
+   open dates). Jason assigns the tech, mostly Riley.
+6. **Rent ready.** Spencer marks it, for now.
+7. **Monday meeting.** Spencer + Matt.
+
+## Emails (all separate)
+| | To | When | Content |
+|---|---|---|---|
+| A | PM | On notice, again after the PMO | Rent-ready estimate (maximum timeline before the PMO, computed after) |
+| B | PM | When the PMO gets a time | PMO scheduled + reminder to send the AppFolio entry notice |
+| C | PM | After the PMO | Scope + estimate to forward to the owner; reminder to create/update the turn WO marked Unit Turn |
+| D | Jason | After the PMO | Supplies to order (Ace / HD Supply): property, unit, items |
+| E | Vendors | When a step is booked or shifted | Calendar invite |
+| F | Spencer + Jason | Daily | Upcoming + active turns, 10 step statuses (Skipped / Unconfirmed / Scheduled / Complete), calendar + checklist links |
+
+## Responsibilities
+- PM: creates and updates the turn WO, sends the entry notice, forwards C to the owner.
+- Jason: minimal work + oversight, assigns the tech, orders supplies.
+- Spencer: PMO scope, move-out walk, rent ready, Monday meeting (with Matt).
+- Tech (mostly Riley): the TURN checklist at the PMO, the step 7 work.
+
+## Removed
+PMO routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
+alerts, capacity/overrun alerts, the portal email trigger.
 
 ## Durations (editable settings table, from Jason 2026-10-30, business days)
 | Step | Sizes |
@@ -96,5 +110,7 @@ before the tenant leaves.
       appliances, paint, clean and carpet cleaning
 - [ ] Eastpointe: order form (pending from their order desk)
 - [ ] Design the manual "owner approved" trigger
-- [ ] Decide whether a late PMO (more than 5 business days after notice) gets
-      flagged anywhere
+- [ ] Price table per step and size (for the owner estimate); does a $0 limit
+      mean no limit or approve everything?
+- [ ] Who marks each step Complete?
+- [ ] Approve or replace the calendar-hold PMO idea
