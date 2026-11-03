@@ -34,19 +34,18 @@ before the tenant leaves.
    the dashboard project (no Supabase project slots left). A "Notice" row =
    turn with an UNCONFIRMED move-out date. A "Move-out" row = final date. No
    date-change alerts are needed.
-2. **PMO time.** PROPOSED: an all-day "PMO needed by <date>" hold on the GPM
-   Turns calendar for the next Monday. Spencer drags it to a time, and the
-   system detects that. No routing and no confirmation email. (Not yet
-   approved by Matt.)
+2. **PMO time.** Next Monday, stacked hourly from 10am. Real slots go on the
+   GPM Turns calendar. Tenants get a wider window in the entry notice and never
+   see the real slot: the window opens 1h before the slot (never before 10am)
+   and closes 3h after it starts. 1st: slot 10-11, window 10-1. 2nd: 11-12,
+   10-2. 3rd: 12-1, 11-3. 4th: 1-2, 12-4.
 3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
    (fixtures, keys, rekey, filter size). Spencer completes a new scope section
    (each of the 10 steps needed or not, plus its size, appliance make/model,
    blind measurements). Both live in one web app. Subject to change.
-4. **Owner approval.** If the estimate is over the property's AppFolio
-   Maintenance Limit (already in Supabase weekly via the Work Order report,
-   fact_work_order.maintenance_limit), the step waits for a manual "approved"
-   trigger.
-5. **Booking.** Vendors get automatic calendar invites (date, window, address
+4. **Quotes / owner approval: OUT OF SCOPE.** Step 2 is only for bigger
+   value-add projects. Pricing and owner approval stay manual.
+5. **Booking (Matt still designing).** Vendors get automatic calendar invites (date, window, address
    and unit, scope, access). Under 30 days' notice is still automated (earliest
    open dates). Jason assigns the tech, mostly Riley.
 6. **Rent ready.** Spencer marks it, for now.
@@ -55,15 +54,15 @@ before the tenant leaves.
 ## Emails (all separate)
 | | To | When | Content |
 |---|---|---|---|
-| A | PM | On notice, again after the PMO | Rent-ready estimate (maximum timeline before the PMO, computed after) |
+| A | PM | On notice, again after the PMO | Rent-ready estimate (move-out + 15 business days before the PMO, computed from scope after) |
 | B | PM | When the PMO gets a time | PMO scheduled + reminder to send the AppFolio entry notice |
-| C | PM | After the PMO | Scope + estimate to forward to the owner; reminder to create/update the turn WO marked Unit Turn |
+| C | PM | After the PMO | Scope brief so the PM can create/update the turn WO; reminder to mark it Unit Turn |
 | D | Jason | After the PMO | Supplies to order (Ace / HD Supply): property, unit, items |
 | E | Vendors | When a step is booked or shifted | Calendar invite |
 | F | Spencer + Jason | Daily | Upcoming + active turns, 10 step statuses (Skipped / Unconfirmed / Scheduled / Complete), calendar + checklist links |
 
 ## Responsibilities
-- PM: creates and updates the turn WO, sends the entry notice, forwards C to the owner.
+- PM: creates and updates the turn WO, sends the entry notice.
 - Jason: minimal work + oversight, assigns the tech, orders supplies.
 - Spencer: PMO scope, move-out walk, rent ready, Monday meeting (with Matt).
 - Tech (mostly Riley): the TURN checklist at the PMO, the step 7 work.
@@ -71,6 +70,12 @@ before the tenant leaves.
 ## Removed
 PMO routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
 alerts, capacity/overrun alerts, the portal email trigger.
+
+## Maintenance limits (audit 2026-11-02; context only, approvals are out of scope)
+No weekly property directory reaches Supabase; dim_property comes from the rent
+roll and limits only come from work orders (15 weeks, 7/20-10/26). Of 137
+active properties: 78 have a limit, 25 show $0, 10 always blank, 21 never had a
+WO. Englewood, Packard and Veto changed value over time (now $100/$1500/$1000).
 
 ## Durations (editable settings table, from Jason 2026-10-30, business days)
 | Step | Sizes |
@@ -109,8 +114,7 @@ alerts, capacity/overrun alerts, the portal email trigger.
 - [ ] Jason: send the current PMO checklist; name the vendors and contacts for
       appliances, paint, clean and carpet cleaning
 - [ ] Eastpointe: order form (pending from their order desk)
-- [ ] Design the manual "owner approved" trigger
-- [ ] Price table per step and size (for the owner estimate); does a $0 limit
-      mean no limit or approve everything?
+- [ ] Which move-out counts as 1st in the Monday stack; what happens to a 5th+ PMO
+- [ ] Vendor booking process (Matt designing)
 - [ ] Who marks each step Complete?
 - [ ] Approve or replace the calendar-hold PMO idea
