@@ -30,24 +30,22 @@ before the tenant leaves.
 - There's a buffer of 1+ business day before move-in.
 
 ## Flow (revised 2026-11-02 evening; visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj)
-1. **Trigger.** The AppFolio tenant tickler is pulled DAILY into Supabase, in
-   the dashboard project (no Supabase project slots left). A "Notice" row =
-   turn with an UNCONFIRMED move-out date. A "Move-out" row = final date. No
-   date-change alerts are needed.
-2. **PMO time.** Next Monday, stacked hourly from 10am. Real slots go on the
-   GPM Turns calendar. Tenants get a wider window in the entry notice and never
-   see the real slot: the window opens 1h before the slot (never before 10am)
-   and closes 3h after it starts. 1st: slot 10-11, window 10-1. 2nd: 11-12,
-   10-2. 3rd: 12-1, 11-3. 4th: 1-2, 12-4. 5th: 2-3 and 6th: 3-4, both with a
-   1-5 window. Max 6 PMOs per Monday, stacked in order of notice received;
-   a 7th goes to Spencer to schedule by hand.
+1. **Trigger.** Daily AppFolio tenant tickler into Supabase (dashboard project).
+   CONFIRMED move-out dates only. Unconfirmed notices are not in the report and
+   never start a turn. The PMO goes on the next Monday.
+2. **PMO time.** Next Monday, real 1h slots stacked from 10am in the order
+   move-outs were confirmed. Every tenant window is 4h, and tenants never see
+   the real slot: 1st 10-11 (window 9-1), 2nd 11-12 (10-2), 3rd 12-1 (11-3),
+   4th 1-2 (12-4), 5th 2-3 (1-5), 6th 3-4 (1-5). Max 6; a 7th goes to Spencer.
+   Asking Jason and Spencer for the safe Monday count and a realistic start time
+   after inventory + the meeting.
 3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
    (fixtures, keys, rekey, filter size). Spencer completes a new scope section
    (each of the 10 steps needed or not, plus its size, appliance make/model,
    blind measurements). Both live in one web app. Subject to change.
 4. **Project estimates.** IN SCOPE, but only for bigger value-add projects
    (not standard turn work, no per-step price table). The process is TBD.
-5. **Booking (Matt still designing).** Vendors get automatic calendar invites (date, window, address
+5. **Booking (Matt still designing; under 30 days out needs its own process).** Vendors get automatic calendar invites (date, window, address
    and unit, scope, access). Under 30 days' notice is still automated (earliest
    open dates). Jason assigns the tech, mostly Riley.
 6. **Rent ready.** Spencer marks it, for now.
@@ -93,9 +91,9 @@ alerts, capacity/overrun alerts, the portal email trigger.
 | Flooring | Eastpointe Interiors (Tom Rozanski), apartmentorders@eastpointeinteriors.com, 616-272-7120 | "Apartment Order Form.pdf" (in Matt's inbox): install date, community/unit/style, vacant/occupied/furniture, carpet/pad/rip/haul, full or partial + area, sheet vinyl or plank + rooms, rip, shoe molding, cove base, R&R toilet, move appliances, subfloor, floor prep, special instructions, access, requested by/PO#, PM + maintenance supervisor contacts. Same-day cancel = trip charge |
 | Drywall / plaster | Matt Luschas, mattjluschas@gmail.com | 30 days' notice, 3 days per job |
 | Appliances | TBD | |
-| Paint | TBD | |
-| Clean | TBD | |
-| Carpet cleaning | TBD | |
+| Paint | Trevor | contact pending |
+| Clean | GR Cleaning Co or Up & Up | contacts pending; asked for a GR Cleaning Co calendar login |
+| Carpet cleaning | TBD | confirm they work off our calendar |
 
 ## Engineering
 - Supabase is the source of truth: turns, steps, vendors, durations, and the
@@ -109,7 +107,9 @@ alerts, capacity/overrun alerts, the portal email trigger.
 - [ ] Matt: switch the tenant tickler pull to daily
 - [ ] Jason: send the current PMO checklist; name the vendors and contacts for
       appliances, paint, clean and carpet cleaning
-- [ ] Projects (Jason owns): proposed "Is there interest in a project here?" email on confirmed move-out (asked Jason 2026-11-03)
+- [ ] Projects: does Spencer or Jason identify potential projects at the PMO? (asked)
+- [ ] Safe PMO count per Monday + start time after inventory/meeting (asked)
+- [ ] Under-30-days booking process (separate, not designed)
 - [ ] Who marks steps Complete (Spencer mostly; how he knows a vendor is done; asked Jason)
 - [ ] Vendor contacts + each crew's calendar; confirm carpet cleaner uses our calendar; login for the GR cleaning company's calendar (asked Jason)
 - [ ] Spencer's scope section (Jason's checklist is fixtures only); flooring answers should fill the Eastpointe order form
