@@ -39,7 +39,8 @@ before the tenant leaves.
    see the real slot: the window opens 1h before the slot (never before 10am)
    and closes 3h after it starts. 1st: slot 10-11, window 10-1. 2nd: 11-12,
    10-2. 3rd: 12-1, 11-3. 4th: 1-2, 12-4. 5th: 2-3 and 6th: 3-4, both with a
-   1-5 window. Max 6 PMOs per Monday.
+   1-5 window. Max 6 PMOs per Monday, stacked in order of notice received;
+   a 7th goes to Spencer to schedule by hand.
 3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
    (fixtures, keys, rekey, filter size). Spencer completes a new scope section
    (each of the 10 steps needed or not, plus its size, appliance make/model,
@@ -72,12 +73,6 @@ before the tenant leaves.
 PMO routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
 alerts, capacity/overrun alerts, the portal email trigger.
 
-## Maintenance limits (audit 2026-11-02)
-No weekly property directory reaches Supabase; dim_property comes from the rent
-roll and limits only come from work orders (15 weeks, 7/20-10/26). Of 137
-active properties: 78 have a limit, 25 show $0, 10 always blank, 21 never had a
-WO. Englewood, Packard and Veto changed value over time (now $100/$1500/$1000).
-
 ## Durations (editable settings table, from Jason 2026-10-30, business days)
 | Step | Sizes |
 |---|---|
@@ -95,7 +90,7 @@ WO. Englewood, Packard and Veto changed value over time (now $100/$1500/$1000).
 |---|---|---|
 | Tub resurface | Surface Tech, Surfacetechs1@hotmail.com | email with date + details, 30 days' notice |
 | Tub replace | Grand River Plumbing, Emails.grp@gmail.com | 30 days' notice; must measure 2+ weeks before install |
-| Flooring | Eastpointe Interiors, ApartmentOrders@eastpointeinteriors.com | order form (requested 2026-11-02) |
+| Flooring | Eastpointe Interiors (Tom Rozanski), apartmentorders@eastpointeinteriors.com, 616-272-7120 | "Apartment Order Form.pdf" (in Matt's inbox): install date, community/unit/style, vacant/occupied/furniture, carpet/pad/rip/haul, full or partial + area, sheet vinyl or plank + rooms, rip, shoe molding, cove base, R&R toilet, move appliances, subfloor, floor prep, special instructions, access, requested by/PO#, PM + maintenance supervisor contacts. Same-day cancel = trip charge |
 | Drywall / plaster | Matt Luschas, mattjluschas@gmail.com | 30 days' notice, 3 days per job |
 | Appliances | TBD | |
 | Paint | TBD | |
@@ -114,9 +109,10 @@ WO. Englewood, Packard and Veto changed value over time (now $100/$1500/$1000).
 - [ ] Matt: switch the tenant tickler pull to daily
 - [ ] Jason: send the current PMO checklist; name the vendors and contacts for
       appliances, paint, clean and carpet cleaning
-- [ ] Eastpointe: order form (pending from their order desk)
-- [ ] Which move-out counts as 1st in the Monday stack; where a 7th PMO goes
-- [ ] Project estimate process: how it is requested, who sends it to the owner, what releases the step
+- [ ] Projects (Jason owns): proposed "Is there interest in a project here?" email on confirmed move-out (asked Jason 2026-11-03)
+- [ ] Who marks steps Complete (Spencer mostly; how he knows a vendor is done; asked Jason)
+- [ ] Vendor contacts + each crew's calendar; confirm carpet cleaner uses our calendar; login for the GR cleaning company's calendar (asked Jason)
+- [ ] Spencer's scope section (Jason's checklist is fixtures only); flooring answers should fill the Eastpointe order form
 - [ ] Vendor booking process (Matt designing)
 - [ ] Who marks each step Complete?
 - [ ] Approve or replace the calendar-hold PMO idea
