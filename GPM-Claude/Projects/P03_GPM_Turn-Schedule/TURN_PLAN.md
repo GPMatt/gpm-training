@@ -7,12 +7,12 @@ Decisions from Matt's interview, 2026-11-02. Nothing is built yet.
 2. The turn process itself isn't good enough. We lose days and units aren't ready soon enough.
 
 ## The theory
-The turn starts at notice, not move-out. A comprehensive PMO is the single
+The turn starts at notice, not move-out. A comprehensive PMI is the single
 source of scope, and vendors are booked 30 days out, so every date is locked
 before the tenant leaves.
 
 ## Order of operations (locked; every step is as-needed except the walk)
-1. Walk / PMO
+1. Walk / PMI
 2. Project estimates (bigger value-add projects only)
 3. Tub repair or replace
 4. Flooring
@@ -20,10 +20,11 @@ before the tenant leaves.
 6. Appliances
 7. Tech
 8. Paint
-9. Clean
-10. Carpet cleaning
+9. Stainless steel cleaning (Jody, as needed; separate from the cleaners; OPEN: confirm)
+10. Clean
+11. Carpet cleaning
 
-- Grease or smoke units get a pre-clean on Day 1, before step 3. Step 9 cleans again.
+- Grease or smoke units get a pre-clean on Day 1, before step 3. Step 10 cleans again.
 - The only same-day overlap allowed is Appliances + Tech.
 - Skipped steps pull everything after them forward.
 - The first build step is the next business day after move-out. Weekends are not business days.
@@ -32,16 +33,16 @@ before the tenant leaves.
 ## Flow (revised 2026-11-02 evening; visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj)
 1. **Trigger.** Daily AppFolio tenant tickler into Supabase (dashboard project).
    CONFIRMED move-out dates only. Unconfirmed notices are not in the report and
-   never start a turn. The PMO goes on the next Monday.
-2. **PMO time.** Next Monday, real 1h slots stacked from 10am in the order
+   never start a turn. The PMI goes on the next Monday.
+2. **PMI time.** Next Monday, real 1h slots stacked from 10am in the order
    move-outs were confirmed. Every tenant window is 4h, and tenants never see
    the real slot: 1st 10-11 (window 9-1), 2nd 11-12 (10-2), 3rd 12-1 (11-3),
    4th 1-2 (12-4), 5th 2-3 (1-5), 6th 3-4 (1-5). Max 6; a 7th goes to Spencer.
    Asking Jason and Spencer for the safe Monday count and a realistic start time
    after inventory + the meeting.
-3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
+3. **PMI walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
    (fixtures, keys, rekey, filter size). Spencer completes a new scope section
-   (each of the 10 steps needed or not, plus its size, appliance make/model,
+   (each of the 11 steps needed or not, plus its size, appliance make/model,
    blind measurements). Both live in one web app. Subject to change.
 4. **Project estimates.** IN SCOPE, but only for bigger value-add projects
    (not standard turn work, no per-step price table). The process is TBD.
@@ -54,21 +55,21 @@ before the tenant leaves.
 ## Emails (all separate)
 | | To | When | Content |
 |---|---|---|---|
-| A | PM | On notice, again after the PMO | Rent-ready estimate (move-out + 15 business days before the PMO, computed from scope after) |
-| B | PM | When the PMO gets a time | PMO scheduled + reminder to send the AppFolio entry notice |
-| C | PM | After the PMO | Scope brief so the PM can create/update the turn WO; reminder to mark it Unit Turn |
-| D | Jason | After the PMO | Supplies to order (Ace / HD Supply): property, unit, items |
+| A | PM | On notice, again after the PMI | Rent-ready estimate (move-out + 15 business days before the PMI, computed from scope after) |
+| B | PM | When the PMI gets a time | PMI scheduled + reminder to send the AppFolio entry notice |
+| C | PM | After the PMI | Scope brief so the PM can create/update the turn WO; reminder to mark it Unit Turn |
+| D | Jason | After the PMI | Supplies to order (Ace / HD Supply): property, unit, items |
 | E | Vendors | When a step is booked or shifted | Calendar invite |
-| F | Spencer + Jason | Daily | Upcoming + active turns, 10 step statuses (Skipped / Unconfirmed / Scheduled / Complete), calendar + checklist links |
+| F | Spencer + Jason | Daily | Upcoming + active turns, 11 step statuses (Skipped / Unconfirmed / Scheduled / Complete), calendar + checklist links |
 
 ## Responsibilities
 - PM: creates and updates the turn WO, sends the entry notice.
 - Jason: minimal work + oversight, assigns the tech, orders supplies.
-- Spencer: PMO scope, move-out walk, rent ready, Monday meeting (with Matt).
-- Tech (mostly Riley): the TURN checklist at the PMO, the step 7 work.
+- Spencer: PMI scope, move-out walk, rent ready, Monday meeting (with Matt).
+- Tech (mostly Riley): the TURN checklist at the PMI, the step 7 work.
 
 ## Removed
-PMO routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
+PMI routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
 alerts, capacity/overrun alerts, the portal email trigger.
 
 ## Durations (editable settings table, from Jason 2026-10-30, business days)
@@ -92,6 +93,7 @@ alerts, capacity/overrun alerts, the portal email trigger.
 | Drywall / plaster | Matt Luschas, mattjluschas@gmail.com | 30 days' notice, 3 days per job |
 | Appliances | TBD | |
 | Paint | Trevor | contact pending |
+| Stainless steel | Jody | as needed, before the cleaners (open) |
 | Clean | GR Cleaning Co or Up & Up | contacts pending; asked for a GR Cleaning Co calendar login |
 | Carpet cleaning | TBD | confirm they work off our calendar |
 
@@ -105,14 +107,15 @@ alerts, capacity/overrun alerts, the portal email trigger.
 
 ## Open items
 - [ ] Matt: switch the tenant tickler pull to daily
-- [ ] Jason: send the current PMO checklist; name the vendors and contacts for
+- [ ] Jason: send the current PMI checklist; name the vendors and contacts for
       appliances, paint, clean and carpet cleaning
-- [ ] Projects: does Spencer or Jason identify potential projects at the PMO? (asked)
-- [ ] Safe PMO count per Monday + start time after inventory/meeting (asked)
+- [ ] Projects: does Spencer or Jason identify potential projects at the PMI? (asked)
+- [ ] Safe PMI count per Monday + start time after inventory/meeting (asked)
 - [ ] Under-30-days booking process (separate, not designed)
 - [ ] Who marks steps Complete (Spencer mostly; how he knows a vendor is done; asked Jason)
 - [ ] Vendor contacts + each crew's calendar; confirm carpet cleaner uses our calendar; login for the GR cleaning company's calendar (asked Jason)
 - [ ] Spencer's scope section (Jason's checklist is fixtures only); flooring answers should fill the Eastpointe order form
 - [ ] Vendor booking process (Matt designing)
 - [ ] Who marks each step Complete?
-- [ ] Approve or replace the calendar-hold PMO idea
+- [ ] Add stainless steel cleaning (Jody, per Jason) as step 9 of 11, before Clean: confirm placement, duration, how it's booked
+- [ ] Approve or replace the calendar-hold PMI idea
