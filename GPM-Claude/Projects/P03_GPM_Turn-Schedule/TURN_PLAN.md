@@ -13,7 +13,7 @@ before the tenant leaves.
 
 ## Order of operations (locked; every step is as-needed except the walk)
 1. Walk / PMO
-2. Quotes for estimates
+2. Project estimates (bigger value-add projects only)
 3. Tub repair or replace
 4. Flooring
 5. Drywall / plaster (all of it, including tub-related, after flooring)
@@ -38,13 +38,14 @@ before the tenant leaves.
    GPM Turns calendar. Tenants get a wider window in the entry notice and never
    see the real slot: the window opens 1h before the slot (never before 10am)
    and closes 3h after it starts. 1st: slot 10-11, window 10-1. 2nd: 11-12,
-   10-2. 3rd: 12-1, 11-3. 4th: 1-2, 12-4.
+   10-2. 3rd: 12-1, 11-3. 4th: 1-2, 12-4. 5th: 2-3 and 6th: 3-4, both with a
+   1-5 window. Max 6 PMOs per Monday.
 3. **PMO walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
    (fixtures, keys, rekey, filter size). Spencer completes a new scope section
    (each of the 10 steps needed or not, plus its size, appliance make/model,
    blind measurements). Both live in one web app. Subject to change.
-4. **Quotes / owner approval: OUT OF SCOPE.** Step 2 is only for bigger
-   value-add projects. Pricing and owner approval stay manual.
+4. **Project estimates.** IN SCOPE, but only for bigger value-add projects
+   (not standard turn work, no per-step price table). The process is TBD.
 5. **Booking (Matt still designing).** Vendors get automatic calendar invites (date, window, address
    and unit, scope, access). Under 30 days' notice is still automated (earliest
    open dates). Jason assigns the tech, mostly Riley.
@@ -71,7 +72,7 @@ before the tenant leaves.
 PMO routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
 alerts, capacity/overrun alerts, the portal email trigger.
 
-## Maintenance limits (audit 2026-11-02; context only, approvals are out of scope)
+## Maintenance limits (audit 2026-11-02)
 No weekly property directory reaches Supabase; dim_property comes from the rent
 roll and limits only come from work orders (15 weeks, 7/20-10/26). Of 137
 active properties: 78 have a limit, 25 show $0, 10 always blank, 21 never had a
@@ -114,7 +115,8 @@ WO. Englewood, Packard and Veto changed value over time (now $100/$1500/$1000).
 - [ ] Jason: send the current PMO checklist; name the vendors and contacts for
       appliances, paint, clean and carpet cleaning
 - [ ] Eastpointe: order form (pending from their order desk)
-- [ ] Which move-out counts as 1st in the Monday stack; what happens to a 5th+ PMO
+- [ ] Which move-out counts as 1st in the Monday stack; where a 7th PMO goes
+- [ ] Project estimate process: how it is requested, who sends it to the owner, what releases the step
 - [ ] Vendor booking process (Matt designing)
 - [ ] Who marks each step Complete?
 - [ ] Approve or replace the calendar-hold PMO idea
