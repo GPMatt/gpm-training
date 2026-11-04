@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GPM Maintenance Parts — Bin Checklist</title>
+<style>
+@page { size: 8.5in 11in; margin: 0.55in; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#000;background:#fff}
+
+header{margin-bottom:8px}
+header h1{font-size:16px;font-weight:800;letter-spacing:.02em}
+header .sub{font-size:10px;color:#444;margin-top:1px}
+.fillins{margin-top:6px;display:flex;gap:28px;font-size:10px;border-top:1px solid #000;border-bottom:1px solid #000;padding:4px 0}
+.fillins span{border-bottom:1px solid #000;padding-bottom:2px}
+.fillins .van{width:140px;display:inline-block}
+.fillins .tech{width:140px;display:inline-block}
+.fillins .date{width:120px;display:inline-block}
+
+table{width:100%;border-collapse:collapse;font-size:9.5px}
+thead{display:table-header-group}
+thead tr{border-bottom:1.5px solid #000}
+th{text-align:left;padding:3px 6px;font-size:8.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+th.chk-col, td.chk-col{width:24px;text-align:center}
+th.bin-col, td.bin-col{width:38px}
+th.sku-col, td.sku-col{width:76px}
+
+tr.row{border-bottom:1px solid #ccc;break-inside:avoid}
+tr.row:nth-child(even){background:#f2f2f2}
+td{padding:2.5px 6px;vertical-align:middle}
+td.name{font-weight:600}
+td.sku{color:#333;font-family:Menlo,Consolas,monospace;font-size:8.75px}
+td.bin{font-weight:800;font-size:10px}
+
+.box{
+  width:10px;height:10px;border:1.2px solid #000;display:inline-block;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GPM Maintenance Parts — Bin Checklist</h1>
+  <div class="sub">Sorted by van bin number</div>
+  <div class="fillins">
+    <div>Van: <span class="van">&nbsp;</span></div>
+    <div>Tech: <span class="tech">&nbsp;</span></div>
+    <div>Date: <span class="date">&nbsp;</span></div>
+  </div>
+</header>
+
+<table>
+  <thead>
+    <tr>
+      <th class="chk-col">✓</th>
+      <th class="bin-col">Bin</th>
+      <th class="sku-col">SKU</th>
+      <th>Item</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+const ITEMS = [
+  {sku:"45947",   name:"Bathroom Faucet - 1-1/4\" Drain Pop Up"},
+  {sku:"42296",   name:"Bathroom Faucet - 1-3/16\" Chrome Pop-Up Plunger"},
+  {sku:"4875530", name:"Bathroom Faucet - Nickel 2-Handle Faucet"},
+  {sku:"4230496", name:"Bathroom Faucet - Pop Up Rod 1-1/2\" Metal Pop-Up Rod"},
+  {sku:"3008737", name:"Battery - 2032 3V"},
+  {sku:"3413846", name:"Battery - 9V Advanced Lithium"},
+  {sku:"32625",   name:"Battery - 9V Alkaline"},
+  {sku:"32886",   name:"Battery - AA Alkaline (4 pk)"},
+  {sku:"32327",   name:"Battery - AAA Alkaline (4 pk)"},
+  {sku:"34574",   name:"Battery - C Alkaline (4 pk)"},
+  {sku:"34573",   name:"Battery - D Alkaline (4 pk)"},
+  {sku:"5622386", name:"Door - Back Plate Chrome Steel Lock Back Plate"},
+  {sku:"5300587", name:"Door - Bright Brass Surface Lock"},
+  {sku:"50400",   name:"Door - Chain Brass"},
+  {sku:"5238548", name:"Door - Door Handle Passage Satin Knob"},
+  {sku:"5967955", name:"Door - Door Seal White Aluminum 84\""},
+  {sku:"5315544", name:"Door - Door Sweep White 36\""},
+  {sku:"50361",   name:"Door - Heritage Hill Brass Replacement Knobs"},
+  {sku:"50021",   name:"Door - Heritage Hill Old Interior Lock Mortise Lockset 1-3/4\""},
+  {sku:"5366703", name:"Door - Passage Handle Lever 1-3/4\""},
+  {sku:"5395579", name:"Door - Peep Hole Satin Brass Door Viewer 160 Deg"},
+  {sku:"5215033", name:"Door - Schlage Deadbolt"},
+  {sku:"5299516", name:"Door - Screen Door Closer Black"},
+  {sku:"5107859", name:"Door - Wall Protector Ivory 5\""},
+  {sku:"3007267", name:"Electric - 1-Blank Plate, Ivory"},
+  {sku:"3202181", name:"Electric - 1-Blank Plate, White"},
+  {sku:"3272192", name:"Electric - 1-Old Work 1 Gang"},
+  {sku:"3202389", name:"Electric - 1-Outlet Plate Decorator, Ivory"},
+  {sku:"3007226", name:"Electric - 1-Outlet Plate, White"},
+  {sku:"3202199", name:"Electric - 1-Switch Wall Plate, White"},
+  {sku:"3500162", name:"Electric - 15A AFCI Outlet, Ivory"},
+  {sku:"31036",   name:"Electric - 15A Decorative Switch, White"},
+  {sku:"31035",   name:"Electric - 15A Decorator Outlet, White"},
+  {sku:"3534120", name:"Electric - 15A GFCI Outlet, White"},
+  {sku:"31034",   name:"Electric - 15A Outlet Decorator, Ivory"},
+  {sku:"3201605", name:"Electric - 15A Outlet, Ivory"},
+  {sku:"3201613", name:"Electric - 15A Outlet, White"},
+  {sku:"3201811", name:"Electric - 15A Single Pole Toggle Switch, Ivory"},
+  {sku:"31037",   name:"Electric - 15A Switch, Decorative Ivory"},
+  {sku:"3201829", name:"Electric - 15A Switch, White"},
+  {sku:"3202413", name:"Electric - 2-Decorator/Outlet Wall Plate, Ivory"},
+  {sku:"3280955", name:"Electric - 2-Old Work 2 Gang"},
+  {sku:"3202397", name:"Electric - 2-Outlet Plate Decorator, Ivory"},
+  {sku:"3202231", name:"Electric - 2-Outlet Wall Plate, White"},
+  {sku:"3202405", name:"Electric - 2-Outlet/Switch Plate Decorator, Ivory"},
+  {sku:"3007218", name:"Electric - 2-Switch Plate, White"},
+  {sku:"3202249", name:"Electric - 2-Switch/Outlet Plate, White"},
+  {sku:"3809464", name:"Electric - 20A AFCI Outlet, White"},
+  {sku:"4233185", name:"Kitchen Faucet - Brushed Nickel Spray Hose Guide"},
+  {sku:"4877353", name:"Kitchen Faucet - Chrome 2-Handle w/ Sprayer"},
+  {sku:"43588",   name:"Kitchen Faucet - Chrome Spray Hose Guide"},
+  {sku:"4903738", name:"Kitchen Faucet - Delta/Moen Pull-Out Spray Hose"},
+  {sku:"4070843", name:"Kitchen Faucet - White Kitchen Sprayer"},
+  {sku:"4876009", name:"Kitchen Faucet - Without Sprayer Chrome Faucet"},
+  {sku:"4238911", name:"Kitchen Sink - 1-3/4\" SS Sink Hole Cover"},
+  {sku:"4568663", name:"Kitchen Sink - 1/4\" Clips Pop Up"},
+  {sku:"45503",   name:"Kitchen Sink - Single Handle Delta Repair Kit"},
+  {sku:"4563664", name:"Kitchen Sink - Sprayer Handle Brushed Nickel"},
+  {sku:"4165189", name:"Kitchen Sink - Strainer Basket Stainless"},
+  {sku:"47982",   name:"Kitchen Sink Plumbing - Garbage Disposal"},
+  {sku:"4009623", name:"Kitchen Sink Plumbing - Plastic 1-1/2\" Garbage Disposal Install Kit"},
+  {sku:"4563920", name:"Kitchen Sink Plumbing - Sink Clips"},
+  {sku:"4007568", name:"Shower - 2-1/8\"x3-3/16\" Overflow Plate Gasket"},
+  {sku:"4007587", name:"Shower - 2\" Chrome Tub Stopper"},
+  {sku:"4265583", name:"Shower Faucet - Delta Chrome Tub/Shower Handle"},
+  {sku:"4200259", name:"Shower Faucet - Delta Clear Tub/Shower Handles"},
+  {sku:"4390985", name:"Shower Faucet - Delta RP46074 Cartridge"},
+  {sku:"4007552", name:"Shower Faucet - Delta Single Handle Cartridge"},
+  {sku:"4007546", name:"Shower Faucet - Handle Delta Chrome Tub"},
+  {sku:"4201497", name:"Shower Faucet - Moen Cartridge"},
+  {sku:"4564241", name:"Sink Faucet - Aerator 15/16\"x55/64\" Brushed Nickel"},
+  {sku:"4563961", name:"Sink Faucet - Aerator 15/16\"x55/64\" Chrome Adapter"},
+  {sku:"4586947", name:"Sink Faucet - Aerator 3/16\" & 55/64\" Black Aerator Repair Kit"},
+  {sku:"4564183", name:"Sink Faucet - Aerator 55/64\" Brushed Nickel"},
+  {sku:"4564209", name:"Sink Faucet - Aerator 55/64\" Chrome"},
+  {sku:"4230975", name:"Sink Faucet - Chrome Nickel Drain Rod & Strap"},
+  {sku:"43518",   name:"Sink Faucet - Delta Clear Handle Set H/C"},
+  {sku:"43086",   name:"Sink Faucet - Delta Seats & Springs"},
+  {sku:"4561890", name:"Sink Faucet - Glacier Bay 3S-11C Stem"},
+  {sku:"4562336", name:"Sink Faucet - Glacier Bay 3S-12C Stem"},
+  {sku:"4562005", name:"Sink Faucet - Glacier Bay 3S-9H/C Stem"},
+  {sku:"4561908", name:"Sink Faucet - Glacier Bay Hot Stem"},
+  {sku:"40124",   name:"Sink Faucet - Single Handle Rubber Repair Kit"},
+  {sku:"4561916", name:"Sink Faucet - Stem Delta H/C"},
+  {sku:"4223491", name:"Sink Plumbing - Plastic 1-1/2\" Coupling"},
+  {sku:"48891",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic 90 Deg Elbow"},
+  {sku:"48280",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic P-Trap"},
+  {sku:"48282",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic Sink Trap"},
+  {sku:"43795",   name:"Sink Plumbing - Plastic 1-1/2\" Washer"},
+  {sku:"48284",   name:"Sink Plumbing - Plastic 1-1/2\"x16\" End Outlet"},
+  {sku:"4223111", name:"Sink Plumbing - Plastic 1-1/2\"x16\" Poly Extension Tube"},
+  {sku:"45219",   name:"Sink Plumbing - Plastic 1-1/4\" Rubber Washer"},
+  {sku:"4223715", name:"Sink Plumbing - Plastic 1-1/4\"x12\" Poly Extension Tube"},
+  {sku:"43695",   name:"Sink Plumbing - Plastic 1-1/4\"x20-1/2\" Plastic S-Trap"},
+  {sku:"4335212", name:"Sink Plumbing - Supply Line 3/8\"x1/2\" 20\" SS"},
+  {sku:"4335311", name:"Sink Plumbing - Supply Line 3/8\"x1/2\" 24\" SS Faucet"},
+  {sku:"4061123", name:"Sink Plumbing - Supply Line 3/8\"x3/8\" 48\" SS"},
+  {sku:"5050136", name:"Smoke Detector - Battery, Smoke & Carbon"},
+  {sku:"5050089", name:"Smoke Detector - Battery, Smoke Only"},
+  {sku:"5050065", name:"Smoke Detector - Hard-Wired, Smoke & Carbon"},
+  {sku:"5050051", name:"Smoke Detector - Hard-Wired, Smoke Only"},
+  {sku:"4208773", name:"Toilet - Bolt to Flange"},
+  {sku:"4935177", name:"Toilet - Fill Valve PerforMAX"},
+  {sku:"44094",   name:"Toilet - Flapper 2\" Red Flapper"},
+  {sku:"4009474", name:"Toilet - Flapper Universal 3\""},
+  {sku:"40415",   name:"Toilet - Handle Chrome Tank Lever"},
+  {sku:"4593554", name:"Toilet - Repair Flange"},
+  {sku:"40202",   name:"Toilet - Rubber Hinge Repair Bolts"},
+  {sku:"45438",   name:"Toilet - Seat Bolts White Hinge Bolts"},
+  {sku:"46357",   name:"Toilet - Seat Elongated White Wood Seat"},
+  {sku:"48076",   name:"Toilet - Seat Round White Plastic Seat"},
+  {sku:"4199584", name:"Toilet - Seat Washer"},
+  {sku:"4060364", name:"Toilet - Supply Line 3/8\"x7/8\" 12\""},
+  {sku:"4060380", name:"Toilet - Supply Line 3/8\"x7/8\" 16\""},
+  {sku:"4060398", name:"Toilet - Supply Line 3/8\"x7/8\" 20\""},
+  {sku:"4027132", name:"Toilet - Wax Ring Thick"},
+  {sku:"59132",   name:"Window - Lock Pining Plastic"},
+  {sku:"5302211", name:"Window - Pin Security Pin Metal"},
+];
+
+const BIN_NUMBERS = {
+  "45947":10, "42296":10, "4875530":2, "4230496":10, "3008737":1, "3413846":1,
+  "32625":1, "32886":1, "32327":1, "34574":1, "34573":1, "5622386":22,
+  "5300587":22, "50400":22, "5238548":23, "5967955":24, "5315544":24, "50361":23,
+  "50021":23, "5366703":23, "5395579":22, "5215033":23, "5299516":22, "5107859":22,
+  "3007267":16, "3202181":19, "3272192":15, "3202389":16, "3007226":19, "3202199":19,
+  "3500162":17, "31036":21, "31035":21, "3534120":20, "31034":18, "3201605":18,
+  "3201613":21, "3201811":18, "31037":18, "3201829":21, "3202413":16, "3280955":15,
+  "3202397":16, "3202231":19, "3202405":16, "3007218":19, "3202249":19, "3809464":20,
+  "4233185":6, "4877353":2, "43588":6, "4903738":6, "4070843":6, "4876009":2,
+  "4238911":6, "4568663":6, "45503":8, "4563664":6, "4165189":6, "47982":25,
+  "4009623":13, "4563920":6, "4007568":9, "4007587":9, "4265583":11, "4200259":11,
+  "4390985":8, "4007552":8, "4007546":11, "4201497":8, "4564241":7, "4563961":7,
+  "4586947":7, "4564183":7, "4564209":7, "4230975":6, "43518":11, "43086":8,
+  "4561890":8, "4562336":8, "4562005":8, "4561908":8, "40124":8, "4561916":8,
+  "4223491":13, "48891":13, "48280":13, "48282":13, "43795":12, "48284":13,
+  "4223111":13, "45219":12, "4223715":13, "43695":13, "4335212":5, "4335311":5,
+  "4061123":5, "5050136":14, "5050089":14, "5050065":14, "5050051":14, "4208773":4,
+  "4935177":4, "44094":4, "4009474":4, "40415":4, "4593554":4, "40202":4,
+  "45438":4, "46357":3, "48076":3, "4199584":4, "4060364":5, "4060380":5,
+  "4060398":5, "4027132":4, "59132":22, "5302211":22,
+};
+
+ITEMS.forEach(item => {
+  const dash = item.name.indexOf(" - ");
+  item.cat = dash !== -1 ? item.name.slice(0, dash) : "Other";
+  item.bin = BIN_NUMBERS[item.sku] ?? null;
+});
+
+ITEMS.sort((a, b) => {
+  if (a.bin == null && b.bin == null) return a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name);
+  if (a.bin == null) return 1;
+  if (b.bin == null) return -1;
+  return a.bin - b.bin || a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name);
+});
+
+const rows = document.getElementById("rows");
+rows.innerHTML = ITEMS.map(item => `
+  <tr class="row">
+    <td class="chk-col"><span class="box"></span></td>
+    <td class="bin"># ${item.bin ?? "—"}</td>
+    <td class="sku">${item.sku}</td>
+    <td class="name">${item.name}</td>
+  </tr>
+`).join("");
+</script>
+</body>
+</html>
