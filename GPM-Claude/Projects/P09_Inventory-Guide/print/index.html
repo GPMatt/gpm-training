@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GPM Maintenance Parts Inventory Guide — Print</title>
+<style>
+@page { size: 11in 8.5in; margin: 0; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#e8e8e4}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1c1f1a}
+
+.sheet{
+  width:11in; height:8.5in; background:#fff; overflow:hidden; position:relative;
+  page-break-after:always; break-after:page;
+  padding:0.5in; /* printer-safe margin — most printers can't render the outer ~0.2-0.4in */
+}
+
+/* ── Cover ─────────────────────────────────────────────── */
+.cover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+.cover img.logo{height:1.1in}
+.cover .rule{width:5.5in;height:3px;background:#8cc63f;margin-top:4px}
+.cover h1{font-size:44px;font-weight:800;letter-spacing:.02em;color:#1c1f1a}
+.cover h2{font-size:20px;font-weight:400;letter-spacing:.18em;color:#555;text-transform:uppercase;margin-top:-14px}
+.cover .sorted-by{font-size:12px;letter-spacing:.1em;color:#8a8e85;text-transform:uppercase;margin-top:-8px}
+.cover img.qr{width:1.3in;height:1.3in;margin-top:10px}
+.cover .scan-lbl{font-size:11px;letter-spacing:.12em;color:#8a8e85;text-transform:uppercase;margin-top:-14px}
+
+/* ── Grid pages ────────────────────────────────────────── */
+.grid{
+  width:100%;height:100%;
+  display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);
+  border-top:1px solid #d8dad3;border-left:1px solid #d8dad3;
+}
+.cell{
+  display:flex;flex-direction:column;
+  border-right:1px solid #d8dad3;border-bottom:1px solid #d8dad3;
+  overflow:hidden;position:relative;
+}
+.cell.empty{background:#fafaf8}
+.cell-head{background:#f0f1ec;padding:8px 10px 7px;border-bottom:1px solid #e4e6df;flex-shrink:0}
+.cell-sku{font-size:9.5px;font-weight:700;color:#5a8a1a;letter-spacing:.04em;text-transform:uppercase}
+.cell-name{font-size:11px;font-weight:600;color:#1c1f1a;line-height:1.28;margin-top:2px}
+.cell-img-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px;min-height:0}
+.cell-img-wrap img{max-width:100%;max-height:100%;object-fit:contain}
+.bin-tag{
+  position:absolute;top:6px;right:6px;background:#5a8a1a;color:#fff;
+  font-size:9px;font-weight:800;letter-spacing:.03em;border-radius:999px;
+  padding:2px 8px;z-index:1;
+}
+</style>
+</head>
+<body>
+
+<div class="sheet cover">
+  <img class="logo" src="images/page1_img0.jpg" alt="GPM Logo">
+  <div class="rule"></div>
+  <h1>MAINTENANCE PARTS</h1>
+  <h2>Inventory Reference Guide</h2>
+  <div class="sorted-by">Sorted by van bin number</div>
+  <img class="qr" src="images/page1_img1.jpg" alt="QR to mobile guide">
+  <div class="scan-lbl">Scan for mobile guide</div>
+</div>
+
+<div id="pages"></div>
+
+<script>
+const ITEMS = [
+  {sku:"45947",   name:"Bathroom Faucet - 1-1/4\" Drain Pop Up",                               img:"images/page2_img0.jpg"},
+  {sku:"42296",   name:"Bathroom Faucet - 1-3/16\" Chrome Pop-Up Plunger",                     img:"images/page2_img1.jpg"},
+  {sku:"4875530", name:"Bathroom Faucet - Nickel 2-Handle Faucet",                             img:"images/page2_img2.jpg"},
+  {sku:"4230496", name:"Bathroom Faucet - Pop Up Rod 1-1/2\" Metal Pop-Up Rod",                img:"images/page2_img3.jpg"},
+  {sku:"3008737", name:"Battery - 2032 3V",                                                    img:"images/page2_img4.jpg"},
+  {sku:"3413846", name:"Battery - 9V Advanced Lithium",                                        img:"images/page2_img5.jpg"},
+  {sku:"32625",   name:"Battery - 9V Alkaline",                                                img:"images/page2_img6.jpg"},
+  {sku:"32886",   name:"Battery - AA Alkaline (4 pk)",                                         img:"images/page2_img7.jpg"},
+  {sku:"32327",   name:"Battery - AAA Alkaline (4 pk)",                                        img:"images/page2_img8.jpg"},
+  {sku:"34574",   name:"Battery - C Alkaline (4 pk)",                                          img:"images/page2_img9.jpg"},
+  {sku:"34573",   name:"Battery - D Alkaline (4 pk)",                                          img:"images/page2_img10.jpg"},
+  {sku:"5622386", name:"Door - Back Plate Chrome Steel Lock Back Plate",                       img:"images/page2_img11.jpg"},
+  {sku:"5300587", name:"Door - Bright Brass Surface Lock",                                     img:"images/page3_img0.jpg"},
+  {sku:"50400",   name:"Door - Chain Brass",                                                   img:"images/page3_img1.jpg"},
+  {sku:"5238548", name:"Door - Door Handle Passage Satin Knob",                                img:"images/page3_img2.jpg"},
+  {sku:"5967955", name:"Door - Door Seal White Aluminum 84\"",                                 img:"images/page3_img3.jpg"},
+  {sku:"5315544", name:"Door - Door Sweep White 36\"",                                         img:"images/page3_img4.jpg"},
+  {sku:"50361",   name:"Door - Heritage Hill Brass Replacement Knobs",                         img:"images/page3_img5.jpg"},
+  {sku:"50021",   name:"Door - Heritage Hill Old Interior Lock Mortise Lockset 1-3/4\"",       img:"images/page3_img6.jpg"},
+  {sku:"5366703", name:"Door - Passage Handle Lever 1-3/4\"",                                  img:"images/page3_img7.jpg"},
+  {sku:"5395579", name:"Door - Peep Hole Satin Brass Door Viewer 160 Deg",                    img:"images/page3_img8.jpg"},
+  {sku:"5215033", name:"Door - Schlage Deadbolt",                                              img:"images/page3_img9.jpg"},
+  {sku:"5299516", name:"Door - Screen Door Closer Black",                                      img:"images/page3_img10.jpg"},
+  {sku:"5107859", name:"Door - Wall Protector Ivory 5\"",                                      img:"images/page3_img11.jpg"},
+  {sku:"3007267", name:"Electric - 1-Blank Plate, Ivory",                                     img:"images/page4_img0.jpg"},
+  {sku:"3202181", name:"Electric - 1-Blank Plate, White",                                     img:"images/page4_img1.jpg"},
+  {sku:"3272192", name:"Electric - 1-Old Work 1 Gang",                                        img:"images/page4_img2.jpg"},
+  {sku:"3202389", name:"Electric - 1-Outlet Plate Decorator, Ivory",                          img:"images/page4_img3.jpg"},
+  {sku:"3007226", name:"Electric - 1-Outlet Plate, White",                                    img:"images/page4_img4.jpg"},
+  {sku:"3202199", name:"Electric - 1-Switch Wall Plate, White",                               img:"images/page4_img5.jpg"},
+  {sku:"3500162", name:"Electric - 15A AFCI Outlet, Ivory",                                   img:"images/page4_img6.jpg"},
+  {sku:"31036",   name:"Electric - 15A Decorative Switch, White",                             img:"images/page4_img7.jpg"},
+  {sku:"31035",   name:"Electric - 15A Decorator Outlet, White",                              img:"images/page4_img8.jpg"},
+  {sku:"3534120", name:"Electric - 15A GFCI Outlet, White",                                   img:"images/page4_img9.jpg"},
+  {sku:"31034",   name:"Electric - 15A Outlet Decorator, Ivory",                              img:"images/page4_img10.jpg"},
+  {sku:"3201605", name:"Electric - 15A Outlet, Ivory",                                        img:"images/page4_img11.jpg"},
+  {sku:"3201613", name:"Electric - 15A Outlet, White",                                        img:"images/page5_img0.jpg"},
+  {sku:"3201811", name:"Electric - 15A Single Pole Toggle Switch, Ivory",                     img:"images/page5_img1.jpg"},
+  {sku:"31037",   name:"Electric - 15A Switch, Decorative Ivory",                             img:"images/page5_img2.jpg"},
+  {sku:"3201829", name:"Electric - 15A Switch, White",                                        img:"images/page5_img3.jpg"},
+  {sku:"3202413", name:"Electric - 2-Decorator/Outlet Wall Plate, Ivory",                     img:"images/page5_img4.jpg"},
+  {sku:"3280955", name:"Electric - 2-Old Work 2 Gang",                                        img:"images/page5_img5.jpg"},
+  {sku:"3202397", name:"Electric - 2-Outlet Plate Decorator, Ivory",                          img:"images/page5_img6.jpg"},
+  {sku:"3202231", name:"Electric - 2-Outlet Wall Plate, White",                               img:"images/page5_img7.jpg"},
+  {sku:"3202405", name:"Electric - 2-Outlet/Switch Plate Decorator, Ivory",                   img:"images/page5_img8.jpg"},
+  {sku:"3007218", name:"Electric - 2-Switch Plate, White",                                    img:"images/page5_img9.jpg"},
+  {sku:"3202249", name:"Electric - 2-Switch/Outlet Plate, White",                             img:"images/page5_img10.jpg"},
+  {sku:"3809464", name:"Electric - 20A AFCI Outlet, White",                                   img:"images/page5_img11.jpg"},
+  {sku:"4233185", name:"Kitchen Faucet - Brushed Nickel Spray Hose Guide",                    img:"images/page6_img0.jpg"},
+  {sku:"4877353", name:"Kitchen Faucet - Chrome 2-Handle w/ Sprayer",                         img:"images/page6_img1.jpg"},
+  {sku:"43588",   name:"Kitchen Faucet - Chrome Spray Hose Guide",                            img:"images/page6_img2.jpg"},
+  {sku:"4903738", name:"Kitchen Faucet - Delta/Moen Pull-Out Spray Hose",                     img:"images/page6_img3.jpg"},
+  {sku:"4070843", name:"Kitchen Faucet - White Kitchen Sprayer",                              img:"images/page6_img4.jpg"},
+  {sku:"4876009", name:"Kitchen Faucet - Without Sprayer Chrome Faucet",                      img:"images/page6_img5.jpg"},
+  {sku:"4238911", name:"Kitchen Sink - 1-3/4\" SS Sink Hole Cover",                           img:"images/page6_img6.jpg"},
+  {sku:"4568663", name:"Kitchen Sink - 1/4\" Clips Pop Up",                                   img:"images/page6_img7.jpg"},
+  {sku:"45503",   name:"Kitchen Sink - Single Handle Delta Repair Kit",                       img:"images/page6_img8.jpg"},
+  {sku:"4563664", name:"Kitchen Sink - Sprayer Handle Brushed Nickel",                        img:"images/page6_img9.jpg"},
+  {sku:"4165189", name:"Kitchen Sink - Strainer Basket Stainless",                            img:"images/page6_img10.jpg"},
+  {sku:"47982",   name:"Kitchen Sink Plumbing - Garbage Disposal",                            img:"images/page6_img11.jpg"},
+  {sku:"4009623", name:"Kitchen Sink Plumbing - Plastic 1-1/2\" Garbage Disposal Install Kit",img:"images/page7_img0.jpg"},
+  {sku:"4563920", name:"Kitchen Sink Plumbing - Sink Clips",                                  img:"images/page7_img1.jpg"},
+  {sku:"4007568", name:"Shower - 2-1/8\"x3-3/16\" Overflow Plate Gasket",                    img:"images/page7_img2.jpg"},
+  {sku:"4007587", name:"Shower - 2\" Chrome Tub Stopper",                                     img:"images/page7_img3.jpg"},
+  {sku:"4265583", name:"Shower Faucet - Delta Chrome Tub/Shower Handle",                      img:"images/page7_img4.jpg"},
+  {sku:"4200259", name:"Shower Faucet - Delta Clear Tub/Shower Handles",                      img:"images/page7_img5.jpg"},
+  {sku:"4390985", name:"Shower Faucet - Delta RP46074 Cartridge",                             img:"images/page7_img6.jpg"},
+  {sku:"4007552", name:"Shower Faucet - Delta Single Handle Cartridge",                       img:"images/page7_img7.jpg"},
+  {sku:"4007546", name:"Shower Faucet - Handle Delta Chrome Tub",                             img:"images/page7_img8.jpg"},
+  {sku:"4201497", name:"Shower Faucet - Moen Cartridge",                                      img:"images/page7_img9.jpg"},
+  {sku:"4564241", name:"Sink Faucet - Aerator 15/16\"x55/64\" Brushed Nickel",               img:"images/page7_img10.jpg"},
+  {sku:"4563961", name:"Sink Faucet - Aerator 15/16\"x55/64\" Chrome Adapter",               img:"images/page7_img11.jpg"},
+  {sku:"4586947", name:"Sink Faucet - Aerator 3/16\" & 55/64\" Black Aerator Repair Kit",    img:"images/page8_img0.jpg"},
+  {sku:"4564183", name:"Sink Faucet - Aerator 55/64\" Brushed Nickel",                        img:"images/page8_img1.jpg"},
+  {sku:"4564209", name:"Sink Faucet - Aerator 55/64\" Chrome",                                img:"images/page8_img2.jpg"},
+  {sku:"4230975", name:"Sink Faucet - Chrome Nickel Drain Rod & Strap",                       img:"images/page8_img3.jpg"},
+  {sku:"43518",   name:"Sink Faucet - Delta Clear Handle Set H/C",                            img:"images/page8_img4.jpg"},
+  {sku:"43086",   name:"Sink Faucet - Delta Seats & Springs",                                 img:"images/page8_img5.jpg"},
+  {sku:"4561890", name:"Sink Faucet - Glacier Bay 3S-11C Stem",                              img:"images/page8_img6.jpg"},
+  {sku:"4562336", name:"Sink Faucet - Glacier Bay 3S-12C Stem",                              img:"images/page8_img7.jpg"},
+  {sku:"4562005", name:"Sink Faucet - Glacier Bay 3S-9H/C Stem",                             img:"images/page8_img8.jpg"},
+  {sku:"4561908", name:"Sink Faucet - Glacier Bay Hot Stem",                                  img:"images/page8_img9.jpg"},
+  {sku:"40124",   name:"Sink Faucet - Single Handle Rubber Repair Kit",                       img:"images/page8_img10.jpg"},
+  {sku:"4561916", name:"Sink Faucet - Stem Delta H/C",                                        img:"images/page8_img11.jpg"},
+  {sku:"4223491", name:"Sink Plumbing - Plastic 1-1/2\" Coupling",                            img:"images/page9_img0.jpg"},
+  {sku:"48891",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic 90 Deg Elbow",               img:"images/page9_img1.jpg"},
+  {sku:"48280",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic P-Trap",                      img:"images/page9_img2.jpg"},
+  {sku:"48282",   name:"Sink Plumbing - Plastic 1-1/2\" Plastic Sink Trap",                   img:"images/page9_img3.jpg"},
+  {sku:"43795",   name:"Sink Plumbing - Plastic 1-1/2\" Washer",                              img:"images/page9_img4.jpg"},
+  {sku:"48284",   name:"Sink Plumbing - Plastic 1-1/2\"x16\" End Outlet",                     img:"images/page9_img5.jpg"},
+  {sku:"4223111", name:"Sink Plumbing - Plastic 1-1/2\"x16\" Poly Extension Tube",           img:"images/page9_img6.jpg"},
+  {sku:"45219",   name:"Sink Plumbing - Plastic 1-1/4\" Rubber Washer",                       img:"images/page9_img7.jpg"},
+  {sku:"4223715", name:"Sink Plumbing - Plastic 1-1/4\"x12\" Poly Extension Tube",           img:"images/page9_img8.jpg"},
+  {sku:"43695",   name:"Sink Plumbing - Plastic 1-1/4\"x20-1/2\" Plastic S-Trap",            img:"images/page9_img9.jpg"},
+  {sku:"4335212", name:"Sink Plumbing - Supply Line 3/8\"x1/2\" 20\" SS",                     img:"images/page9_img10.jpg"},
+  {sku:"4335311", name:"Sink Plumbing - Supply Line 3/8\"x1/2\" 24\" SS Faucet",             img:"images/page9_img11.jpg"},
+  {sku:"4061123", name:"Sink Plumbing - Supply Line 3/8\"x3/8\" 48\" SS",                     img:"images/page10_img0.jpg"},
+  {sku:"5050136", name:"Smoke Detector - Battery, Smoke & Carbon",                            img:"images/page10_img1.jpg"},
+  {sku:"5050089", name:"Smoke Detector - Battery, Smoke Only",                                img:"images/page10_img2.jpg"},
+  {sku:"5050065", name:"Smoke Detector - Hard-Wired, Smoke & Carbon",                        img:"images/page10_img3.jpg"},
+  {sku:"5050051", name:"Smoke Detector - Hard-Wired, Smoke Only",                             img:"images/page10_img4.jpg"},
+  {sku:"4208773", name:"Toilet - Bolt to Flange",                                             img:"images/page10_img5.jpg"},
+  {sku:"4935177", name:"Toilet - Fill Valve PerforMAX",                                       img:"images/page10_img6.jpg"},
+  {sku:"44094",   name:"Toilet - Flapper 2\" Red Flapper",                                    img:"images/page10_img7.jpg"},
+  {sku:"4009474", name:"Toilet - Flapper Universal 3\"",                                      img:"images/page10_img8.jpg"},
+  {sku:"40415",   name:"Toilet - Handle Chrome Tank Lever",                                   img:"images/page10_img9.jpg"},
+  {sku:"4593554", name:"Toilet - Repair Flange",                                              img:"images/page10_img10.jpg"},
+  {sku:"40202",   name:"Toilet - Rubber Hinge Repair Bolts",                                  img:"images/page10_img11.jpg"},
+  {sku:"45438",   name:"Toilet - Seat Bolts White Hinge Bolts",                               img:"images/page11_img0.jpg"},
+  {sku:"46357",   name:"Toilet - Seat Elongated White Wood Seat",                             img:"images/page11_img1.jpg"},
+  {sku:"48076",   name:"Toilet - Seat Round White Plastic Seat",                              img:"images/page11_img2.jpg"},
+  {sku:"4199584", name:"Toilet - Seat Washer",                                                img:"images/page11_img3.jpg"},
+  {sku:"4060364", name:"Toilet - Supply Line 3/8\"x7/8\" 12\"",                               img:"images/page11_img4.jpg"},
+  {sku:"4060380", name:"Toilet - Supply Line 3/8\"x7/8\" 16\"",                               img:"images/page11_img5.jpg"},
+  {sku:"4060398", name:"Toilet - Supply Line 3/8\"x7/8\" 20\"",                               img:"images/page11_img6.jpg"},
+  {sku:"4027132", name:"Toilet - Wax Ring Thick",                                             img:"images/page11_img7.jpg"},
+  {sku:"59132",   name:"Window - Lock Pining Plastic",                                        img:"images/page11_img8.jpg"},
+  {sku:"5302211", name:"Window - Pin Security Pin Metal",                                     img:"images/page11_img9.jpg"},
+];
+
+const BIN_NUMBERS = {
+  "45947":10, "42296":10, "4875530":2, "4230496":10, "3008737":1, "3413846":1,
+  "32625":1, "32886":1, "32327":1, "34574":1, "34573":1, "5622386":22,
+  "5300587":22, "50400":22, "5238548":23, "5967955":24, "5315544":24, "50361":23,
+  "50021":23, "5366703":23, "5395579":22, "5215033":23, "5299516":22, "5107859":22,
+  "3007267":16, "3202181":19, "3272192":15, "3202389":16, "3007226":19, "3202199":19,
+  "3500162":17, "31036":21, "31035":21, "3534120":20, "31034":18, "3201605":18,
+  "3201613":21, "3201811":18, "31037":18, "3201829":21, "3202413":16, "3280955":15,
+  "3202397":16, "3202231":19, "3202405":16, "3007218":19, "3202249":19, "3809464":20,
+  "4233185":6, "4877353":2, "43588":6, "4903738":6, "4070843":6, "4876009":2,
+  "4238911":6, "4568663":6, "45503":8, "4563664":6, "4165189":6, "47982":25,
+  "4009623":13, "4563920":6, "4007568":9, "4007587":9, "4265583":11, "4200259":11,
+  "4390985":8, "4007552":8, "4007546":11, "4201497":8, "4564241":7, "4563961":7,
+  "4586947":7, "4564183":7, "4564209":7, "4230975":6, "43518":11, "43086":8,
+  "4561890":8, "4562336":8, "4562005":8, "4561908":8, "40124":8, "4561916":8,
+  "4223491":13, "48891":13, "48280":13, "48282":13, "43795":12, "48284":13,
+  "4223111":13, "45219":12, "4223715":13, "43695":13, "4335212":5, "4335311":5,
+  "4061123":5, "5050136":14, "5050089":14, "5050065":14, "5050051":14, "4208773":4,
+  "4935177":4, "44094":4, "4009474":4, "40415":4, "4593554":4, "40202":4,
+  "45438":4, "46357":3, "48076":3, "4199584":4, "4060364":5, "4060380":5,
+  "4060398":5, "4027132":4, "59132":22, "5302211":22,
+};
+
+ITEMS.forEach(item => {
+  const dash = item.name.indexOf(" - ");
+  item.cat = dash !== -1 ? item.name.slice(0, dash) : "Other";
+  item.bin = BIN_NUMBERS[item.sku] ?? null;
+});
+
+ITEMS.sort((a, b) => {
+  if (a.bin == null && b.bin == null) return a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name);
+  if (a.bin == null) return 1;
+  if (b.bin == null) return -1;
+  return a.bin - b.bin || a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name);
+});
+
+const PER_PAGE = 12;
+const pagesEl = document.getElementById("pages");
+for (let i = 0; i < ITEMS.length; i += PER_PAGE) {
+  const chunk = ITEMS.slice(i, i + PER_PAGE);
+  const sheet = document.createElement("div");
+  sheet.className = "sheet";
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  for (let j = 0; j < PER_PAGE; j++) {
+    const item = chunk[j];
+    const cell = document.createElement("div");
+    if (!item) {
+      cell.className = "cell empty";
+    } else {
+      cell.className = "cell";
+      cell.innerHTML = `
+        <div class="bin-tag">Bin ${item.bin ?? "—"}</div>
+        <div class="cell-head">
+          <div class="cell-sku">#${item.sku}</div>
+          <div class="cell-name">${item.name.slice(item.name.indexOf(" - ") + 3)}</div>
+        </div>
+        <div class="cell-img-wrap"><img src="${item.img}" alt="${item.name}"></div>
+      `;
+    }
+    grid.appendChild(cell);
+  }
+  sheet.appendChild(grid);
+  pagesEl.appendChild(sheet);
+}
+</script>
+</body>
+</html>
