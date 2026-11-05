@@ -146,6 +146,11 @@ Excluded entirely (owner uses own vendors):
       2026-11-05 Matt: AppFolio's inspection form CAN'T do what we need (ruled out). Back to our own
       checklist design on the Unit Turn WO. Charge-backs: tag tenant-paid items only; untagged = owner.
       No per-floor-plan preset tech lists yet.
+      THREE forms: (1) PMI Scope (Spencer): steps + sizes, tenant damages, project flag, photos;
+      (2) PMI Tech Prep (Riley; Spencer fills it at cookie cutter): fix list, parts to order, tools;
+      (3) Move-out / Deposit Check (Spencer alone): scope + schedule still hold, rent-ready still sensible,
+      final tenant damages. Splits: damages = Spencer only; appliances (repair/replace, make+model) =
+      Scope; all trade sizing calls = Spencer.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
