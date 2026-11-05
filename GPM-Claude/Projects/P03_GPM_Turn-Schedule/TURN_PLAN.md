@@ -140,7 +140,13 @@ Excluded entirely (owner uses own vendors):
 - Launch: migrate open turns from Jason's "Apartment Turn Schedule" sheet.
 
 ## Open items
-- [ ] BS2: how checklist/PMI data is read back out of AppFolio (Matt researching)
+- [x] BS2 (2026-11-05 Matt): read-back = Spencer SHARES the turn WO by email after each visit (same
+      day, photos attached; the 11/5 share of WO 18171-1 arrived at 25.5 MB, so the 18 MB fear may not
+      hold). Risk = he forgets: system sends a 5pm follow-up if a PMI/visit was due today and no share
+      email arrived. Daily CSV demoted to backup.
+- [ ] Line items for the three forms: NOT from scratch. Start from what we already use (Jason's TURN
+      checklist 2026, Spencer's WO 18171-1 room-by-room notes, current "TURN:" WOs in the CSV) and merge
+      into one solid version for all use cases. Work in the checklist session.
 - [ ] BS3: the two checklists (scope/charge-back + tech task list), being worked in a separate agent
       session; handoff brief = CHECKLIST_HANDOFF.md
       2026-11-05 Matt: AppFolio's inspection form CAN'T do what we need (ruled out). Back to our own
@@ -165,12 +171,16 @@ Excluded entirely (owner uses own vendors):
       asks Jason + Spencer to confirm the split and Jason's turnaround on tech duration (same day).
       SENT 2026-11-05. Spencer: "looks fine". Jason: "Seems good", wants 30 min every Wednesday in
       person on turns (prefers face to face over email). Tech-duration turnaround NOT answered.
-- [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
+- [x] Spencer's AppFolio email to the tenant doubles as the entry notice (Matt 11/5).
 - [ ] Jason's list of project-eligible properties (Matt collecting)
-- [ ] GPM office holiday list (Matt)
-- [ ] Jody: other owners/properties with specific vendors (sent 11/5; Jody asked for a call, answer
-      given by phone, not logged yet)
+- [x] Holidays = US bank holidays (Federal Reserve calendar), not a custom GPM list (Matt 11/5).
+- [ ] ON STANDBY: excluded owners. Matt emailed Laura 11/5; GPM may move ALL units to this vendor
+      philosophy, so vendors must be plug-and-play (swappable per trade in the settings table).
 - [ ] Vendor booking process (Matt designing); under-30-days process (separate)
-- [ ] How Spencer knows a vendor finished
-- [ ] Vendor contacts + crew calendars (asked Jason in the 11/3 email); Surface Experts duration
+- [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
+      low-tech; Matt wants something more foolproof than a calendar invite by email. Proposal: text
+      message (RingCentral SMS from a GPM number), reply 1 = confirm, reply DONE (+ photo) = finished;
+      no reply by a deadline -> flagged on the brief. Calendar invite optional for vendors who want it.
+- [ ] Vendor contacts: Matt sends once the booking/communication method is settled. Decision: vendors
+      run off OUR calendar, not theirs (no crew-calendar logins). Surface Experts duration still TBD.
 - [ ] Matt: switch the tenant tickler pull to daily (keep out of team emails)
