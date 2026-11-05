@@ -163,10 +163,13 @@ Excluded entirely (owner uses own vendors):
       checked"; they show on Spencer's move-out screen. Working split: CHECKLISTS.md.
       Proposal draft (unsent) in the "Turn schedule: workflow + open questions" thread, r-5713217730009034367:
       asks Jason + Spencer to confirm the split and Jason's turnaround on tech duration (same day).
+      SENT 2026-11-05. Spencer: "looks fine". Jason: "Seems good", wants 30 min every Wednesday in
+      person on turns (prefers face to face over email). Tech-duration turnaround NOT answered.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
-- [ ] Jody: other owners/properties with specific vendors (draft ready)
+- [ ] Jody: other owners/properties with specific vendors (sent 11/5; Jody asked for a call, answer
+      given by phone, not logged yet)
 - [ ] Vendor booking process (Matt designing); under-30-days process (separate)
 - [ ] How Spencer knows a vendor finished
 - [ ] Vendor contacts + crew calendars (asked Jason in the 11/3 email); Surface Experts duration
