@@ -133,3 +133,14 @@ Confirmed by Matt:
 - Paint defaults to FULL unless explicitly stated otherwise.
 - Spencer daily brief: confirmed move-outs with no PMI scheduled.
 - Spencer's checklist + photos live in AppFolio on a work order (billing needs it; non-negotiable). AppFolio has no read API. Options: shared-WO email (PDF + photos, 18 MB cap, "No content" body) or the WO report CSV (has Job Description + Instructions text, no photos).
+Interview answers 2026-11-05:
+- Spencer books PMIs with tenants. Non-cookie-cutter (Riley walk-along) PMIs on Mondays; cookie-cutter PMIs any day.
+- Matt will supply the cookie-cutter property list.
+- Visit 3 (QC) is a checkpoint, not a step. Visit 2 is on the move-out day.
+- Kyle Visser / James Debenhiem properties: left out of the system entirely.
+- One Unit Turn WO holds all of Spencer's notes + photos. Leaning: Spencer creates it when he books the PMI.
+- Unscheduled confirmed move-outs = top section of the daily brief. No brief on GPM office holidays (Matt to supply list; also non-business days).
+- Jason emailed on confirmed move-out at project-eligible properties.
+- WO report CSV was a manual export; it can be scheduled.
+- Order now: ... 8 Paint, 9 Clean, 10 Surface Experts (stainless + stovetop), 11 Carpet cleaning. Artifact not yet updated.
+OPEN (brainstorm): how the PMI gets recorded/matched (naming), how checklist data is read back out of AppFolio, the two checklists' contents.
