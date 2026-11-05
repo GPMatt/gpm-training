@@ -176,7 +176,16 @@ Excluded entirely (owner uses own vendors):
 - [x] Holidays = US bank holidays (Federal Reserve calendar), not a custom GPM list (Matt 11/5).
 - [ ] ON STANDBY: excluded owners. Matt emailed Laura 11/5; GPM may move ALL units to this vendor
       philosophy, so vendors must be plug-and-play (swappable per trade in the settings table).
-- [ ] Vendor booking process (Matt designing); under-30-days process (separate)
+- [ ] Vendor booking process (Matt designing). NEW 11/5: Spencer or Jason green-lights the calendar
+      layout for a turn BEFORE any vendor invites/texts go out (approval gate).
+- [ ] Under-30-days (Matt 11/5): same PMI start (Spencer's AppFolio email = notice). Vendors still get
+      texts, but booking runs day by day because the chain order must hold. Spencer gets an email for
+      every under-30 turn and confirms each booking by phone, day of. Details to design.
+- [ ] Read-back note (11/5): AppFolio's 18 MB limit is on attached images, so a shared WO email can't
+      carry every photo. Text + some photos only; full photo set stays in AppFolio.
+- [ ] RingCentral SMS: confirm API access, which numbers can text, and business-texting (10DLC/TCR)
+      registration status before designing vendor texts.
+- [ ] Dumpster Divers: duration asked (11/5 draft to Jody + Jason); not yet placed in the 11 steps.
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
       low-tech; Matt wants something more foolproof than a calendar invite by email. Proposal: text
       message (RingCentral SMS from a GPM number), reply 1 = confirm, reply DONE (+ photo) = finished;
