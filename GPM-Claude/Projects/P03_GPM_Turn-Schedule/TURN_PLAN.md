@@ -156,7 +156,11 @@ Excluded entirely (owner uses own vendors):
       ONLY: the PMI scope + schedule are shown to Spencer for a visual check; he records only corrections
       or missed items, no per-line confirmation. Pests = Scope. Items left behind = Tech Prep. Rent-ready on move-out
       form = new date + reason only if it won't hold. Photos: Scope = every damage + trade item and
-      appliance tags; Tech Prep = parts to match; Move-out = whole empty unit.
+      appliance tags; Tech Prep = parts to match; Move-out = whole empty unit. Tech duration: the Tech Prep
+      list goes to Jason and HE assigns the step-7 size. Trades outside the 11 steps (HVAC, water heater,
+      big plumbing/electrical, glass, roof) = Scope "other vendor" item, Jason books by hand. Exterior =
+      Tech Prep only (Jason's fixture items). Riley marks items he couldn't check at the PMI as "not
+      checked"; they show on Spencer's move-out screen. Working split: CHECKLISTS.md.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
