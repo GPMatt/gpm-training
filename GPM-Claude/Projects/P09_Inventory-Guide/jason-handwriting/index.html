@@ -1,0 +1,265 @@
+<title>Jason's Handwriting</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one column of scan cards, a sticky progress bar, a learning summary at the end. */
+:root{
+  --paper:#f6f7f3; --card:#ffffff; --ink:#1d221b; --muted:#5f6759; --line:#d9ddd2;
+  --brand:#4f7d17; --brand-ink:#ffffff; --ok:#2f7d32; --ok-bg:#e5f2e3; --fix:#9a5b00; --fix-bg:#fbeed6;
+  --hmm:#a12d2d; --hmm-bg:#f8e3e1; --cell:#f0f2ec; --scan:#ffffff;
+  --sans:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Atkinson Hyperlegible Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#151813; --card:#1e221c; --ink:#e7eae2; --muted:#a3aa9b; --line:#353b31;
+  --brand:#8cc63f; --brand-ink:#132006; --ok:#8fd18f; --ok-bg:#1f3320; --fix:#f0b552; --fix-bg:#3a2c12;
+  --hmm:#f09a92; --hmm-bg:#3d1f1d; --cell:#272c24; --scan:#f2f2ee; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#151813; --card:#1e221c; --ink:#e7eae2; --muted:#a3aa9b; --line:#353b31;
+  --brand:#8cc63f; --brand-ink:#132006; --ok:#8fd18f; --ok-bg:#1f3320; --fix:#f0b552; --fix-bg:#3a2c12;
+  --hmm:#f09a92; --hmm-bg:#3d1f1d; --cell:#272c24; --scan:#f2f2ee; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{padding-top:22px;display:flex;flex-direction:column;gap:6px}
+h1{font-size:1.75rem;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:62ch}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);padding-block:10px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.prog{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.prog .txt{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.track{height:8px;border-radius:4px;background:var(--cell);overflow:hidden}
+.track i{display:block;height:100%;background:var(--brand);width:0;transition:width .3s}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:inherit;font-size:.85rem;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+h2{font-size:1.05rem;margin:10px 0 0;letter-spacing:.02em}
+h2 small{display:block;font-weight:400;color:var(--muted);font-size:.85rem;letter-spacing:0;margin-top:2px}
+.list{display:flex;flex-direction:column;gap:12px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.item[data-state="right"]{border-color:var(--ok)}
+.item[data-state="fixed"]{border-color:var(--fix)}
+.item[data-state="unsure"]{border-color:var(--hmm)}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.where{font-size:.82rem;color:var(--muted);min-width:0}
+.where b{color:var(--ink);font-weight:700}
+.chip{font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
+.chip.todo{background:var(--cell);color:var(--muted)}
+.chip.right{background:var(--ok-bg);color:var(--ok)}
+.chip.fixed{background:var(--fix-bg);color:var(--fix)}
+.chip.unsure{background:var(--hmm-bg);color:var(--hmm)}
+.scan{background:var(--scan);border-radius:6px;padding:6px;display:flex;justify-content:center;border:1px solid var(--line)}
+.scan img{max-height:150px;width:auto;max-width:100%;image-rendering:auto}
+.readrow{display:flex;flex-direction:column;gap:6px}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.cells{display:flex;flex-wrap:wrap;gap:4px}
+.cells span{font-family:var(--mono);font-size:1.35rem;font-weight:600;min-width:1.7em;height:1.9em;display:inline-flex;align-items:center;justify-content:center;background:var(--cell);border-radius:5px;border:1px solid transparent;font-variant-numeric:tabular-nums}
+.cells span.sep{background:none;min-width:.9em;color:var(--muted)}
+.cells span.chg{background:var(--fix-bg);border-color:var(--fix);color:var(--fix)}
+.cells span.was{font-size:.7rem;background:none;min-width:auto;height:auto;color:var(--muted);text-decoration:line-through}
+.note{font-size:.88rem;color:var(--muted);margin:0}
+.printed{font-size:.85rem;margin:0}
+.printed code{font-family:var(--mono);font-weight:600}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.acts button,.fixbox button{font:inherit;font-size:.92rem;font-weight:700;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;touch-action:manipulation}
+.acts button.yes{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.fixbox{display:flex;flex-direction:column;gap:8px}
+.fixbox .row{display:flex;gap:8px;flex-wrap:wrap}
+.fixbox input{font-family:var(--mono);font-size:1.25rem;font-weight:600;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);flex:1 1 180px;min-width:0;letter-spacing:.08em}
+.fixbox textarea{font:inherit;font-size:.9rem;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);min-height:52px;resize:vertical}
+.saved-note{font-size:.88rem;margin:0;padding:8px 10px;border-radius:6px;background:var(--cell)}
+.learn{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.learn table{border-collapse:collapse;font-variant-numeric:tabular-nums}
+.learn td,.learn th{padding:4px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:.9rem}
+.learn .g{font-family:var(--mono);font-weight:600;font-size:1.1rem}
+.tblwrap{overflow-x:auto}
+.status{font-size:.85rem;color:var(--hmm)}
+@media (prefers-reduced-motion:reduce){.track i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Jason's Handwriting</h1>
+    <p class="lede">Each card is a piece of Jason's audit sheet with my read of it underneath. Tap <b>Correct</b> if every character is right, <b>Fix</b> to type what he really wrote, or <b>Can't tell</b> if you can't read it either. Nothing is saved as known until you mark it.</p>
+    <p class="status" id="status" hidden></p>
+  </header>
+
+  <div class="bar">
+    <div class="prog"><span class="txt" id="progtxt">0 of 55 checked</span><div class="track"><i id="progbar"></i></div></div>
+    <div class="filters" role="group" aria-label="Show">
+      <button type="button" id="f-todo" aria-pressed="true">To check</button>
+      <button type="button" id="f-all" aria-pressed="false">All</button>
+      <button type="button" id="f-done" aria-pressed="false">Done</button>
+    </div>
+  </div>
+
+  <h2>Warm-up: numbers that match the printed SKU<small>He copied the SKU printed on the card, so the right answer is on the card too. These teach me his digits fastest.</small></h2>
+  <div class="list" id="list-anchor"></div>
+
+  <h2>New part numbers<small>Manufacturer and Ace numbers he added. No printed answer, so your eyes are the only check.</small></h2>
+  <div class="list" id="list-new"></div>
+
+  <h2>What I'm learning<small>Builds as you mark cards: every character you correct tells me what his handwriting really means.</small></h2>
+  <div class="learn" id="learn"><p class="note">Mark a few cards and the corrections show up here.</p></div>
+</div>
+
+<script>
+const ITEMS = [{"id":"a1","page":3,"sku":"44094","name":"Flapper 2\" Red Flapper","guess":"NO.2001","anchor":false,"note":"Is this \"No.\" (number) followed by 2001, or part of the code?"},{"id":"a2","page":3,"sku":"4009474","name":"Flapper Universal 3\"","guess":"513A01","anchor":false,"note":"Runs off the page edge. Fluidmaster numbers look like 513A. Anything after the 01?"},{"id":"a3","page":3,"sku":"4593554","name":"Repair Flange","guess":"21015","anchor":false,"note":""},{"id":"a4","page":3,"sku":"40202","name":"Rubber Hinge Repair Bolts","guess":"40202","anchor":true,"note":""},{"id":"a5","page":3,"sku":"45438","name":"Seat Bolts White Hinge Bolts","guess":"45438","anchor":true,"note":""},{"id":"a6","page":3,"sku":"4199584","name":"Seat Washer","guess":"247885","anchor":false,"note":"Last character: 5 or S?"},{"id":"a7","page":3,"sku":"4027132","name":"Wax Ring Thick","guess":"4027132","anchor":true,"note":""},{"id":"a8","page":3,"sku":"4335212","name":"Supply Line 3/8\"x1/2\" 20\" SS","guess":"4335212","anchor":true,"note":""},{"id":"a9","page":3,"sku":"4335311","name":"Supply Line 3/8\"x1/2\" 24\" SS Faucet","guess":"4335311","anchor":true,"note":""},{"id":"b1","page":4,"sku":"4061123","name":"Supply Line 3/8\"x3/8\" 48\" SS","guess":"4061123","anchor":true,"note":""},{"id":"b2","page":4,"sku":"4060364","name":"Supply Line 3/8\"x7/8\" 12\"","guess":"4060364","anchor":true,"note":""},{"id":"b3","page":4,"sku":"4060380","name":"Supply Line 3/8\"x7/8\" 16\"","guess":"4060380","anchor":true,"note":""},{"id":"b4","page":4,"sku":"4060398","name":"Supply Line 3/8\"x7/8\" 20\"","guess":"4060398","anchor":true,"note":""},{"id":"b5","page":4,"sku":"4233185","name":"Brushed Nickel Spray Hose Guide","guess":"4233185","anchor":true,"note":"He wrote over a digit near the end. The printed SKU is 4233185."},{"id":"b6","page":4,"sku":"43588","name":"Chrome Spray Hose Guide","guess":"43588","anchor":true,"note":""},{"id":"b7","page":4,"sku":"4903738","name":"Delta/Moen Pull-Out Spray Hose","guess":"4903738","anchor":true,"note":""},{"id":"b8","page":4,"sku":"4238911","name":"1-3/4\" SS Sink Hole Cover","guess":"4238911","anchor":true,"note":""},{"id":"b9","page":4,"sku":"4563664","name":"Sprayer Handle Brushed Nickel","guess":"4563664","anchor":true,"note":""},{"id":"c1","page":5,"sku":"4390985","name":"Delta RP46074 Cartridge","guess":"RP46074","anchor":false,"note":""},{"id":"c2","page":5,"sku":"4007552","name":"Delta Single Handle Cartridge","guess":"4007552","anchor":true,"note":""},{"id":"c3","page":5,"sku":"4201497","name":"Moen Cartridge","guess":"1225","anchor":false,"note":"Moen 1225 matches the Moen cartridge on this card."},{"id":"c4","page":5,"sku":"43086","name":"Delta Seats & Springs","guess":"RP4993E","anchor":false,"note":"Last character E? Delta RP4993 is the seats & springs kit."},{"id":"c5","page":5,"sku":"-","name":"Note under Bin 8","guess":"1700","anchor":false,"note":"Reads like 1700 to me, but Moen sells a 1200 cartridge. Which did he write?"},{"id":"d1","page":6,"sku":"40124","name":"Single Handle Rubber Repair Kit","guess":"RP3614A","anchor":false,"note":"Middle digits unsure: RP3614A or RP3644A?"},{"id":"d2","page":6,"sku":"4230496","name":"Note: add to bin (Touch-Toe)","guess":"4230496","anchor":true,"note":"He wrote this next to Bin 9 (\"Add to bin, x1 Touch-Toe\"). The printed SKU it matches is 4230496."},{"id":"d3","page":6,"sku":"4265583","name":"Chrome Tub/Shower Handle (Moen)","guess":"100710","anchor":false,"note":"Moen# 100710? The last two characters are my weakest."},{"id":"e1","page":8,"sku":"3272192","name":"1-Old Work 1 Gang","guess":"E2215O","anchor":false,"note":"Cantex box number? Unsure if it starts E-Z or E-2."},{"id":"e3","page":8,"sku":"3202389","name":"1-Outlet Plate Decorator, Ivory","guess":"020-80401-1","anchor":false,"note":""},{"id":"e4","page":8,"sku":"3202413","name":"2-Decorator/Outlet Wall Plate, Ivory","guess":"001-80455-1","anchor":false,"note":""},{"id":"e5","page":8,"sku":"3202397","name":"2-Outlet Plate Decorator, Ivory","guess":"001-80409-1","anchor":false,"note":""},{"id":"e6","page":8,"sku":"3007267","name":"1-Blank Plate, Ivory","guess":"001-PJ13-1","anchor":false,"note":""},{"id":"f1","page":9,"sku":"3202405","name":"2-Outlet/Switch Plate Decorator, Ivory","guess":"001-80405-1","anchor":false,"note":""},{"id":"f2","page":9,"sku":"3500162","name":"15A AFCI Outlet, Ivory","guess":"AFTR1-KI","anchor":false,"note":""},{"id":"f3","page":9,"sku":"31034","name":"15A Outlet Decorator, Ivory","guess":"5325-IS","anchor":false,"note":""},{"id":"f4","page":9,"sku":"3201605","name":"15A Outlet, Ivory","guess":"5320-ICP","anchor":false,"note":"Looks like 53020ICP. The Leviton number is probably 5320-ICP."},{"id":"f5","page":9,"sku":"3201811","name":"15A Single Pole Toggle Switch, Ivory","guess":"1451-2I","anchor":false,"note":"Leviton style: I = ivory. Is the last character I or 1?"},{"id":"f6","page":9,"sku":"31037","name":"15A Switch, Decorative Ivory","guess":"5601-2IS","anchor":false,"note":"End: 2IS, or 2I with an S?"},{"id":"f7","page":9,"sku":"3202181","name":"1-Blank Plate, White","guess":"001-88014","anchor":false,"note":""},{"id":"f8","page":9,"sku":"3007226","name":"1-Outlet Plate, White","guess":"922-PJ8-W","anchor":false,"note":"Starts 922 or 002?"},{"id":"f9","page":9,"sku":"3202199","name":"1-Switch Wall Plate, White","guess":"020-88001","anchor":false,"note":""},{"id":"f10","page":9,"sku":"3202231","name":"2-Outlet Wall Plate, White","guess":"001-88016","anchor":false,"note":""},{"id":"f11","page":9,"sku":"3007218","name":"2-Switch Plate, White","guess":"002-00PJ2-00W","anchor":false,"note":"Middle part: 00PJ2?"},{"id":"f12","page":9,"sku":"3202249","name":"2-Switch/Outlet Plate, White","guess":"001-88005","anchor":false,"note":""},{"id":"g1","page":10,"sku":"3534120","name":"15A GFCI Outlet, White","guess":"GFNL1-W","anchor":false,"note":""},{"id":"g2","page":10,"sku":"3809464","name":"20A AFCI Outlet, White","guess":"AFTR2-KW","anchor":false,"note":""},{"id":"g3","page":10,"sku":"31036","name":"15A Decorative Switch, White","guess":"5601-2W","anchor":false,"note":"Runs into the slash before the next number. I read 5601-2W."},{"id":"g4","page":10,"sku":"31035","name":"15A Decorator Outlet, White","guess":"5325-WS","anchor":false,"note":"Starts right after a slash. 5325-WS?"},{"id":"g5","page":10,"sku":"3201613","name":"15A Outlet, White","guess":"5320-WCP","anchor":false,"note":"WCP is written small, raised above the line."},{"id":"g6","page":10,"sku":"3201829","name":"15A Switch, White","guess":"1451-2W","anchor":false,"note":""},{"id":"g7","page":10,"sku":"50400","name":"Chain Brass","guess":"5045598","anchor":false,"note":"7 digits starting 50, which looks like an Ace SKU."},{"id":"g8","page":10,"sku":"5107859","name":"Wall Protector Ivory 5\"","guess":"U-9268","anchor":false,"note":""},{"id":"h1","page":11,"sku":"59132","name":"Lock Pining Plastic","guess":"504665","anchor":false,"note":"First character 5 or S?"},{"id":"h2","page":11,"sku":"50021","name":"Heritage Hill Mortise Lockset","guess":"5045676","anchor":false,"note":"Matches the Ace image number for this lockset (5045676), so likely the new Ace SKU."},{"id":"h3","page":11,"sku":"5366703","name":"Passage Handle Lever 1-3/4\"","guess":"5060393","anchor":false,"note":"7 digits starting 50, which looks like an Ace SKU."},{"id":"h4","page":11,"sku":"-","name":"Bin 26 gas line (note)","guess":"20YES1V036B","anchor":false,"note":"Gas line part, long code. My least sure read."}];
+let answers = {};      // id -> {status, value, note}
+let filter = 'todo';
+let open = null;       // id being fixed
+let db = null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isSep = c => c === '-' || c === ' ' || c === '.' || c === '#';
+
+function cellsHtml(guess, value){
+  // value present and same length: mark changed positions
+  if (value == null || value === guess){
+    return [...guess].map(c => `<span class="${isSep(c)?'sep':''}">${esc(c===' '?' ':c)}</span>`).join('');
+  }
+  if (value.length === guess.length){
+    return [...value].map((c,i) => {
+      const was = guess[i];
+      if (c === was) return `<span class="${isSep(c)?'sep':''}">${esc(c)}</span>`;
+      return `<span class="chg" title="I read ${esc(was)}">${esc(c)}</span>`;
+    }).join('');
+  }
+  return [...value].map(c => `<span class="chg">${esc(c)}</span>`).join('');
+}
+
+function itemHtml(it){
+  const a = answers[it.id];
+  const st = a ? a.status : 'todo';
+  const chipTxt = {todo:'To check', right:'Correct', fixed:'Fixed', unsure:"Can't tell"}[st];
+  const shown = a && a.status === 'fixed' ? a.value : null;
+  const where = it.sku === '-' ? `<b>${esc(it.name)}</b>` : `<b>${esc(it.name)}</b> · printed #${esc(it.sku)}`;
+  let body = `
+    <div class="top"><span class="where">${where} · sheet page ${it.page}</span><span class="chip ${st}">${chipTxt}</span></div>
+    <div class="scan"><img src="crops/${it.id}.png" alt="Jason's handwriting near ${esc(it.name)}" loading="lazy"></div>
+    <div class="readrow"><span class="label">${shown ? 'What he wrote (you fixed it)' : 'My read'}</span><div class="cells">${cellsHtml(it.guess, shown)}</div>
+    ${shown ? `<span class="note">I read: <code>${esc(it.guess)}</code></span>` : ''}</div>`;
+  if (it.anchor) body += `<p class="printed">Printed on the card: <code>${esc(it.sku)}</code>. Check that his writing really says this; don't just match it.</p>`;
+  if (it.note) body += `<p class="note">${esc(it.note)}</p>`;
+  if (a && a.note) body += `<p class="saved-note">Your note: ${esc(a.note)}</p>`;
+  if (open === it.id){
+    body += `<div class="fixbox">
+      <label class="label" for="fix-${it.id}">Type exactly what he wrote</label>
+      <div class="row"><input id="fix-${it.id}" value="${esc(a && a.value ? a.value : it.guess)}" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
+      <label class="label" for="note-${it.id}">Note (optional)</label>
+      <textarea id="note-${it.id}" placeholder="e.g. his 7s have a cross bar">${esc(a && a.note ? a.note : '')}</textarea>
+      <div class="row"><button type="button" class="yes" data-act="savefix" data-id="${it.id}">Save fix</button><button type="button" data-act="cancel">Cancel</button></div>
+    </div>`;
+  } else {
+    body += `<div class="acts">
+      <button type="button" class="yes" data-act="right" data-id="${it.id}">Correct</button>
+      <button type="button" data-act="fix" data-id="${it.id}">Fix</button>
+      <button type="button" data-act="unsure" data-id="${it.id}">Can't tell</button>
+      ${a ? `<button type="button" data-act="clear" data-id="${it.id}">Undo</button>` : ''}
+    </div>`;
+  }
+  return `<article class="item" id="item-${it.id}" data-state="${st}">${body}</article>`;
+}
+
+function visible(it){
+  const done = !!answers[it.id];
+  return filter === 'all' || (filter === 'todo' ? !done : done) || open === it.id;
+}
+
+function render(){
+  for (const [key, el] of [['anchor', $('#list-anchor')], ['new', $('#list-new')]]){
+    const rows = ITEMS.filter(it => (key === 'anchor') === it.anchor).filter(visible);
+    el.innerHTML = rows.length ? rows.map(itemHtml).join('') : `<p class="note">${filter==='todo' ? 'All checked here.' : 'Nothing here yet.'}</p>`;
+  }
+  const n = ITEMS.filter(it => answers[it.id]).length;
+  $('#progtxt').textContent = `${n} of ${ITEMS.length} checked`;
+  $('#progbar').style.width = (100 * n / ITEMS.length) + '%';
+  renderLearn();
+}
+
+function renderLearn(){
+  const conf = {}, okCount = {};
+  for (const it of ITEMS){
+    const a = answers[it.id]; if (!a) continue;
+    if (a.status === 'right'){ for (const c of it.guess) if (!isSep(c)) okCount[c] = (okCount[c]||0) + 1; }
+    if (a.status === 'fixed' && a.value && a.value.length === it.guess.length){
+      [...a.value].forEach((c,i) => { const g = it.guess[i];
+        if (c !== g){ const k = g + '→' + c; conf[k] = conf[k] || {g, c, n:0, ids:[]}; conf[k].n++; conf[k].ids.push(it.id); }
+        else if (!isSep(c)) okCount[c] = (okCount[c]||0) + 1; });
+    }
+  }
+  const rows = Object.values(conf).sort((a,b) => b.n - a.n);
+  const glyphs = Object.entries(okCount).sort((a,b) => a[0].localeCompare(b[0]));
+  if (!rows.length && !glyphs.length){ $('#learn').innerHTML = '<p class="note">Mark a few cards and the corrections show up here.</p>'; return; }
+  let h = '';
+  if (rows.length){
+    h += `<span class="label">Characters I misread</span><div class="tblwrap"><table><thead><tr><th>I read</th><th>He wrote</th><th>Times</th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td class="g">${esc(r.g)}</td><td class="g">${esc(r.c)}</td><td>${r.n}</td></tr>`).join('') + `</tbody></table></div>`;
+  }
+  if (glyphs.length){
+    h += `<span class="label">Characters confirmed right</span><div class="cells">` +
+      glyphs.map(([c,n]) => `<span title="${n} confirmed">${esc(c)}<small style="font-size:.6em;margin-left:2px;color:var(--muted)">${n}</small></span>`).join('') + `</div>`;
+  }
+  $('#learn').innerHTML = h;
+}
+
+function showStatus(msg){ const el = $('#status'); el.textContent = msg; el.hidden = !msg; }
+
+async function save(id, data){
+  const prev = answers[id];
+  if (data) answers[id] = data; else delete answers[id];
+  render();
+  if (!db){ showStatus('Not saving: this view has no database access. Open the page from claude.ai while signed in.'); return; }
+  try {
+    const ref = db.collection('answers').doc(id);
+    if (data) await ref.set({...data, at: new Date().toISOString()}); else await ref.delete();
+    showStatus('');
+  } catch (e){
+    if (prev) answers[id] = prev; else delete answers[id];
+    render();
+    showStatus(`Couldn't save that answer (${e && e.code ? e.code : 'error'}). Try again in a moment.`);
+  }
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id && b.id.startsWith('f-')){
+    filter = b.id.slice(2);
+    document.querySelectorAll('.filters button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    render(); return;
+  }
+  const id = b.dataset.id, act = b.dataset.act;
+  if (act === 'right'){ open = null; save(id, {status:'right', value: ITEMS.find(i=>i.id===id).guess}); }
+  else if (act === 'unsure'){ open = null; save(id, {status:'unsure', value:''}); }
+  else if (act === 'clear'){ open = null; save(id, null); }
+  else if (act === 'fix'){ open = id; render(); const inp = $('#fix-'+id); if (inp){ inp.focus(); inp.select(); } }
+  else if (act === 'cancel'){ open = null; render(); }
+  else if (act === 'savefix'){
+    const v = $('#fix-'+id).value.trim().toUpperCase(), note = $('#note-'+id).value.trim();
+    const guess = ITEMS.find(i=>i.id===id).guess;
+    open = null;
+    save(id, v === guess.toUpperCase() && !note ? {status:'right', value: guess} : {status: v === guess.toUpperCase() ? 'right' : 'fixed', value: v, note});
+  }
+});
+
+render();
+
+(async () => {
+  if (!window.claude || !window.claude.use) { showStatus('Not saving: open this page on claude.ai to keep your answers.'); return; }
+  const timer = setTimeout(() => showStatus('Still connecting to saved answers…'), 10000);
+  try {
+    db = await window.claude.use('db');
+    if (!db){ clearTimeout(timer); showStatus('Not saving: this view has no database access. Sign in on claude.ai to keep your answers.'); return; }
+    db.collection('answers').onSnapshot(snap => {
+      clearTimeout(timer); showStatus('');
+      const next = {};
+      snap.docs.forEach(d => { const v = d.data(); if (v && v.status) next[d.id] = {status:v.status, value:v.value||'', note:v.note||''}; });
+      answers = next; render();
+    }, err => { clearTimeout(timer); showStatus(`Saved answers didn't load (${err.code}).`); });
+  } catch (e){ clearTimeout(timer); showStatus('Saved answers didn\'t load.'); }
+})();
+</script>
