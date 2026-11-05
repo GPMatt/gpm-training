@@ -1,0 +1,319 @@
+<title>GPM Turn Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f5f2; --surface:#ffffff; --fg:#1d2621; --muted:#5d6b62; --line:#d5ddd6;
+  --accent:#2f6b45;
+  --who-team:#2f6b45; --who-team-bg:#e3efe6;
+  --who-pm:#2b5b8c; --who-pm-bg:#e2ecf6;
+  --who-vendor:#9a5b12; --who-vendor-bg:#f7ecdc;
+  --st-skip:#8a948d; --st-unc:#b7791f; --st-sch:#2b5b8c; --st-done:#2f6b45;
+  --open-bg:#fff7e0; --open-line:#e5c56b;
+  --flag:#a8321e; --flag-bg:#fbe7e3;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a16; --surface:#1c241f; --fg:#e4ebe6; --muted:#9aa99f; --line:#2f3a33;
+  --accent:#7cc495;
+  --who-team:#8fd1a6; --who-team-bg:#1f3427;
+  --who-pm:#8fb9e6; --who-pm-bg:#1d2b3b;
+  --who-vendor:#e7b36b; --who-vendor-bg:#3a2c18;
+  --st-skip:#7d877f; --st-unc:#e7b36b; --st-sch:#8fb9e6; --st-done:#8fd1a6;
+  --open-bg:#2e2817; --open-line:#7a6526; --flag:#f0a090; --flag-bg:#3a1f1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a16; --surface:#1c241f; --fg:#e4ebe6; --muted:#9aa99f; --line:#2f3a33;
+  --accent:#7cc495;
+  --who-team:#8fd1a6; --who-team-bg:#1f3427;
+  --who-pm:#8fb9e6; --who-pm-bg:#1d2b3b;
+  --who-vendor:#e7b36b; --who-vendor-bg:#3a2c18;
+  --st-skip:#7d877f; --st-unc:#e7b36b; --st-sch:#8fb9e6; --st-done:#8fd1a6;
+  --open-bg:#2e2817; --open-line:#7a6526; --flag:#f0a090; --flag-bg:#3a1f1a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:880px;margin:0 auto;padding-block:40px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:2.6rem;line-height:1.05;font-weight:700}
+h2{font-size:1.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+h3{font-size:1.25rem;font-weight:600}
+p{margin:0;max-width:65ch}
+.lede{color:var(--muted);font-size:1.05rem}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+header{display:grid;gap:10px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.who{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.who::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.w-team{color:var(--who-team);background:var(--who-team-bg)}
+.w-pm{color:var(--who-pm);background:var(--who-pm-bg)}
+.w-vendor{color:var(--who-vendor);background:var(--who-vendor-bg)}
+section{display:grid;gap:16px}
+.spine{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.phase{display:grid;grid-template-columns:44px 1fr;gap:14px}
+.num{display:flex;flex-direction:column;align-items:center}
+.num b{font-family:var(--display);font-size:1.3rem;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--accent);color:var(--accent);background:var(--surface)}
+.num i{flex:1;width:2px;background:var(--line);margin-top:4px}
+.phase:last-child .num i{display:none}
+.pbody{padding-bottom:26px;display:grid;gap:8px;min-width:0}
+.pbody .meta{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.pbody ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.mail{display:grid;gap:6px;margin-top:4px}
+.mail div{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;font-size:.92rem}
+.mail .tag{font-family:var(--mono);font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.open{background:var(--open-bg);border:1px dashed var(--open-line);border-radius:8px;padding:10px 12px;font-size:.92rem;max-width:65ch}
+.open strong{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:2px}
+.howto{background:var(--surface);border:2px solid var(--accent);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
+.howto ol{margin:0;padding-left:22px;display:grid;gap:8px}
+.howto li::marker{font-family:var(--display);font-weight:700;color:var(--accent)}
+.howto .sys{font-size:.9rem;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;display:grid;gap:4px}
+.howto .sys b{color:var(--fg)}
+code{font-family:var(--mono);font-size:.85em;background:var(--who-team-bg);padding:0 4px;border-radius:3px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.92rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.n{font-family:var(--display);font-size:1.15rem;font-weight:700;color:var(--accent);width:32px;font-variant-numeric:tabular-nums}
+td .sub{color:var(--muted);font-size:.85rem}
+.st{display:inline-block;font-family:var(--mono);font-size:.72rem;padding:1px 8px;border-radius:4px;border:1.5px solid currentColor;white-space:nowrap}
+.s-skip{color:var(--st-skip);border-style:dotted}
+.s-unc{color:var(--st-unc);border-style:dashed}
+.s-sch{color:var(--st-sch)}
+.s-done{color:var(--surface);background:var(--st-done);border-color:var(--st-done)}
+.statuses{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:.9rem;color:var(--muted)}
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.brief .hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between}
+.brief .hd span{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.brief .links{display:flex;gap:14px;flex-wrap:wrap;font-size:.9rem}
+.brief .links a{color:var(--accent);font-weight:600}
+.brief .sec{padding:8px 16px;font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.brief .sec.flagged{color:var(--flag);background:var(--flag-bg)}
+.unit{padding:12px 16px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.unit:last-child{border-bottom:0}
+.unit .top{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.unit .top b{font-weight:700}
+.unit .top span{font-size:.85rem;color:var(--muted);font-family:var(--mono)}
+.steps{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px}
+.steps div{display:grid;gap:2px;justify-items:center;font-family:var(--mono);font-size:.64rem;color:var(--muted)}
+.steps i{width:100%;height:10px;border-radius:3px;border:1.5px solid}
+.i-skip{border-color:var(--st-skip);border-style:dotted}
+.i-unc{border-color:var(--st-unc);border-style:dashed}
+.i-sch{border-color:var(--st-sch);background:var(--who-pm-bg)}
+.i-done{border-color:var(--st-done);background:var(--st-done)}
+.example{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.emails{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.email{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start;min-width:0}
+.email .when{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.email p{font-size:.92rem}
+.lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.list{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;align-content:start;min-width:0}
+.list ul{margin:0;padding-left:18px;font-size:.88rem;display:grid;gap:2px}
+.list .note{font-size:.85rem;color:var(--muted)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:520px){h1{font-size:2.1rem}.steps div{font-size:.56rem}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">P03 · to-do #17 · updated after the 11/4 team meeting</div>
+  <h1>GPM Turn Flow</h1>
+  <p class="lede">From a confirmed move-out to rent ready. Who does what, what Spencer records in AppFolio so the system can follow along, which emails go out, and the status of all eleven steps. Dashed yellow boxes are still open.</p>
+  <div class="legend">
+    <span class="who w-team">Spencer + Jason</span>
+    <span class="who w-pm">Property manager</span>
+    <span class="who w-vendor">Vendor</span>
+  </div>
+</header>
+
+<section>
+  <h2>The flow</h2>
+  <ol class="spine">
+    <li class="phase"><div class="num"><b>1</b><i></i></div><div class="pbody">
+      <h3>Confirmed move-out lands in the tenant tickler</h3>
+      <div class="meta">Daily AppFolio pull · confirmed dates only</div>
+      <ul>
+        <li>A confirmed move-out date creates the turn. Unconfirmed notices never enter the system.</li>
+        <li>Properties owned by Kyle Visser or James Debenham are skipped entirely (they use their own vendors).</li>
+        <li>The system tags the turn <b>cookie cutter</b> or <b>Riley walk</b> from the property list below.</li>
+        <li>Until Spencer books it, the turn sits at the top of the daily brief as <b>PMI not booked</b>.</li>
+      </ul>
+      <div class="mail">
+        <div><span class="who w-pm">PM</span> Rent-ready estimate: move-out + 15 business days, until the PMI sets the real date. <span class="tag">email A</span></div>
+        <div><span class="who w-team">Jason</span> Heads-up when the property is project-eligible. <span class="tag">email B</span></div>
+      </div>
+      <div class="open"><strong>Open</strong>Jason's list of project-eligible properties (Matt is collecting it).</div>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>2</b><i></i></div><div class="pbody">
+      <h3>Spencer books the PMI (visit 1)</h3>
+      <div class="meta">Spencer builds his own schedule · Riley walks on Mondays · cookie cutter any day</div>
+      <div class="howto">
+        <h3>What Spencer does, every time</h3>
+        <ol>
+          <li><b>Email the tenant from AppFolio</b> to set the PMI date and time. The email stays on the tenant's record.</li>
+          <li><b>Create the Unit Turn work order in AppFolio</b> for that unit. Pick the property and unit from AppFolio's dropdown; never type the address. This is the one turn WO that holds every note and photo through rent ready.</li>
+          <li><b>Mark it as a Unit Turn</b> so the system can tell it apart from service WOs.</li>
+          <li><b>Set the WO's scheduled date and time to the PMI.</b> That date is how the system knows the PMI is booked.</li>
+          <li><b>If it's not a cookie-cutter property, book it on a Monday</b> and assign or note Riley on the WO, so Jason knows Riley walks with Spencer.</li>
+        </ol>
+        <div class="sys">
+          <div><b>What the system then knows:</b> a turn WO exists for this unit with a PMI date → the turn leaves "PMI not booked".</div>
+          <div><b>Whether Riley is needed:</b> worked out from the property itself. Not on the cookie-cutter list = Riley walk. Spencer doesn't have to decide it.</div>
+          <div><b>The brief flags:</b> confirmed move-outs with no PMI, and Riley-walk PMIs booked on a day other than Monday.</div>
+        </div>
+      </div>
+      <ul>
+        <li>Cookie cutter: Spencer walks alone, 30–45 min.</li>
+        <li>Everything else (single-family, duplex, quad): Riley or a tech walks with Spencer, up to 1.5 hours.</li>
+      </ul>
+      <div class="open"><strong>Open</strong>How the system reads the WO back out of AppFolio (likely a daily scheduled work order report). Matt is checking what the checklist looks like inside AppFolio. Until then, the exact fields Spencer fills may change.</div>
+      <div class="open"><strong>Open</strong>Whether Spencer's AppFolio email to the tenant also counts as the entry notice.</div>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>3</b><i></i></div><div class="pbody">
+      <h3>PMI walk</h3>
+      <div class="meta">Spencer (+ Riley when it's a Riley walk) · checklist and photos go on the turn WO</div>
+      <ul>
+        <li><b>Scope checklist</b> (Spencer): which of the 11 steps are needed and how big, and who pays for each damage (tenant or owner).</li>
+        <li><b>Tech task list</b> (Riley, or Spencer alone at cookie cutter): what the tech physically does when it's their turn.</li>
+        <li>Paint is assumed <b>full</b> unless the checklist says otherwise.</li>
+      </ul>
+      <div class="open"><strong>Open</strong>Both checklists are being designed separately.</div>
+      <div class="mail">
+        <div><span class="who w-pm">PM</span> Updated rent-ready date, now computed from the scope. <span class="tag">email A</span></div>
+        <div><span class="who w-team">Jason</span> Supplies to order (Ace or HD Supply): property, unit, items. <span class="tag">email C</span></div>
+      </div>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>4</b><i></i></div><div class="pbody">
+      <h3>Project estimates + vendors booked</h3>
+      <div class="meta">Order of operations · business days · first step the next business day after move-out</div>
+      <ul>
+        <li>Project-eligible properties: Jason does the project estimate (step 2).</li>
+        <li>Each needed step gets a date from the durations table. Skipped steps pull the next ones forward. Only Appliances and Tech share a day.</li>
+        <li>Under 30 days out will need its own booking process (not designed yet).</li>
+      </ul>
+      <div class="open"><strong>Open</strong>Vendor booking process is still being designed. Collecting each crew's calendar first.</div>
+      <div class="mail">
+        <div><span class="who w-vendor">Vendor</span> Calendar invite: date, arrival window, address and unit, scope, access notes. Eastpointe also gets its order form. <span class="tag">invite D</span></div>
+      </div>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>5</b><i></i></div><div class="pbody">
+      <h3>Move-out day (visit 2)</h3>
+      <div class="meta">Spencer · on the confirmed move-out date · keys + security deposit</div>
+      <ul>
+        <li><b>Schedule:</b> the vendors and work we planned are still right.</li>
+        <li><b>Rent ready:</b> the scope matches the PMI and the timeline still fits the rent-ready date.</li>
+        <li><b>Deposit:</b> tenant damages recorded for the security deposit.</li>
+        <li>New scope? Spencer books that vendor ASAP. Later steps shift and those vendors get updated invites.</li>
+      </ul>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>6</b><i></i></div><div class="pbody">
+      <h3>Build days + quality check (visit 3)</h3>
+      <div class="meta">Spencer marks steps Complete and rent ready (for now)</div>
+      <ul>
+        <li>Visit 3 is a checkpoint, not a step: Spencer checks the tech's work before the cleaners so the unit will show well once cleaned. Nothing waits on it.</li>
+      </ul>
+      <div class="open"><strong>Open</strong>How Spencer knows a vendor finished.</div>
+    </div></li>
+
+    <li class="phase"><div class="num"><b>7</b><i></i></div><div class="pbody">
+      <h3>Daily brief + Monday meeting</h3>
+      <div class="meta">Weekdays only · no brief on weekends or GPM office holidays · Monday meeting: Spencer + Matt</div>
+      <div class="mail">
+        <div><span class="who w-team">Spencer + Jason</span> Top section: confirmed move-outs with no PMI booked. Then upcoming and active turns with all eleven step statuses, and links to the calendar. <span class="tag">email E</span></div>
+      </div>
+      <div class="open"><strong>Open</strong>GPM office holiday list.</div>
+    </div></li>
+  </ol>
+</section>
+
+<section>
+  <h2>The eleven steps</h2>
+  <div class="statuses">Each step in the brief is one of
+    <span class="st s-skip">Skipped</span><span class="st s-unc">Unconfirmed</span><span class="st s-sch">Scheduled</span><span class="st s-done">Complete</span>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Step</th><th>Who</th><th>Duration (business days)</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td class="n">1</td><td>Walk / PMI</td><td>Spencer (+ Riley if not cookie cutter)</td><td>30–45 min cookie cutter · up to 1.5h otherwise</td><td>Always happens. The only step that's never skipped.</td></tr>
+      <tr><td class="n">2</td><td>Project estimates</td><td>Jason</td><td>–</td><td>Project-eligible properties only.</td></tr>
+      <tr><td class="n">3</td><td>Tub repair / replace</td><td>Surface Tech (repair) · Grand River (replace)</td><td>Resurface 1 + 24h no entry · Replace 1</td><td>Grand River measures ≥2 weeks before.</td></tr>
+      <tr><td class="n">4</td><td>Flooring</td><td>Eastpointe Interiors (Tom)</td><td>1 · hardwood 3–8</td><td>New tub means new floor. Order form to the order desk; same-day cancellations cost a trip charge.</td></tr>
+      <tr><td class="n">5</td><td>Drywall / plaster</td><td>Matt Luschas</td><td>2–3</td><td>All drywall goes after flooring, tub-related included.</td></tr>
+      <tr><td class="n">6</td><td>Appliances</td><td>Vendor <span class="sub">(TBD)</span></td><td>1 (8h window)</td><td>Same day as Tech is allowed.</td></tr>
+      <tr><td class="n">7</td><td>Tech</td><td>Riley (Jason assigns)</td><td>Quick 4h · basic 1 · first-time 2–3</td><td>Fully finished before paint.</td></tr>
+      <tr><td class="n">8</td><td>Paint</td><td>Trevor</td><td>Full 1 · touch-up 4h · color 2 · new home 2–3</td><td>Full paint unless the checklist says otherwise.</td></tr>
+      <tr><td class="n">9</td><td>Clean</td><td>GR Cleaning Co or Up &amp; Up</td><td>1 · heavy 2</td><td>Grease or smoke units get a pre-clean on day 1 as well.</td></tr>
+      <tr><td class="n">10</td><td>Stainless + stovetop</td><td>Surface Experts</td><td><span class="sub">TBD</span></td><td>After the cleaners, before carpet cleaning.</td></tr>
+      <tr><td class="n">11</td><td>Carpet cleaning</td><td>Vendor <span class="sub">(TBD)</span></td><td>1</td><td>Always last.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Property lists</h2>
+  <div class="lists">
+    <div class="list"><h3>Cookie cutter · Spencer walks alone</h3>
+      <ul>
+        <li>900 Leonard St NW, Grand Rapids</li>
+        <li>2935 Oak Valley Ave SW, Wyoming</li>
+        <li>547 Cherry St SE, Grand Rapids</li>
+        <li>2340 Michael Ave SW, Wyoming</li>
+        <li>6611 Prairie Winds Dr, Zeeland</li>
+        <li>90 Wealthy St SE, Grand Rapids</li>
+        <li>5943 8th Ave, Grandville</li>
+        <li>1960 Burton St SE, Grand Rapids</li>
+        <li>2700 Clyde Park Ave SW, Wyoming</li>
+        <li>100 Commerce Ave SW, Grand Rapids</li>
+        <li>730 Leonard St NW, Grand Rapids</li>
+      </ul>
+      <div class="note">Everything else is a Riley walk on a Monday.</div>
+    </div>
+    <div class="list"><h3>Left out · owner's own vendors</h3>
+      <ul>
+        <li><b>Kyle Visser:</b> 956 Innes St NE · 1114 E Fulton · 228 Baynton Ave NE · 7620 Fase St SE (Ada) · 1460 Milton St SE · 901 Sarasota Ave SE</li>
+        <li><b>James Debenham:</b> 62 Caroline Pl NE · 44 Stormzand Pl NE · 1110 Broadway Ave NW · 800 Clancy Ave NE · 726 Eastern Ave NE · 720 Kellogg St SE · 1317 Lafayette Ave NE · 348 Quimby St NE</li>
+      </ul>
+      <div class="open"><strong>Open</strong>Asked Jody whether other owners or properties use specific vendors.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Daily brief, sketched</h2>
+  <div class="brief">
+    <div class="hd"><h3>Turns brief · Thu Nov 5</h3><span>to Spencer, Jason · <span class="example">example units</span></span></div>
+    <div class="hd links"><a href="#" onclick="return false">GPM Turns calendar</a></div>
+    <div class="sec flagged">PMI not booked (2)</div>
+    <div class="unit"><div class="top"><b>1350 Example Ave NE</b><span>move-out confirmed 12/31 · Riley walk · book a Monday</span></div></div>
+    <div class="unit"><div class="top"><b>900 Leonard St NW #210</b><span>move-out confirmed 12/15 · cookie cutter · any day</span></div></div>
+    <div class="sec">Upcoming and active turns</div>
+    <div class="unit">
+      <div class="top"><b>2935 Oak Valley Ave SW #301</b><span>move-out 11/30 · PMI Tue 11/10 · cookie cutter</span></div>
+      <div class="steps">
+        <div><i class="i-sch"></i>1</div><div><i class="i-unc"></i>2</div><div><i class="i-unc"></i>3</div><div><i class="i-unc"></i>4</div><div><i class="i-unc"></i>5</div><div><i class="i-unc"></i>6</div><div><i class="i-unc"></i>7</div><div><i class="i-unc"></i>8</div><div><i class="i-unc"></i>9</div><div><i class="i-unc"></i>10</div><div><i class="i-unc"></i>11</div>
+      </div>
+    </div>
+    <div class="unit">
+      <div class="top"><b>900 Leonard St NW #314</b><span>moved out 11/2 · rent ready 11/9</span></div>
+      <div class="steps">
+        <div><i class="i-done"></i>1</div><div><i class="i-skip"></i>2</div><div><i class="i-skip"></i>3</div><div><i class="i-skip"></i>4</div><div><i class="i-skip"></i>5</div><div><i class="i-sch"></i>6</div><div><i class="i-sch"></i>7</div><div><i class="i-sch"></i>8</div><div><i class="i-sch"></i>9</div><div><i class="i-sch"></i>10</div><div><i class="i-sch"></i>11</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Every email, separately</h2>
+  <div class="emails">
+    <div class="email"><span class="who w-pm">PM</span><h3>A · Rent-ready date</h3><div class="when">On a confirmed move-out, then again after the PMI</div><p>Before the PMI: move-out + 15 business days. After it: the date computed from the scope.</p></div>
+    <div class="email"><span class="who w-team">Jason</span><h3>B · Project heads-up</h3><div class="when">On a confirmed move-out at a project-eligible property</div><p>Property, unit, move-out date, so he can plan the project before the PMI.</p></div>
+    <div class="email"><span class="who w-team">Jason</span><h3>C · Supplies to order</h3><div class="when">After the PMI</div><p>Property, unit and items, for an Ace or HD Supply order.</p></div>
+    <div class="email"><span class="who w-vendor">Vendor</span><h3>D · Calendar invite</h3><div class="when">When the step is booked or shifted</div><p>Date, window, address, scope and access. Updates in place when the date moves.</p></div>
+    <div class="email"><span class="who w-team">Spencer + Jason</span><h3>E · Daily brief</h3><div class="when">Weekday mornings, not on GPM holidays</div><p>PMIs not booked first, then upcoming and active turns with eleven step statuses.</p></div>
+  </div>
+</section>
+</div>

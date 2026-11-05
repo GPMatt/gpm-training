@@ -1,146 +1,153 @@
 # GPM Turn Plan (P03 / to-do #17)
 
-Decisions from Matt's interview, 2026-11-02. Nothing is built yet.
+Current state as of 2026-11-05 (after the 2026-11-04 team meeting). Nothing is built yet.
+Visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj (v7, shared "anyone with the link").
+Artifact source is kept in this folder as `turn-flow.html` (republish with the Artifact tool + that url).
 
 ## The problem
 1. The turn sheet isn't seamless.
-2. The turn process itself isn't good enough. We lose days and units aren't ready soon enough.
+2. The turn process loses days; units aren't ready soon enough.
 
 ## The theory
-The turn starts at notice, not move-out. A comprehensive PMI is the single
-source of scope, and vendors are booked 30 days out, so every date is locked
-before the tenant leaves.
+The turn starts at the confirmed move-out, not the move-out itself. A comprehensive PMI is the single
+source of scope, and vendors are booked ~30 days out, so dates are locked before the tenant leaves.
 
-## Order of operations (locked; every step is as-needed except the walk)
+## Terms
+- **PMI** = pre-move-out inspection (was "PMO"; renamed everywhere 2026-11-03).
+- **Cookie cutter** = big multifamily, 3-4 floor plans across many units. Spencer walks alone, 30-45 min.
+- **Riley walk** = any property NOT on the cookie-cutter list (SFH, duplex, quad). Riley or a tech walks
+  with Spencer, up to 1.5h. These PMIs go on Mondays (Monday matters only because it suits Riley).
+
+## Order of operations (locked; all as-needed except the walk)
 1. Walk / PMI
-2. Project estimates (bigger value-add projects only)
-3. Tub repair or replace
-4. Flooring
-5. Drywall / plaster (all of it, including tub-related, after flooring)
+2. Project estimates (project-eligible properties only; Jason)
+3. Tub repair (Surface Tech) or replace (Grand River Plumbing)
+4. Flooring (Eastpointe)
+5. Drywall / plaster (all of it, after flooring)
 6. Appliances
 7. Tech
-8. Paint
-9. Stainless steel cleaning (Jody, as needed; separate from the cleaners; OPEN: confirm)
-10. Clean
+8. Paint (FULL paint assumed unless the checklist says otherwise)
+9. Clean
+10. Stainless steel + stovetop: Surface Experts (after cleaners, before carpet cleaning; confirmed 11/4)
 11. Carpet cleaning
 
-- Grease or smoke units get a pre-clean on Day 1, before step 3. Step 10 cleans again.
-- The only same-day overlap allowed is Appliances + Tech.
-- Skipped steps pull everything after them forward.
-- The first build step is the next business day after move-out. Weekends are not business days.
-- There's a buffer of 1+ business day before move-in.
+- Grease/smoke units get a pre-clean on Day 1 (before step 3); step 9 cleans again.
+- Only Appliances + Tech may share a day. Skipped steps pull later steps forward.
+- First build step = next business day after move-out. Business days exclude weekends + GPM office holidays.
+- Buffer of 1+ business day before move-in.
 
-## Flow (revised 2026-11-02 evening; visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj)
-1. **Trigger.** Daily AppFolio tenant tickler into Supabase (dashboard project).
-   CONFIRMED move-out dates only. Unconfirmed notices are not in the report and
-   never start a turn. The PMI goes on the next Monday.
-2. **PMI time.** Next Monday, real 1h slots stacked from 10am in the order
-   move-outs were confirmed. Every tenant window is 4h, and tenants never see
-   the real slot: 1st 10-11 (window 9-1), 2nd 11-12 (10-2), 3rd 12-1 (11-3),
-   4th 1-2 (12-4), 5th 2-3 (1-5), 6th 3-4 (1-5). Max 6; a 7th goes to Spencer.
-   Asking Jason and Spencer for the safe Monday count and a realistic start time
-   after inventory + the meeting.
-3. **PMI walk.** The tech (mostly Riley) completes Jason's "TURN checklist 2026"
-   (fixtures, keys, rekey, filter size). Spencer completes a new scope section
-   (each of the 11 steps needed or not, plus its size, appliance make/model,
-   blind measurements). Both live in one web app. Subject to change.
-4. **Project estimates.** IN SCOPE, but only for bigger value-add projects
-   (not standard turn work, no per-step price table). The process is TBD.
-5. **Booking (Matt still designing; under 30 days out needs its own process).** Vendors get automatic calendar invites (date, window, address
-   and unit, scope, access). Under 30 days' notice is still automated (earliest
-   open dates). Jason assigns the tech, mostly Riley.
-6. **Rent ready.** Spencer marks it, for now.
-7. **Monday meeting.** Spencer + Matt.
+## Flow
+1. **Trigger.** Daily AppFolio tenant tickler into Supabase (dashboard project). CONFIRMED move-out
+   dates only. Excluded-owner properties skipped. Turn tagged cookie cutter / Riley walk from the list.
+   Until a PMI is booked, the turn is at the top of the daily brief as "PMI not booked".
+2. **Spencer books the PMI (visit 1).** Spencer builds his own schedule. What he does every time:
+   1. Emails the tenant FROM APPFOLIO to set the PMI time (record stays on the tenant).
+   2. Creates the ONE Unit Turn work order in AppFolio, picking property + unit from AppFolio's dropdown
+      (never typed; this solves the naming problem because tickler and WO share AppFolio's names).
+   3. Marks it Unit Turn.
+   4. Sets the WO scheduled date/time = the PMI. This is how the system knows the PMI is booked.
+   5. Non-cookie-cutter: books a Monday and assigns/notes Riley on the WO.
+   - System derives "Riley needed" from the property list, not from Spencer.
+   - Brief flags: confirmed move-outs with no PMI; Riley-walk PMIs not on a Monday.
+   - OPEN: whether Spencer's AppFolio email to the tenant counts as the entry notice.
+3. **PMI walk.** Scope checklist (Spencer) + tech task list (Riley, or Spencer alone at cookie cutter).
+   Checklist + photos go on the turn WO in AppFolio (non-negotiable: billing needs it).
+4. **Project estimates + vendor booking.** Vendors get calendar invites. Under-30-days = separate
+   process (not designed). Vendor booking process: Matt designing.
+5. **Move-out day (visit 2).** Spencer, on the confirmed move-out date: keys + security deposit. Confirms:
+   (a) vendor schedule/work still right, (b) scope matches + timeline fits rent-ready date,
+   (c) tenant damages for the deposit. New scope -> Spencer books that vendor ASAP; later steps shift.
+6. **Build days + visit 3.** Visit 3 = quality checkpoint (NOT a step, nothing waits on it), after the
+   tech's work, before the cleaners. Spencer marks steps Complete + rent ready (for now).
+7. **Daily brief + Monday meeting.** Brief: weekdays only, none on weekends or GPM office holidays.
+   Monday 30-min meeting: Spencer + Matt.
 
-## Emails (all separate)
+## Emails (all separate; relettered 2026-11-05)
 | | To | When | Content |
 |---|---|---|---|
-| A | PM | On notice, again after the PMI | Rent-ready estimate (move-out + 15 business days before the PMI, computed from scope after) |
-| B | PM | When the PMI gets a time | PMI scheduled + reminder to send the AppFolio entry notice |
-| C | PM | After the PMI | Scope brief so the PM can create/update the turn WO; reminder to mark it Unit Turn |
-| D | Jason | After the PMI | Supplies to order (Ace / HD Supply): property, unit, items |
-| E | Vendors | When a step is booked or shifted | Calendar invite |
-| F | Spencer + Jason | Daily | Upcoming + active turns, 11 step statuses (Skipped / Unconfirmed / Scheduled / Complete), calendar + checklist links |
+| A | PM | Confirmed move-out, again after PMI | Rent-ready date (move-out + 15 business days before PMI; computed from scope after) |
+| B | Jason | Confirmed move-out at a project-eligible property | Heads-up to plan the project |
+| C | Jason | After the PMI | Supplies to order (Ace / HD Supply): property, unit, items |
+| D | Vendors | Step booked or shifted | Calendar invite (date, window, address/unit, scope, access); Eastpointe also gets its order form |
+| E | Spencer + Jason | Weekday mornings | Top: PMIs not booked. Then upcoming + active turns, 11 step statuses |
+
+Dropped 2026-11-05 (superseded because Spencer now books the PMI and creates the turn WO):
+old "PMI scheduled" email to PM, old "scope brief so PM creates the WO" email.
 
 ## Responsibilities
-- PM: creates and updates the turn WO, sends the entry notice.
-- Jason: minimal work + oversight, assigns the tech, orders supplies.
-- Spencer: PMI scope, move-out walk, rent ready, Monday meeting (with Matt).
-- Tech (mostly Riley): the TURN checklist at the PMI, the step 7 work.
+- Spencer: books PMIs with tenants (AppFolio email), creates the turn WO, all 3 visits, scope checklist,
+  marks steps Complete + rent ready, Monday meeting with Matt.
+- Riley / tech: walks non-cookie-cutter PMIs (Mondays), tech task list, step 7 work.
+- Jason: minimal work + oversight, assigns the tech, orders supplies, project estimates.
+- PM: receives rent-ready dates.
 
-## Removed
-PMI routing + Thursday confirm, the short-notice hand-schedule drafts, date-change
-alerts, capacity/overrun alerts, the portal email trigger.
+## Property lists
+Cookie cutter (Spencer alone; unit counts):
+900 Leonard St NW, Grand Rapids 49504 (120) · 2935 Oak Valley Ave SW, Wyoming 49519 (117) ·
+547 Cherry St SE, Grand Rapids 49503 (99) · 2340 Michael Ave SW, Wyoming 49509 (92) ·
+6611 Prairie Winds Dr, Zeeland 49464 (80) · 90 Wealthy St SE, Grand Rapids 49503 (61) ·
+5943 8th Ave, Grandville 49418 (60) · 1960 Burton St SE, Grand Rapids 49506 (46) ·
+2700 Clyde Park Ave SW, Wyoming 49509 (37) · 100 Commerce Ave SW, Grand Rapids 49503 (32) ·
+730 Leonard St NW, Grand Rapids 49504 (31)
+
+Excluded entirely (owner uses own vendors):
+- Kyle Visser: 956 Innes St NE 49503 · 1114 E Fulton 49503 · 228 Baynton Ave NE 49503 ·
+  7620 Fase St SE, Ada 49301 · 1460 Milton St SE 49506 · 901 Sarasota Ave SE 49546
+- James Debenham: 62 Caroline Pl NE 49503 · 44 Stormzand Pl NE 49503 · 1110 Broadway Ave NW 49504 ·
+  800 Clancy Ave NE 49503 · 726 Eastern Ave NE 49503 · 720 Kellogg St SE 49503 ·
+  1317 Lafayette Ave NE 49505 · 348 Quimby St NE 49505
+- Draft to Jody (2026-11-05, unsent) asks for other owners/properties with specific vendors.
 
 ## Durations (editable settings table, from Jason 2026-10-30, business days)
 | Step | Sizes |
 |---|---|
+| PMI | cookie cutter 30-45 min; others up to 1.5h |
 | Tub | resurface 1d, then 24h no entry; replace 1d |
 | Flooring | 1d (hardwood refinish: 3d per room, up to 8d per unit) |
 | Drywall / plaster | 2-3d |
 | Appliances | 1d (8h window), same day as tech |
 | Tech | quick 4h (CP, W&S, 730) / basic 1d / first-time property 2-3d |
-| Paint | touch-up 4h / full 1d / color change 2d / new home 2-3d |
+| Paint | full 1d (default) / touch-up 4h / color change 2d / new home 2-3d |
 | Clean | 1d / heavy 2d |
+| Surface Experts | TBD |
 | Carpet cleaning | 1d |
 
-## Vendors (one per trade, covering all areas)
+## Vendors (one per trade)
 | Trade | Vendor | Booking |
 |---|---|---|
 | Tub resurface | Surface Tech, Surfacetechs1@hotmail.com | email with date + details, 30 days' notice |
-| Tub replace | Grand River Plumbing, Emails.grp@gmail.com | 30 days' notice; must measure 2+ weeks before install |
-| Flooring | Eastpointe Interiors (Tom Rozanski), apartmentorders@eastpointeinteriors.com, 616-272-7120 | "Apartment Order Form.pdf" (in Matt's inbox): install date, community/unit/style, vacant/occupied/furniture, carpet/pad/rip/haul, full or partial + area, sheet vinyl or plank + rooms, rip, shoe molding, cove base, R&R toilet, move appliances, subfloor, floor prep, special instructions, access, requested by/PO#, PM + maintenance supervisor contacts. Same-day cancel = trip charge |
+| Tub replace | Grand River Plumbing, Emails.grp@gmail.com | 30 days' notice; measures 2+ weeks before install |
+| Flooring | Eastpointe Interiors (Tom Rozanski), apartmentorders@eastpointeinteriors.com, 616-272-7120 | "Apartment Order Form.pdf" (Matt's inbox); same-day cancel = trip charge |
 | Drywall / plaster | Matt Luschas, mattjluschas@gmail.com | 30 days' notice, 3 days per job |
 | Appliances | TBD | |
 | Paint | Trevor | contact pending |
-| Stainless steel | Jody | as needed, before the cleaners (open) |
-| Clean | GR Cleaning Co or Up & Up | contacts pending; asked for a GR Cleaning Co calendar login |
+| Clean | GR Cleaning Co or Up & Up | contacts pending; asked for GR Cleaning Co calendar login |
+| Stainless + stovetop | Surface Experts | contact pending |
 | Carpet cleaning | TBD | confirm they work off our calendar |
 
 ## Engineering
-- Supabase is the source of truth: turns, steps, vendors, durations, and the
-  tickler feed.
-- One web app holds Spencer's checklist plus the turn board.
-- A read-only Google Sheet mirrors the data for anyone who wants a spreadsheet.
-- The shared "GPM Turns" Google Calendar carries vendor invites.
-- Launch: migrate the open turns from Jason's "Apartment Turn Schedule" sheet.
+- Supabase (dashboard/warehouse project) is the source of truth: turns, steps, vendors, durations,
+  tickler feed, property lists. New tables need explicit GRANTs.
+- Read-back from AppFolio (no read API): BS2, OPEN. Candidates:
+  - Scheduled work order report (CSV, daily) into the warehouse pipeline. Has Job Description +
+    Instructions text, no photos. Sample: GPM-Claude/work_order-20261105.csv (manual export, can be
+    scheduled). Its columns lack Scheduled On and WO type; check whether the report can add them.
+    Structured "KEY: value" lines in Instructions would make it parseable.
+  - Shared-WO email (PDF + photos, from communications@greenproperty11.mailer.appfolio.us, body
+    "No content", 18 MB cap drops photos). Fragile.
+  - Matt is digging into what the checklist looks like inside AppFolio before deciding.
+- Shared "GPM Turns" Google Calendar carries vendor invites (Apps Script CalendarApp, store eventId).
+- Launch: migrate open turns from Jason's "Apartment Turn Schedule" sheet.
 
 ## Open items
-- [ ] Matt: switch the tenant tickler pull to daily
-- [ ] Jason: send the current PMI checklist; name the vendors and contacts for
-      appliances, paint, clean and carpet cleaning
-- [ ] Projects: does Spencer or Jason identify potential projects at the PMI? (asked)
-- [ ] Safe PMI count per Monday + start time after inventory/meeting (asked)
-- [ ] Under-30-days booking process (separate, not designed)
-- [ ] Who marks steps Complete (Spencer mostly; how he knows a vendor is done; asked Jason)
-- [ ] Vendor contacts + each crew's calendar; confirm carpet cleaner uses our calendar; login for the GR cleaning company's calendar (asked Jason)
-- [ ] Spencer's scope section (Jason's checklist is fixtures only); flooring answers should fill the Eastpointe order form
-- [ ] Vendor booking process (Matt designing)
-- [ ] Who marks each step Complete?
-- [ ] Add stainless steel cleaning (Jody, per Jason) as step 9 of 11, before Clean: confirm placement, duration, how it's booked
-- [ ] Approve or replace the calendar-hold PMI idea
-
-## Team meeting 2026-11-04 (logged 2026-11-05, interview in progress)
-Confirmed by Matt:
-- Trigger is murkier: PMs want to message tenants in AppFolio to schedule the PMI. Matt does not want PM judgment deciding Monday scheduling. Leaning: Spencer schedules with the tenant himself; system reads confirmed move-outs and checks each is on his schedule. Needs consistent property/unit naming.
-- Cookie cutter (big multifamily, 3-4 floor plans across 10-100 units): Spencer walks alone, 30-45 min. SFH/duplex/quad: Riley or a tech walks with Spencer, up to 1.5h.
-- Spencer makes 3 visits: (1) pre-move-out inspection (PMI), (2) move-out day: keys + security deposit, (3) post-turn quality check before cleaning.
-- Visit 2 confirms: vendor schedule/scope still right, rent-ready date + timeline still fit, tenant damages for the deposit.
-- Exclude owners Kyle Visser and James Debenhiem (spelling TBC) from auto-scheduling; they use their own vendors.
-- Jason knows in advance which properties are project-eligible; Matt to get the list. Email Jason when one goes vacant.
-- Two checklists: (a) scope/charge-back (tenant vs owner, how far the turn goes, who's brought in); (b) tech's physical task list.
-- Surface Experts (stainless steel + stovetop) confirmed: AFTER the unit cleaners, BEFORE carpet cleaning (supersedes "before cleaners").
-- Paint defaults to FULL unless explicitly stated otherwise.
-- Spencer daily brief: confirmed move-outs with no PMI scheduled.
-- Spencer's checklist + photos live in AppFolio on a work order (billing needs it; non-negotiable). AppFolio has no read API. Options: shared-WO email (PDF + photos, 18 MB cap, "No content" body) or the WO report CSV (has Job Description + Instructions text, no photos).
-Interview answers 2026-11-05:
-- Spencer books PMIs with tenants. Non-cookie-cutter (Riley walk-along) PMIs on Mondays; cookie-cutter PMIs any day.
-- Matt will supply the cookie-cutter property list.
-- Visit 3 (QC) is a checkpoint, not a step. Visit 2 is on the move-out day.
-- Kyle Visser / James Debenhiem properties: left out of the system entirely.
-- One Unit Turn WO holds all of Spencer's notes + photos. Leaning: Spencer creates it when he books the PMI.
-- Unscheduled confirmed move-outs = top section of the daily brief. No brief on GPM office holidays (Matt to supply list; also non-business days).
-- Jason emailed on confirmed move-out at project-eligible properties.
-- WO report CSV was a manual export; it can be scheduled.
-- Order now: ... 8 Paint, 9 Clean, 10 Surface Experts (stainless + stovetop), 11 Carpet cleaning. Artifact not yet updated.
-OPEN (brainstorm): how the PMI gets recorded/matched (naming), how checklist data is read back out of AppFolio, the two checklists' contents.
+- [ ] BS2: how checklist/PMI data is read back out of AppFolio (Matt researching)
+- [ ] BS3: the two checklists (scope/charge-back + tech task list), being worked in a separate agent
+      session; handoff brief = CHECKLIST_HANDOFF.md
+- [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
+- [ ] Jason's list of project-eligible properties (Matt collecting)
+- [ ] GPM office holiday list (Matt)
+- [ ] Jody: other owners/properties with specific vendors (draft ready)
+- [ ] Vendor booking process (Matt designing); under-30-days process (separate)
+- [ ] How Spencer knows a vendor finished
+- [ ] Vendor contacts + crew calendars (asked Jason in the 11/3 email); Surface Experts duration
+- [ ] Matt: switch the tenant tickler pull to daily (keep out of team emails)
