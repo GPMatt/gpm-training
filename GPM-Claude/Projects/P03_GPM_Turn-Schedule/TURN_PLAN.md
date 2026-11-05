@@ -119,3 +119,17 @@ alerts, capacity/overrun alerts, the portal email trigger.
 - [ ] Who marks each step Complete?
 - [ ] Add stainless steel cleaning (Jody, per Jason) as step 9 of 11, before Clean: confirm placement, duration, how it's booked
 - [ ] Approve or replace the calendar-hold PMI idea
+
+## Team meeting 2026-11-04 (logged 2026-11-05, interview in progress)
+Confirmed by Matt:
+- Trigger is murkier: PMs want to message tenants in AppFolio to schedule the PMI. Matt does not want PM judgment deciding Monday scheduling. Leaning: Spencer schedules with the tenant himself; system reads confirmed move-outs and checks each is on his schedule. Needs consistent property/unit naming.
+- Cookie cutter (big multifamily, 3-4 floor plans across 10-100 units): Spencer walks alone, 30-45 min. SFH/duplex/quad: Riley or a tech walks with Spencer, up to 1.5h.
+- Spencer makes 3 visits: (1) pre-move-out inspection (PMI), (2) move-out day: keys + security deposit, (3) post-turn quality check before cleaning.
+- Visit 2 confirms: vendor schedule/scope still right, rent-ready date + timeline still fit, tenant damages for the deposit.
+- Exclude owners Kyle Visser and James Debenhiem (spelling TBC) from auto-scheduling; they use their own vendors.
+- Jason knows in advance which properties are project-eligible; Matt to get the list. Email Jason when one goes vacant.
+- Two checklists: (a) scope/charge-back (tenant vs owner, how far the turn goes, who's brought in); (b) tech's physical task list.
+- Surface Experts (stainless steel + stovetop) confirmed: AFTER the unit cleaners, BEFORE carpet cleaning (supersedes "before cleaners").
+- Paint defaults to FULL unless explicitly stated otherwise.
+- Spencer daily brief: confirmed move-outs with no PMI scheduled.
+- Spencer's checklist + photos live in AppFolio on a work order (billing needs it; non-negotiable). AppFolio has no read API. Options: shared-WO email (PDF + photos, 18 MB cap, "No content" body) or the WO report CSV (has Job Description + Instructions text, no photos).
