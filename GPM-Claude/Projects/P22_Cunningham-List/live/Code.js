@@ -143,9 +143,13 @@ function readAssignments_() {
 // House number + first street word, ignoring punctuation and a leading
 // direction: "2201 Oakwood Ave NE, Grand Rapids" -> "2201 OAKWOOD",
 // "31 E Ash" -> "31 ASH". Sheet and AppFolio spell suffixes differently, so
-// the rest of the address is deliberately not compared.
+// the rest of the address is deliberately not compared. A house-number range
+// keeps its first number ("5924-5934 Christie" -> "5924 CHRISTIE"); stripping
+// the hyphen used to glue it into "59245934" and break the match. "O-680"
+// isn't a range, so it still becomes "O680".
 function addressKey_(addr) {
-  const t = String(addr).toUpperCase().replace(/[.,#-]/g, '').split(/\s+/).filter(Boolean);
+  const t = String(addr).toUpperCase().replace(/^(\d+)-\d+\b/, '$1')
+    .replace(/[.,#-]/g, '').split(/\s+/).filter(Boolean);
   if (!t.length) return '';
   let i = 1;
   if (['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'].includes(t[i])) i++;
@@ -201,6 +205,15 @@ function addChristieRow() {
   sh.appendRow(['Christie', '5924 Christie Ave SE, Kentwood, MI 49508', 6, 'Mike Green', '', '', '']);
   syncPublicSheet();
   Logger.log('Added 5924 Christie Ave SE and synced the Cunningham sheet.');
+}
+
+// Run once from the editor: removes 36 34th St SE (Jody). The owner sold it,
+// the tenant moved out 9/30, and it's been inactive in AppFolio since 10/21
+// (Matt, 2026-11-05). Then re-syncs the Cunningham sheet.
+function remove34thRow() {
+  removeRows_(['36 34th']);
+  syncPublicSheet();
+  Logger.log('Cunningham sheet synced.');
 }
 
 // Deletes Truth rows whose address matches one of the given keys.
