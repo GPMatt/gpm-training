@@ -154,7 +154,9 @@ Excluded entirely (owner uses own vendors):
       order) = Tech Prep. Key-return count + missing keys = Tech Prep (tech counts on build day).
       Move-out form has a "new tech items" section that adds to the tech list. Move-out form = EXCEPTIONS
       ONLY: the PMI scope + schedule are shown to Spencer for a visual check; he records only corrections
-      or missed items, no per-line confirmation.
+      or missed items, no per-line confirmation. Pests = Scope. Items left behind = Tech Prep. Rent-ready on move-out
+      form = new date + reason only if it won't hold. Photos: Scope = every damage + trade item and
+      appliance tags; Tech Prep = parts to match; Move-out = whole empty unit.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
