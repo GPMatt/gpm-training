@@ -161,6 +161,8 @@ Excluded entirely (owner uses own vendors):
       big plumbing/electrical, glass, roof) = Scope "other vendor" item, Jason books by hand. Exterior =
       Tech Prep only (Jason's fixture items). Riley marks items he couldn't check at the PMI as "not
       checked"; they show on Spencer's move-out screen. Working split: CHECKLISTS.md.
+      Proposal draft (unsent) in the "Turn schedule: workflow + open questions" thread, r-5713217730009034367:
+      asks Jason + Spencer to confirm the split and Jason's turnaround on tech duration (same day).
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
