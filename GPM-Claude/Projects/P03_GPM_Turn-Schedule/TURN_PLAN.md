@@ -150,7 +150,9 @@ Excluded entirely (owner uses own vendors):
       (2) PMI Tech Prep (Riley; Spencer fills it at cookie cutter): fix list, parts to order, tools;
       (3) Move-out / Deposit Check (Spencer alone): scope + schedule still hold, rent-ready still sensible,
       final tenant damages. Splits: damages = Spencer only; appliances (repair/replace, make+model) =
-      Scope; all trade sizing calls = Spencer.
+      Scope; all trade sizing calls = Spencer. Rekeying (lock type, parts) = Tech Prep. Blinds (count, sizes,
+      order) = Tech Prep. Move-out form has a "new tech items" section that adds to the tech list, and
+      re-lists EVERY PMI scope line as Same / Changed.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
