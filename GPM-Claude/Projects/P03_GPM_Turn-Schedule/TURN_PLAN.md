@@ -143,9 +143,9 @@ Excluded entirely (owner uses own vendors):
 - [ ] BS2: how checklist/PMI data is read back out of AppFolio (Matt researching)
 - [ ] BS3: the two checklists (scope/charge-back + tech task list), being worked in a separate agent
       session; handoff brief = CHECKLIST_HANDOFF.md
-      2026-11-05 Matt: the checklist is built as an INSPECTION FORM inside AppFolio (no custom format or
-      KEY: value design). Charge-backs: tag tenant-paid items only; untagged = owner. No per-floor-plan
-      preset tech lists yet. Now brainstorming the form's contents.
+      2026-11-05 Matt: AppFolio's inspection form CAN'T do what we need (ruled out). Back to our own
+      checklist design on the Unit Turn WO. Charge-backs: tag tenant-paid items only; untagged = owner.
+      No per-floor-plan preset tech lists yet.
 - [ ] Does Spencer's AppFolio email to the tenant count as the entry notice?
 - [ ] Jason's list of project-eligible properties (Matt collecting)
 - [ ] GPM office holiday list (Matt)
