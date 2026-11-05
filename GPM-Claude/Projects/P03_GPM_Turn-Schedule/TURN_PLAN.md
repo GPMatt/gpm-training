@@ -185,6 +185,8 @@ Excluded entirely (owner uses own vendors):
       carry every photo. Text + some photos only; full photo set stays in AppFolio.
 - [ ] RingCentral SMS: confirm API access, which numbers can text, and business-texting (10DLC/TCR)
       registration status before designing vendor texts.
+      11/5: Matt's login = Analytics only (no Admin Portal); developer portal = No_Permission.
+      Draft to Laura (unsent) asks for admin/custom role. Matt on RingCentral webinar Thu 11/12.
 - [ ] Dumpster Divers: duration asked (11/5 draft to Jody + Jason); not yet placed in the 11 steps.
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
       low-tech; Matt wants something more foolproof than a calendar invite by email. Proposal: text
