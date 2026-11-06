@@ -109,8 +109,9 @@ Excluded entirely (owner uses own vendors):
 | Tech | quick 4h (CP, W&S, 730) / basic 1d / first-time property 2-3d |
 | Paint | full 1d (default) / touch-up 4h / color change 2d / new home 2-3d |
 | Clean | 1d / heavy 2d |
-| Surface Experts | TBD |
+| Surface Experts | about 1h (glass-top resurface + stainless; Jody 11/5) |
 | Carpet cleaning | 1d |
+| Dumpster Divers | normally 1d, depends on volume (Jody 11/5) |
 
 ## Vendors (one per trade)
 | Trade | Vendor | Booking |
@@ -187,11 +188,12 @@ Excluded entirely (owner uses own vendors):
       registration status before designing vendor texts.
       11/5: Matt's login = Analytics only (no Admin Portal); developer portal = No_Permission.
       Draft to Laura (unsent) asks for admin/custom role. Matt on RingCentral webinar Thu 11/12.
-- [ ] Dumpster Divers: duration asked (11/5 draft to Jody + Jason); not yet placed in the 11 steps.
+- [ ] Dumpster Divers: duration answered (normally 1d, depends on volume; Jody 11/5). Still open: where it
+      sits in the 11 steps (likely right after PMI, before Projects).
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
       low-tech; Matt wants something more foolproof than a calendar invite by email. Proposal: text
       message (RingCentral SMS from a GPM number), reply 1 = confirm, reply DONE (+ photo) = finished;
       no reply by a deadline -> flagged on the brief. Calendar invite optional for vendors who want it.
 - [ ] Vendor contacts: Matt sends once the booking/communication method is settled. Decision: vendors
-      run off OUR calendar, not theirs (no crew-calendar logins). Surface Experts duration still TBD.
+      run off OUR calendar, not theirs (no crew-calendar logins). Surface Experts duration settled (about 1h).
 - [ ] Matt: switch the tenant tickler pull to daily (keep out of team emails)
