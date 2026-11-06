@@ -4,6 +4,24 @@ Current state as of 2026-11-05 (after the 2026-11-04 team meeting). Nothing is b
 Visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj (v7, shared "anyone with the link").
 Artifact source is kept in this folder as `turn-flow.html` (republish with the Artifact tool + that url).
 
+## 2026-11-06 MVP pivot (Matt; SUPERSEDES conflicting sections below)
+- MVP = a scheduling assistant web app for SPENCER ONLY. Spencer books every vendor himself (phone,
+  text, email). RingCentral + automated vendor email = later, not MVP. Approval gate dropped for now.
+- TRIGGER = Spencer submits the PMI Scope form (no longer the confirmed move-out). Works for 30+ days
+  out AND short-notice turns alike, so no separate under-30-days process in MVP.
+- Flow: Scope form -> scheduling assistant (system lays out the recommended/optimal schedule from the
+  locked order + durations; Spencer adjusts days, times of day, lengths and order) -> tracking.
+- All three forms stay in MVP: PMI Scope, PMI Tech Prep, Move-out / Deposit Check. All live in the web app.
+- Tech Prep form asks the tech: "how many hours do you think you'll need?"
+- NO daily brief. Instead, the same app is where Spencer checks off each turn/step as accounted for,
+  schedules, and tracks progress.
+- Schedule is interactive; per-vendor copy-to-clipboard draft message Spencer sends himself.
+- Rent-ready date visible at all times, including while editing a hypothetical schedule.
+- Progress bar per turn. Theme: cream with dark green. Calendar color-coding: by unit vs by vendor TBD.
+- Vendor contacts: not needed, on Spencer for now.
+- Dashboard exports (incl. tenant tickler) now arrive by email DAILY (Matt switched it).
+- Checklist line items: Matt + Claude draft all three, then Spencer + Jason approve by email this weekend.
+
 ## The problem
 1. The turn sheet isn't seamless.
 2. The turn process loses days; units aren't ready soon enough.
