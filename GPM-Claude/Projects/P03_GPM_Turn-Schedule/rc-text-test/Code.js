@@ -93,7 +93,7 @@ function sendTestText() {
     to: [{ phoneNumber: to }],
     text: 'GPM turn test: Unit TEST is booked for you tomorrow. Reply 1 to confirm, DONE (add a photo) when finished, STOP to opt out.'
   });
-  Logger.log('Sent. Message id %s, status %s', msg.id, msg.messageStatus);
+  Logger.log('Sent. Message id %s, status %s', String(msg.id), msg.messageStatus);
   Utilities.sleep(3000);
   const st = rc_('get', '/restapi/v1.0/account/~/extension/~/message-store/' + msg.id);
   Logger.log('Status after 3s: %s', st.messageStatus);
@@ -106,7 +106,10 @@ function checkReplies() {
   const now = new Date().toISOString();
   const data = rc_('get', '/restapi/v1.0/account/~/extension/~/message-store' +
     '?messageType=SMS&direction=Inbound&perPage=100&dateFrom=' + encodeURIComponent(since));
-  const recs = data.records || [];
+  // API returns newest first; process oldest first so the LAST STOP/START wins.
+  const recs = (data.records || []).sort(function (x, y) {
+    return new Date(x.creationTime) - new Date(y.creationTime);
+  });
   if (!recs.length) Logger.log('No new replies since %s', since);
   recs.forEach(function (m) {
     const fromNum = normalize_(m.from && m.from.phoneNumber);
