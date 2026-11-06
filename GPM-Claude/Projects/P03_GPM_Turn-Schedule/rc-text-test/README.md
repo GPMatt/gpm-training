@@ -15,9 +15,9 @@ Use a fresh app, not the hello-world sample, so it has texting permission:
 Never paste these into email, chat, or the code.
 
 ## 3. Put the same values in Apps Script
-1. script.google.com > New project, name it "RC Turn Text Test".
-2. Paste `Code.js` into `Code.gs`.
-3. Project Settings (gear) > Script Properties > add each line from `.env` as a property
+Claude built and clasp-pushed the project (owner automation@greenpropertymgt.com):
+https://script.google.com/d/1p1c6RItBZ0HrpNdtKUl2_PVm2zXBdowWUYeOLVhcg3D6aD9oFShLoGxw/edit
+1. Project Settings (gear) > Script Properties > add each line from `.env` as a property
    (same name, same value): RC_SERVER, RC_CLIENT_ID, RC_CLIENT_SECRET, RC_JWT, RC_FROM_NUMBER, TEST_TO_NUMBER.
 
 ## 4. Run (in `Code.gs`)
