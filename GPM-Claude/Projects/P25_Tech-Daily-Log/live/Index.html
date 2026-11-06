@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f3f1ea; color: #222; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; color: #2e6b3a; }
+  .sub { color: #666; margin: 0 0 16px; font-size: 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+  input, textarea { width: 100%; font-size: 16px; padding: 10px; border: 1px solid #bbb; border-radius: 8px; background: #fff; }
+  textarea { min-height: 90px; resize: vertical; }
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 14px; margin: 14px 0; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; }
+  .card-head b { color: #2e6b3a; }
+  .row { display: flex; gap: 10px; }
+  .row > div { flex: 1; }
+  .hrs { font-size: 13px; color: #666; margin-top: 6px; }
+  button { font-size: 16px; border: 0; border-radius: 8px; padding: 12px 16px; cursor: pointer; }
+  .add { width: 100%; background: #fff; border: 2px dashed #2e6b3a; color: #2e6b3a; font-weight: 600; }
+  .remove { background: none; color: #b33; padding: 4px 8px; font-size: 14px; }
+  .submit { width: 100%; background: #2e6b3a; color: #fff; font-weight: 700; margin-top: 16px; }
+  .submit:disabled { opacity: .6; }
+  .total { text-align: right; font-weight: 600; margin-top: 12px; }
+  .msg { padding: 12px; border-radius: 8px; margin-top: 12px; display: none; }
+  .err { background: #fde8e8; color: #8a1f1f; display: block; }
+  .ok { background: #e3f3e6; color: #1f5a2b; display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Daily Work Log</h1>
+  <p class="sub"><?= techName ?>: add every work order you worked on today.</p>
+
+  <div id="form">
+    <label for="workDate">Work date</label>
+    <input type="date" id="workDate" value="<?= today ?>" max="<?= today ?>">
+
+    <div id="wos"></div>
+    <button type="button" class="add" onclick="addWo()">+ Add work order</button>
+    <div class="total" id="total">Total: 0.00 hrs</div>
+    <button type="button" class="submit" id="submitBtn" onclick="submitForm()">Submit daily log</button>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<script>
+  var count = 0;
+
+  function addWo() {
+    count++;
+    var id = 'wo' + count;
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.id = id;
+    div.innerHTML =
+      '<div class="card-head"><b class="num"></b>' +
+      '<button type="button" class="remove" onclick="removeWo(\'' + id + '\')">Remove</button></div>' +
+      '<label>WO #</label><input class="f-wo" inputmode="numeric" placeholder="e.g. 12345">' +
+      '<div class="row"><div><label>Start time</label><input type="time" class="f-start"></div>' +
+      '<div><label>End time</label><input type="time" class="f-end"></div></div>' +
+      '<div class="hrs"></div>' +
+      '<label>Work done</label><textarea class="f-details" placeholder="What did you do? Parts used, what is left, etc."></textarea>';
+    document.getElementById('wos').appendChild(div);
+    div.querySelector('.f-start').addEventListener('input', updateTotals);
+    div.querySelector('.f-end').addEventListener('input', updateTotals);
+    renumber();
+  }
+
+  function removeWo(id) {
+    if (document.querySelectorAll('#wos .card').length <= 1) return;
+    document.getElementById(id).remove();
+    renumber();
+    updateTotals();
+  }
+
+  function renumber() {
+    var cards = document.querySelectorAll('#wos .card');
+    cards.forEach(function (c, i) {
+      c.querySelector('.num').textContent = 'Work order ' + (i + 1);
+      c.querySelector('.remove').style.visibility = cards.length > 1 ? 'visible' : 'hidden';
+    });
+  }
+
+  function mins(v) {
+    if (!v) return null;
+    var p = v.split(':');
+    return Number(p[0]) * 60 + Number(p[1]);
+  }
+
+  function updateTotals() {
+    var total = 0;
+    document.querySelectorAll('#wos .card').forEach(function (c) {
+      var s = mins(c.querySelector('.f-start').value), e = mins(c.querySelector('.f-end').value);
+      var out = c.querySelector('.hrs');
+      if (s !== null && e !== null) {
+        if (e > s) { var h = (e - s) / 60; total += h; out.textContent = h.toFixed(2) + ' hrs'; }
+        else out.textContent = 'End time must be after start time';
+      } else out.textContent = '';
+    });
+    document.getElementById('total').textContent = 'Total: ' + total.toFixed(2) + ' hrs';
+  }
+
+  function showMsg(text, cls) {
+    var m = document.getElementById('msg');
+    m.className = 'msg ' + cls;
+    m.textContent = text;
+  }
+
+  function submitForm() {
+    var wos = [];
+    document.querySelectorAll('#wos .card').forEach(function (c) {
+      wos.push({
+        wo: c.querySelector('.f-wo').value,
+        start: c.querySelector('.f-start').value,
+        end: c.querySelector('.f-end').value,
+        details: c.querySelector('.f-details').value
+      });
+    });
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        document.getElementById('form').innerHTML =
+          '<div class="msg ok">Submitted: ' + r.count + ' work order(s), ' + r.hours.toFixed(2) +
+          ' hrs. Thanks! You can close this page.</div>';
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Submit daily log';
+        showMsg(err.message || String(err), 'err');
+      })
+      .submitLog({ workDate: document.getElementById('workDate').value, wos: wos });
+  }
+
+  addWo();
+</script>
+</body>
+</html>
