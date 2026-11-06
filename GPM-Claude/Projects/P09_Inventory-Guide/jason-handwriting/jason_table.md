@@ -1,0 +1,120 @@
+| Bin | Part | SKU | New SKU | Qty |
+|---|---|---|---|---|
+| 1 | Battery - 2032 3V | 3008737 |  |  |
+| 1 | Battery - 9V Advanced Lithium | 3413846 |  |  |
+| 1 | Battery - 9V Alkaline | 32625 |  |  |
+| 1 | Battery - AA Alkaline (4 pk) | 32886 |  |  |
+| 1 | Battery - AAA Alkaline (4 pk) | 32327 |  |  |
+| 1 | Battery - C Alkaline (4 pk) | 34574 |  |  |
+| 1 | Battery - D Alkaline (4 pk) | 34573 |  |  |
+| 2 | Bathroom Faucet - Nickel 2-Handle Faucet | 4875530 |  | 2 |
+| 2 | Kitchen Faucet - Chrome 2-Handle w/ Sprayer | 4877353 |  | 1 |
+| 2 | Kitchen Faucet - Without Sprayer Chrome Faucet | 4876009 |  | 2 |
+| 3 | Toilet - Seat Elongated White Wood Seat | 46357 |  | 1 |
+| 3 | Toilet - Seat Round White Plastic Seat | 48076 |  | 2 |
+| 4 | Toilet - Bolt to Flange | 4208773 |  | 2 |
+| 4 | Toilet - Fill Valve PerforMAX | 4935177 |  | 0 |
+| 4 | Toilet - Flapper 2" Red Flapper | 44094 | NO.2001 | 2 |
+| 4 | Toilet - Flapper Universal 3" | 4009474 | 513A016 | 1 |
+| 4 | Toilet - Handle Chrome Tank Lever | 40415 |  | 1 |
+| 4 | Toilet - Repair Flange | 4593554 | 21015 | 1 |
+| 4 | Toilet - Rubber Hinge Repair Bolts | 40202 | (same) | 1 |
+| 4 | Toilet - Seat Bolts White Hinge Bolts | 45438 | (same) | 2 |
+| 4 | Toilet - Seat Washer | 4199584 | 247885 | 2 |
+| 4 | Toilet - Wax Ring Thick | 4027132 | (same) | 3 |
+| 5 | Sink Plumbing - Supply Line 3/8"x1/2" 20" SS | 4335212 | (same) | 4 |
+| 5 | Sink Plumbing - Supply Line 3/8"x1/2" 24" SS Faucet | 4335311 | (same) | 6 |
+| 5 | Sink Plumbing - Supply Line 3/8"x3/8" 48" SS | 4061123 | (same) | 2 |
+| 5 | Toilet - Supply Line 3/8"x7/8" 12" | 4060364 | (same) | 2 |
+| 5 | Toilet - Supply Line 3/8"x7/8" 16" | 4060380 | (same) | 3 |
+| 5 | Toilet - Supply Line 3/8"x7/8" 20" | 4060398 | (same) | 3 |
+| 6 | Kitchen Faucet - Brushed Nickel Spray Hose Guide | 4233185 | (same) | 1 |
+| 6 | Kitchen Faucet - Chrome Spray Hose Guide | 43588 | (same) | 1 |
+| 6 | Kitchen Faucet - Delta/Moen Pull-Out Spray Hose | 4903738 | (same) | 1 |
+| 6 | Kitchen Faucet - White Kitchen Sprayer | 4070843 |  | 1 |
+| 6 | Kitchen Sink - 1-3/4" SS Sink Hole Cover | 4238911 | (same) | 1 |
+| 6 | Kitchen Sink - 1/4" Clips Pop Up | 4568663 |  |  |
+| 6 | Kitchen Sink - Sprayer Handle Brushed Nickel | 4563664 | (same) | 1 |
+| 6 | Kitchen Sink - Strainer Basket Stainless | 4165189 |  | 1 |
+| 6 | Kitchen Sink Plumbing - Sink Clips | 4563920 |  | 1 |
+| 6 | Sink Faucet - Chrome Nickel Drain Rod & Strap | 4230975 |  | 2 |
+| 7 | Sink Faucet - Aerator 15/16"x55/64" Brushed Nickel | 4564241 |  | 2 |
+| 7 | Sink Faucet - Aerator 15/16"x55/64" Chrome Adapter | 4563961 |  | 2 |
+| 7 | Sink Faucet - Aerator 3/16" & 55/64" Black Aerator Repair Kit | 4586947 |  | 2 |
+| 7 | Sink Faucet - Aerator 55/64" Brushed Nickel | 4564183 |  | 2 |
+| 7 | Sink Faucet - Aerator 55/64" Chrome | 4564209 |  | 1 |
+| 8 | Kitchen Sink - Single Handle Delta Repair Kit | 45503 |  |  |
+| 8 | Shower Faucet - Delta RP46074 Cartridge | 4390985 | RP46074 | 1 |
+| 8 | Shower Faucet - Delta Single Handle Cartridge | 4007552 | (same) | 1 |
+| 8 | Shower Faucet - Moen Cartridge | 4201497 | 1225 | 2 |
+| 8 | Sink Faucet - Delta Seats & Springs | 43086 | RP4993E | 4 |
+| 8 | Sink Faucet - Glacier Bay 3S-11C Stem | 4561890 |  | 1 |
+| 8 | Sink Faucet - Glacier Bay 3S-12C Stem | 4562336 |  | 1 |
+| 8 | Sink Faucet - Glacier Bay 3S-9H/C Stem | 4562005 |  | 1 |
+| 8 | Sink Faucet - Glacier Bay Hot Stem | 4561908 |  | 1 |
+| 8 | Sink Faucet - Single Handle Rubber Repair Kit | 40124 | RP3614A | 2 |
+| 8 | Sink Faucet - Stem Delta H/C | 4561916 |  | 4 |
+| 9 | Shower - 2" Chrome Tub Stopper | 4007587 |  | 2 |
+| 9 | Shower - 2-1/8"x3-3/16" Overflow Plate Gasket | 4007568 |  | 1 |
+| 10 | Bathroom Faucet - 1-1/4" Drain Pop Up | 45947 |  | 2 |
+| 10 | Bathroom Faucet - 1-3/16" Chrome Pop-Up Plunger | 42296 |  | 1 |
+| 10 | Bathroom Faucet - Pop Up Rod 1-1/2" Metal Pop- Up Rod | 4230496 | (same) | ⚠️ ? |
+| 11 | Shower Faucet - Delta Chrome Tub/Shower Handle | 4265583 | 100710 | ⚠️ ? |
+| 11 | Shower Faucet - Delta Clear Tub/Shower Handles | 4200259 |  | 2 |
+| 11 | Shower Faucet - Handle Delta Chrome Tub | 4007546 |  | ⚠️ ? |
+| 11 | Sink Faucet - Delta Clear Handle Set H/C | 43518 |  | ⚠️ ? |
+| 12 | Sink Plumbing - Plastic 1-1/2" Washer | 43795 |  | 0 |
+| 12 | Sink Plumbing - Plastic 1-1/4" Rubber Washer | 45219 |  | 1 |
+| 13 | Kitchen Sink Plumbing - Plastic 1-1/2" Garbage Disposal Install Kit | 4009623 |  | 1 |
+| 13 | Sink Plumbing - Plastic 1-1/2" Coupling | 4223491 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/2" Plastic 90 Deg Elbow | 48891 |  | 1 |
+| 13 | Sink Plumbing - Plastic 1-1/2" Plastic P-Trap | 48280 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/2" Plastic Sink Trap | 48282 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/2"x16" End Outlet | 48284 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/2"x16" Poly Extension Tube | 4223111 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/4"x12" Poly Extension Tube | 4223715 |  | 2 |
+| 13 | Sink Plumbing - Plastic 1-1/4"x20-1/2" Plastic S- Trap | 43695 |  | 2 |
+| 14 | Smoke Detector - Battery, Smoke & Carbon | 5050136 |  | 4 |
+| 14 | Smoke Detector - Battery, Smoke Only | 5050089 |  | 3 |
+| 14 | Smoke Detector - Hard-Wired, Smoke & Carbon | 5050065 |  | 1 |
+| 14 | Smoke Detector - Hard-Wired, Smoke Only | 5050051 |  | 1 |
+| 15 | Electric - 1-Old Work 1 Gang | 3272192 | E2215O | ⚠️ ? |
+| 15 | Electric - 2-Old Work 2 Gang | 3280955 |  | 2 |
+| 16 | Electric - 1-Blank Plate, Ivory | 3007267 | 001-PJ13-1 | 2 |
+| 16 | Electric - 1-Outlet Plate Decorator, Ivory | 3202389 | 020-80401-1 | 5 |
+| 16 | Electric - 2-Decorator/Outlet Wall Plate, Ivory | 3202413 | 001-80455-1 | 2 |
+| 16 | Electric - 2-Outlet Plate Decorator, Ivory | 3202397 | 001-80409-1 | 2 |
+| 16 | Electric - 2-Outlet/Switch Plate Decorator, Ivory | 3202405 | 001-80405-1 | 2 |
+| 17 | Electric - 15A AFCI Outlet, Ivory | 3500162 | AFTR1-KI | 2 |
+| 18 | Electric - 15A Outlet Decorator, Ivory | 31034 | ⚠️ ? | 2 |
+| 18 | Electric - 15A Outlet, Ivory | 3201605 | 5320ICP | 1 |
+| 18 | Electric - 15A Single Pole Toggle Switch, Ivory | 3201811 | 1451-2I | 3 |
+| 18 | Electric - 15A Switch, Decorative Ivory | 31037 | 5601-2IS | 3 |
+| 19 | Electric - 1-Blank Plate, White | 3202181 | 001-88014 | 2 |
+| 19 | Electric - 1-Outlet Plate, White | 3007226 | 922-PJ8-W | 6 |
+| 19 | Electric - 1-Switch Wall Plate, White | 3202199 | 020-88001 | 4 |
+| 19 | Electric - 2-Outlet Wall Plate, White | 3202231 | 001-88016 |  |
+| 19 | Electric - 2-Switch Plate, White | 3007218 | 002-00PJ2-00W | 2 |
+| 19 | Electric - 2-Switch/Outlet Plate, White | 3202249 | 001-88005 | 2 |
+| 20 | Electric - 15A GFCI Outlet, White | 3534120 | GFNL1-W | 3 |
+| 20 | Electric - 20A AFCI Outlet, White | 3809464 | AFTR2-KW | 2 |
+| 21 | Electric - 15A Decorative Switch, White | 31036 | ⚠️ ? | 5 |
+| 21 | Electric - 15A Decorator Outlet, White | 31035 | 5325-WS |  |
+| 21 | Electric - 15A Outlet, White | 3201613 | 5320-WCP |  |
+| 21 | Electric - 15A Switch, White | 3201829 | 1451-2W |  |
+| 22 | Door - Back Plate Chrome Steel Lock Back Plate | 5622386 |  | 0 |
+| 22 | Door - Bright Brass Surface Lock | 5300587 |  | 1 |
+| 22 | Door - Chain Brass | 50400 | 5045598 |  |
+| 22 | Door - Peep Hole Satin Brass Door Viewer 160 Deg | 5395579 |  | 1 |
+| 22 | Door - Screen Door Closer Black | 5299516 |  | 1 |
+| 22 | Door - Wall Protector Ivory 5" | 5107859 | U-9268 | 1 |
+| 22 | Window - Lock Pining Plastic | 59132 | 504665 | 1 |
+| 22 | Window - Pin Security Pin Metal | 5302211 |  | 4 |
+| 23 | Door - Door Handle Passage Satin Knob | 5238548 |  | 1 |
+| 23 | Door - Heritage Hill Brass Replacement Knobs | 50361 |  | 1 |
+| 23 | Door - Heritage Hill Old Interior Lock Mortise Lockset 1-3/4" | 50021 | 5045676 |  |
+| 23 | Door - Passage Handle Lever 1-3/4" | 5366703 | 5060393 |  |
+| 23 | Door - Schlage Deadbolt | 5215033 |  | 0 |
+| 24 | Door - Door Seal White Aluminum 84" | 5967955 |  | 1 |
+| 24 | Door - Door Sweep White 36" | 5315544 |  | 1 |
+| 25 | Kitchen Sink Plumbing - Garbage Disposal | 47982 |  | 1 |
