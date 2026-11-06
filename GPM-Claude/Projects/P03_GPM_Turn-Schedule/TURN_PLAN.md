@@ -28,6 +28,12 @@ Artifact source is kept in this folder as `turn-flow.html` (republish with the A
   (jsonb forms, db/001_turn_app.sql). Property/unit dropdowns from dim_property / dim_unit.
 - BUILT 2026-11-06, deployed @1 (app/README.md has URLs + setup). Engine tests: app-test/.
   Draft field lists live in app/Config.html FORMS (Tech Prep seeded from Jason's TURN checklist 2026).
+- 11/6 later (deploy @3): times = 10-minute dropdowns (6 AM-9 PM); Gantt bars clickable (details, the
+  vendor's other jobs that day across all turns, "Vendor confirmed" button); status "Booked" renamed
+  "Confirmed". Tech Prep checked line by line vs Jason's TURN checklist 2026: added N/A state, split
+  entry lock / 2 key min, furnace filter size, key + remote counts left in unit.
+- Draft email "Turn checklists: three forms to review" to Spencer + Jason (r-2496726761636172035,
+  UNSENT): all three forms itemized, replies by Monday, Jason in person Wednesday.
 - MVP choices (change if wrong): rent ready = last day of work; "ready 1+ business day before
   move-in" shown green, else red (no alerts). Dumpster Divers = "Trash-out", first build step
   (provisional). Quality check (visit 3) shown on calendar on the tech's last day. Move-out form
