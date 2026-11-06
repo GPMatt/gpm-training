@@ -206,6 +206,8 @@ Excluded entirely (owner uses own vendors):
       ReadMessages). Local read-only check: login OK; Matt's direct +16163031061 = SmsSender + MMS
       (texting ON, registration evidently in place). +16167194460 and main 866 line = no texting.
       GAS test project "RC Turn Text Test" (rc-text-test/, clasp-pushed, owner automation@).
+      11/5 8:54pm END-TO-END TEST PASSED: sendTestText -> Matt's cell; replies read back by
+      checkReplies: "1" = CONFIRMED, "DONE" + 1 photo = DONE. Not yet tested: STOP/START, 5-min trigger.
 - [ ] Dumpster Divers: duration answered (normally 1d, depends on volume; Jody 11/5). Still open: where it
       sits in the 11 steps (likely right after PMI, before Projects).
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
