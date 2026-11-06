@@ -202,6 +202,10 @@ Excluded entirely (owner uses own vendors):
          Apps Script web apps can't set response headers. Recommend GAS polling the message store
          every 5 min instead (no webhook, no new server).
       f) STOP / UNSUBSCRIBE replies: carriers block further texts; the tool must track opt-outs too.
+      11/5 8:30pm: app "GPM Turn Text" (private, JWT, live in production; scopes SMS, ReadAccounts,
+      ReadMessages). Local read-only check: login OK; Matt's direct +16163031061 = SmsSender + MMS
+      (texting ON, registration evidently in place). +16167194460 and main 866 line = no texting.
+      GAS test project "RC Turn Text Test" (rc-text-test/, clasp-pushed, owner automation@).
 - [ ] Dumpster Divers: duration answered (normally 1d, depends on volume; Jody 11/5). Still open: where it
       sits in the 11 steps (likely right after PMI, before Projects).
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
