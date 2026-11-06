@@ -21,6 +21,18 @@ Artifact source is kept in this folder as `turn-flow.html` (republish with the A
 - Vendor contacts: not needed, on Spencer for now.
 - Dashboard exports (incl. tenant tickler) now arrive by email DAILY (Matt switched it).
 - Checklist line items: Matt + Claude draft all three, then Spencer + Jason approve by email this weekend.
+- Calendar color = BY TRADE (fixed color per step), unit name printed on every block + unit filter.
+- Jason's "Apartment Turn Schedule" sheet: NO migration (free-text, merged rows, Jason edits it live,
+  Matt has view-only). It keeps running; new turns start in the app. Win on ease, not force.
+- Stack: GAS web app (automation@, domain access) + Supabase tables p03_turns / p03_turn_settings
+  (jsonb forms, db/001_turn_app.sql). Property/unit dropdowns from dim_property / dim_unit.
+- BUILT 2026-11-06, deployed @1 (app/README.md has URLs + setup). Engine tests: app-test/.
+  Draft field lists live in app/Config.html FORMS (Tech Prep seeded from Jason's TURN checklist 2026).
+- MVP choices (change if wrong): rent ready = last day of work; "ready 1+ business day before
+  move-in" shown green, else red (no alerts). Dumpster Divers = "Trash-out", first build step
+  (provisional). Quality check (visit 3) shown on calendar on the tech's last day. Move-out form
+  "rent ready holds? No" records a reason only; the date always follows the schedule. Photos stay
+  on the AppFolio WO (checkbox only, no uploads in the app).
 
 ## The problem
 1. The turn sheet isn't seamless.

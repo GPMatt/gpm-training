@@ -1,0 +1,960 @@
+<script>
+(function () {
+  'use strict';
+  var E = Engine;
+  var S = {
+    settings: null, turns: [], props: null, units: {}, user: '',
+    view: 'turns', turnId: null, tab: 'schedule',
+    calMonth: null, calUnit: '',
+    form: null, formKey: null, formDirty: false,
+    undo: [], saveTimer: null, saving: 0, saveMsg: '', saveErr: false
+  };
+
+  // ---------- utils ----------
+  function esc(v) { return v == null ? '' : String(v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(s, r) { return (r || document).querySelector(s); }
+  function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
+  function today() { return E.iso(new Date()); }
+  function cat() { return S.settings.catalog; }
+  function catBy(k) { for (var i = 0; i < cat().length; i++) if (cat()[i].key === k) return cat()[i]; return null; }
+  function color(k) { var c = catBy(k); return c ? c.color : '#888'; }
+  function turnById(id) { for (var i = 0; i < S.turns.length; i++) if (S.turns[i].id === id) return S.turns[i]; return null; }
+  function cur() { return turnById(S.turnId); }
+  function nowTime() { var d = new Date(); return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+
+  function call(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (res, rej) {
+      var r = google.script.run.withSuccessHandler(res).withFailureHandler(function (e) { rej(e && e.message ? e : new Error(String(e))); });
+      r[fn].apply(r, args);
+    });
+  }
+
+  function toast(msg, err) {
+    document.querySelectorAll('.toast').forEach(function (x) { x.remove(); });
+    var t = document.createElement('div');
+    t.className = 'toast' + (err ? ' err' : '');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.remove(); }, err ? 5000 : 2200);
+  }
+
+  function copyText(text) {
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      return ok;
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallback(); });
+    }
+    return Promise.resolve(fallback());
+  }
+
+  // ---------- settings ----------
+  function mergeSettings(saved) {
+    var s = clone(DEFAULT_SETTINGS);
+    if (!saved) return s;
+    Object.keys(saved).forEach(function (k) { s[k] = saved[k]; });
+    if (!s.catalog || !s.catalog.length) s.catalog = clone(DEFAULT_SETTINGS.catalog);
+    s.contacts = s.contacts || {};
+    return s;
+  }
+
+  // ---------- turn model ----------
+  function prepTurn(t) {
+    t.scope = t.scope || {};
+    t.steps = t.steps || [];
+    recompute(t);
+    return t;
+  }
+
+  function techHours(t) { return t.tech_prep && Number(t.tech_prep.tech_hours) || 0; }
+
+  function recompute(t) {
+    var r = E.layout(t.steps, t.move_out_date, cat());
+    t._warnings = r.warnings;
+    t._first = r.firstBuildDay;
+    t.rent_ready_date = r.rentReady;
+    t.stage = stageOf(t);
+    return t;
+  }
+
+  function stageOf(t) {
+    if (t.stage === 'ready') return 'ready';
+    var pr = E.progress(t.steps);
+    if (t.move_out_date && today() > t.move_out_date) return 'in_progress';
+    if (pr.total && pr.booked + pr.done === pr.total) return 'booked';
+    return 'scheduling';
+  }
+  var STAGE_LABEL = { scheduling: 'Scheduling', booked: 'All booked', in_progress: 'In progress', ready: 'Rent ready' };
+
+  function payload(t) {
+    var o = {};
+    Object.keys(t).forEach(function (k) { if (k.charAt(0) !== '_') o[k] = t[k]; });
+    return o;
+  }
+
+  function queueSave(t) {
+    recompute(t);
+    S.saveMsg = 'Saving…'; S.saveErr = false; paintSave();
+    clearTimeout(S.saveTimer);
+    S.saveTimer = setTimeout(function () { saveNow(t); }, 900);
+  }
+
+  function saveNow(t) {
+    S.saving++;
+    return call('apiSaveTurn', payload(t)).then(function (row) {
+      S.saving--;
+      t.updated_at = row.updated_at;
+      if (!t.id) t.id = row.id;
+      S.saveMsg = 'Saved ' + nowTime(); S.saveErr = false; paintSave();
+      return t;
+    }, function (e) {
+      S.saving--;
+      S.saveMsg = 'Not saved: ' + e.message; S.saveErr = true; paintSave();
+      toast('Could not save. ' + e.message, true);
+      throw e;
+    });
+  }
+
+  function paintSave() {
+    var el = $('#savestate');
+    if (el) { el.textContent = S.saveMsg; el.className = 'savestate' + (S.saveErr ? ' err' : ''); }
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (S.saving || S.saveTimer && S.saveMsg === 'Saving…' || S.formDirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  function pushUndo(t) {
+    var snap = JSON.stringify({ id: t.id, steps: t.steps, trades: t.scope.trades });
+    if (S.undo[S.undo.length - 1] === snap) return;
+    S.undo.push(snap);
+    if (S.undo.length > 40) S.undo.shift();
+  }
+
+  // ---------- shared bits ----------
+  function unitTitle(t) { return t.unit_label ? t.unit_label : 'Whole property'; }
+  function shortProp(t) { return (t.property_label || '').replace(/\s+(Grand Rapids|Wyoming|Zeeland|Grandville|Kentwood|Walker|Ada).*$/i, ''); }
+  function calLabel(t) { var p = shortProp(t).replace(/\s+(St|Ave|Dr|Rd|Blvd|Ct|Pl)\b.*$/i, ''); return p + (t.unit_label ? ' ' + t.unit_label : ''); }
+
+  function bufferHtml(t, cls) {
+    var b = E.buffer(t.rent_ready_date, t.move_in_date);
+    if (!t.move_in_date) return '<' + cls + ' class="buf none">No move-in date yet</' + cls + '>';
+    if (!b) return '';
+    if (b.ok) return '<' + cls + ' class="buf ok">✓ ' + b.days + ' business day' + (b.days === 1 ? '' : 's') + ' before move-in</' + cls + '>';
+    if (b.days === 0) return '<' + cls + ' class="buf bad">Same day as move-in</' + cls + '>';
+    return '<' + cls + ' class="buf bad">' + (-b.days) + ' business day' + (b.days === -1 ? '' : 's') + ' after move-in</' + cls + '>';
+  }
+
+  function progressHtml(t, big) {
+    var p = E.progress(t.steps);
+    var segs = t.steps.length ? t.steps.map(function (s) {
+      return '<div class="prog-seg ' + s.status + '" style="--c:' + color(s.key) + '" title="' + esc(s.label + ': ' + (s.status === 'open' ? 'not booked' : s.status)) + '"></div>';
+    }).join('') : '<div class="prog-seg"></div>';
+    return '<div class="prog' + (big ? ' big' : '') + '"><div class="prog-bar">' + segs + '</div>' +
+      '<div class="prog-txt"><span>' + p.done + ' of ' + p.total + ' done · ' + p.booked + ' booked</span><b>' + p.pct + '%</b></div></div>';
+  }
+
+  function formChips(t) {
+    function c(label, done) { return '<span class="chip' + (done ? ' done' : '') + '">' + (done ? '✓ ' : '') + label + '</span>'; }
+    return '<div class="chips">' + c('Scope', true) + c('Tech prep', t.tech_prep && t.tech_prep.submitted_at) +
+      c('Move-out check', t.move_out_check && t.move_out_check.submitted_at) + '</div>';
+  }
+
+  function nextAction(t) {
+    if (t.stage === 'ready') return 'Rent ready';
+    for (var i = 0; i < t.steps.length; i++) if (t.steps[i].status === 'open') return 'Book ' + t.steps[i].label + (t.steps[i].vendor ? ' (' + t.steps[i].vendor + ')' : '') + ' for ' + E.fmt(t.steps[i].start);
+    var td = today();
+    for (var j = 0; j < t.steps.length; j++) if (t.steps[j].status !== 'done' && t.steps[j].end >= td) return 'Next on site: ' + t.steps[j].label + ', ' + E.fmt(t.steps[j].start);
+    if (t.steps.length && E.progress(t.steps).done === t.steps.length) return 'All steps done. Mark rent ready.';
+    return 'Everything is booked';
+  }
+
+  // ---------- router ----------
+  function go(view, opts) {
+    if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return;
+    S.formDirty = false; S.form = null; S.formKey = null;
+    S.view = view;
+    if (opts && opts.turnId !== undefined) { S.turnId = opts.turnId; S.undo = []; }
+    if (opts && opts.tab) S.tab = opts.tab;
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function render() {
+    document.querySelectorAll('#nav button').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.nav === S.view || (S.view === 'turn' && b.dataset.nav === 'turns'));
+    });
+    var main = $('#main');
+    var fid = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.fid;
+    var html;
+    if (S.view === 'turns') html = viewTurns();
+    else if (S.view === 'calendar') html = viewCalendar();
+    else if (S.view === 'settings') html = viewSettings();
+    else if (S.view === 'new') html = viewNew();
+    else if (S.view === 'turn') html = viewTurn();
+    main.innerHTML = html;
+    if (fid) { var el = main.querySelector('[data-fid="' + fid + '"]'); if (el) el.focus(); }
+    paintSave();
+  }
+
+  // ---------- Turns board ----------
+  function viewTurns() {
+    var open = S.turns.filter(function (t) { return t.stage !== 'ready'; });
+    var ready = S.turns.filter(function (t) { return t.stage === 'ready'; });
+    var counts = { scheduling: 0, booked: 0, in_progress: 0, ready: ready.length };
+    open.forEach(function (t) { counts[t.stage] = (counts[t.stage] || 0) + 1; });
+    var h = '<div class="page-head"><h1>Turns</h1><div class="sub">' + open.length + ' open</div><div class="spacer"></div>' +
+      '<button class="btn primary" data-act="new-turn">+ New turn from PMI scope</button></div>';
+    if (!S.turns.length) {
+      return h + '<div class="empty"><h2>No turns yet</h2><p>A turn starts when you submit the PMI Scope form.<br>The schedule is built for you right after.</p>' +
+        '<button class="btn primary" data-act="new-turn">Start a PMI scope</button></div>';
+    }
+    h += '<div class="stats">' + ['scheduling', 'booked', 'in_progress', 'ready'].map(function (k) {
+      return '<div class="stat"><span>' + STAGE_LABEL[k] + '</span><b>' + counts[k] + '</b></div>';
+    }).join('') + '</div>';
+    h += '<div class="grid">' + open.map(card).join('') + '</div>';
+    if (ready.length) h += '<div class="section-title">Rent ready</div><div class="grid">' + ready.map(card).join('') + '</div>';
+    return h;
+  }
+
+  function card(t) {
+    return '<div class="card" data-open="' + t.id + '">' +
+      '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(unitTitle(t)) + '</div>' +
+      '<div class="card-prop">' + esc(shortProp(t)) + '</div></div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
+      '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
+      '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
+      progressHtml(t) +
+      '<div class="next">→ ' + esc(nextAction(t)) + '</div>' + formChips(t) +
+      (t.stage === 'ready' ? '<div><button class="btn sm" data-act="archive" data-id="' + t.id + '">Archive</button></div>' : '') +
+      '</div>';
+  }
+
+  // ---------- Turn page ----------
+  function viewTurn() {
+    var t = cur();
+    if (!t) return '<div class="empty"><h2>Turn not found</h2><button class="btn" data-nav="turns">Back to turns</button></div>';
+    var tabs = [['schedule', 'Schedule', true], ['scope', 'Scope', true],
+      ['techprep', 'Tech Prep', t.tech_prep && t.tech_prep.submitted_at], ['moveout', 'Move-out check', t.move_out_check && t.move_out_check.submitted_at]];
+    var head = '<div class="turn-head"><div class="th-row">' +
+      '<button class="btn sm ghost" data-nav="turns">← Turns</button>' +
+      '<div><h1 class="th-unit">' + esc(unitTitle(t)) + ' <span class="pill ' + t.stage + '" style="vertical-align:middle">' + STAGE_LABEL[t.stage] + '</span></h1>' +
+      '<div class="th-prop">' + esc(t.property_label) + (t.af_wo_number ? ' · WO ' + esc(t.af_wo_number) : '') + (t.scope.walk_type ? ' · ' + esc(t.scope.walk_type.split(' (')[0]) : '') + '</div></div>' +
+      '<div class="th-dates">' +
+      '<div class="kv"><span>Move-out</span><b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></div>' +
+      '<div class="rrbox" id="rrbox"><span>Rent ready</span><b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'em') + '</div>' +
+      '<div class="kv"><span>Move-in</span><b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
+      '</div></div>' +
+      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' +
+      '<div class="tabs">' + tabs.map(function (x) {
+        return '<button data-tab="' + x[0] + '" class="' + (S.tab === x[0] ? 'on' : '') + '">' + x[1] + (x[2] ? '<span class="tick">✓</span>' : '') + '</button>';
+      }).join('') + '</div></div>';
+    var body;
+    if (S.tab === 'schedule') body = viewSchedule(t);
+    else body = viewForm(S.tab, t);
+    var b = E.buffer(t.rent_ready_date, t.move_in_date);
+    var flt = '<div class="rr-float' + (b && !b.ok ? ' bad' : '') + '">Rent ready <b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'span') + '</div>';
+    return head + body + flt;
+  }
+
+  // ---------- Schedule ----------
+  function viewSchedule(t) {
+    var h = '<div class="toolbar">' +
+      '<button class="btn sm" data-act="recommended" title="Clear the dates you set by hand and lay out the best schedule in the standard order">↺ Recommended schedule</button>' +
+      '<button class="btn sm" data-act="undo"' + (S.undo.length ? '' : ' disabled') + '>Undo</button>' +
+      '<button class="btn sm" data-act="copy-all">Copy whole schedule</button>' +
+      (t.stage === 'ready' ? '<button class="btn sm" data-act="unready">Reopen turn</button>'
+        : '<button class="btn sm" data-act="mark-ready">Mark rent ready</button>') +
+      '<button class="btn sm ghost danger" data-act="archive" data-id="' + t.id + '">Archive</button>' +
+      '<span class="savestate" id="savestate"></span></div>';
+    if (t._warnings && t._warnings.length) h += '<div class="warns">' + t._warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>';
+
+    // before move-out
+    var sc = t.scope;
+    h += '<div class="panel"><h3>Before move-out</h3><div class="pre-row">' +
+      '<span>PMI: <b>' + (sc.pmi_date ? E.fmt(sc.pmi_date) + (sc.pmi_time ? ', ' + E.fmtTime(sc.pmi_time) : '') : 'not set') + '</b></span>' +
+      '<span>Tech prep: <b>' + (t.tech_prep && t.tech_prep.submitted_at ? 'done (' + techHours(t) + ' h estimate)' : 'not done yet') + '</b></span>' +
+      (sc.project ? '<span>Project estimate (Jason): <span class="seg">' + ['open', 'done'].map(function (s) {
+        return '<button class="' + ((sc.project_status || 'open') === s ? 'on ' + (s === 'done' ? 'done' : 'open') : '') + '" data-act="project-status" data-v="' + s + '">' + (s === 'done' ? 'Done' : 'Open') + '</button>';
+      }).join('') + '</span></span>' : '') +
+      '<span>Move-out walk: <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span>' +
+      '</div></div>';
+
+    if (!t.steps.length) {
+      h += '<div class="empty"><h2>No build steps</h2><p>The scope has no trades picked. Add one below or edit the Scope tab.</p></div>';
+    } else {
+      h += gantt(t);
+      h += '<div class="steps">' + t.steps.map(function (s, i) { return stepRow(t, s, i); }).join('') + '</div>';
+    }
+    var have = {}; t.steps.forEach(function (s) { have[s.key] = 1; });
+    var missing = cat().filter(function (c) { return !have[c.key]; });
+    if (missing.length) {
+      h += '<div class="addrow">Not needed: ' + missing.map(function (c) {
+        return '<button style="--c:' + c.color + '" data-act="add-step" data-k="' + c.key + '">+ ' + esc(c.label) + '</button>';
+      }).join('') + '</div>';
+    }
+    return h;
+  }
+
+  function gantt(t) {
+    var first = t._first;
+    if (!first) return '';
+    var startDay = first, endDay = t.rent_ready_date || first;
+    t.steps.forEach(function (s) { if (s.start < startDay) startDay = s.start; if (s.end > endDay) endDay = s.end; });
+    if (t.move_in_date && t.move_in_date > endDay) endDay = E.rollBiz(t.move_in_date);
+    var days = E.bizDaysInRange(startDay, endDay).slice(0, 45);
+    var idx = {}; days.forEach(function (d, i) { idx[d] = i; });
+    var mi = t.move_in_date ? E.rollBiz(t.move_in_date) : null;
+    var cols = '150px repeat(' + days.length + ', minmax(38px, 1fr))';
+    var h = '<div class="gantt-wrap"><div class="gantt" style="grid-template-columns:' + cols + '">';
+    h += '<div class="g-h" style="text-align:left;padding-left:10px">Step</div>' + days.map(function (d) {
+      var dt = E.parse(d);
+      var cls = d === mi ? ' mi' : d === t.rent_ready_date ? ' rr' : '';
+      return '<div class="g-h' + cls + '" title="' + (d === mi ? 'Move-in' : d === t.rent_ready_date ? 'Rent ready' : '') + '">' + 'SMTWTFS'.charAt(dt.getDay()) + '<br>' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div>';
+    }).join('');
+    t.steps.forEach(function (s, r) {
+      var row = r + 2;
+      h += '<div class="g-lab" style="grid-row:' + row + '">' + esc(s.label) + '</div>';
+      days.forEach(function (d, i) { h += '<div class="g-cell' + (d === mi ? ' mi' : '') + '" style="grid-row:' + row + ';grid-column:' + (i + 2) + '"></div>'; });
+      var a = idx[s.start], b = idx[s.end];
+      if (a == null && b == null) return;
+      a = a == null ? 0 : a; b = b == null ? days.length - 1 : b;
+      h += '<div class="g-bar ' + s.status + '" style="--c:' + color(s.key) + ';background:' + color(s.key) + ';grid-row:' + row + ';grid-column:' + (a + 2) + '/' + (b + 3) + '" title="' + esc(s.label + ' ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '')) + '">' +
+        (s.status === 'done' ? '✓ ' : '') + esc(s.vendor || s.label) + '</div>';
+      if (s.cure) {
+        var cureDay = E.addBiz(s.end, 1);
+        if (idx[cureDay] != null) h += '<div class="g-cure" style="grid-row:' + row + ';grid-column:' + (idx[cureDay] + 2) + '/' + (idx[cureDay] + 3) + '">cure</div>';
+      }
+    });
+    return h + '</div></div>';
+  }
+
+  function stepRow(t, s, i) {
+    var c = catBy(s.key) || { sizes: [] };
+    var contact = S.settings.contacts[s.vendor] || {};
+    var when = s.start ? E.fmt(s.start) + (s.days > 1 ? ' → ' + E.fmt(s.end) : '') + (s.time ? ' · ' + E.fmtTime(s.time) : '') : '';
+    return '<div class="step ' + s.status + '" style="--c:' + color(s.key) + '" data-i="' + i + '">' +
+      '<div class="step-title"><span class="n">' + (i + 1) + '</span><b>' + esc(s.label) + '</b><span class="when">' + when + '</span>' +
+      (s.pinned ? '<button class="pin" data-act="unpin" data-i="' + i + '" title="You set this date. Click to let the system place it again.">📌 set by you · auto</button>' : '') +
+      (s.fromTechPrep ? '<span class="chip">' + s.hours + ' h from tech prep</span>' : '') + '</div>' +
+      '<div class="step-side"><div class="seg" title="Status">' + [['open', 'Not booked'], ['booked', 'Booked'], ['done', 'Done']].map(function (x) {
+        return '<button class="' + (s.status === x[0] ? 'on ' + x[0] : '') + '" data-act="status" data-v="' + x[0] + '" data-i="' + i + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      '<button class="iconbtn" data-act="up" data-i="' + i + '" title="Move earlier"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+      '<button class="iconbtn" data-act="down" data-i="' + i + '" title="Move later"' + (i === t.steps.length - 1 ? ' disabled' : '') + '>↓</button>' +
+      '<button class="iconbtn" data-act="remove-step" data-i="' + i + '" title="Not needed">✕</button></div>' +
+      '<div class="step-fields">' +
+      '<label class="f"><span>Size</span><select data-ed="size" data-i="' + i + '" data-fid="sz' + i + '">' + c.sizes.map(function (z) {
+        return '<option value="' + esc(z.id) + '"' + (z.id === s.size ? ' selected' : '') + '>' + esc(z.label) + '</option>';
+      }).join('') + '</select></label>' +
+      '<label class="f w-vendor"><span>Vendor</span><input type="text" data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '" value="' + esc(s.vendor) + '"></label>' +
+      '<label class="f w-date"><span>Day</span><input type="date" data-ed="start" data-i="' + i + '" data-fid="d' + i + '" value="' + esc(s.start || '') + '"></label>' +
+      '<label class="f w-time"><span>Time</span><input type="time" data-ed="time" data-i="' + i + '" data-fid="t' + i + '" value="' + esc(s.time || '') + '"></label>' +
+      '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
+      '<label class="f w-num"><span>Hours</span><input type="number" min="0.5" step="0.5" data-ed="hours" data-i="' + i + '" data-fid="h' + i + '" value="' + esc(s.hours) + '"></label>' +
+      '<label class="f grow"><span>Scope note (goes in the message)</span><input type="text" data-ed="note" data-i="' + i + '" data-fid="o' + i + '" value="' + esc(s.note) + '"></label>' +
+      '<div class="f"><span>&nbsp;</span><button class="btn sm primary" data-act="message" data-i="' + i + '">✉ Vendor message</button></div>' +
+      (contact.phone || contact.email ? '<div class="f"><span>&nbsp;</span><span style="font-size:12px;color:var(--muted);padding-top:8px">' + esc([contact.phone, contact.email].filter(Boolean).join(' · ')) + '</span></div>' : '') +
+      '</div></div>';
+  }
+
+  function messageFor(t, s) {
+    return E.vendorMessage(S.settings.template, {
+      vendor: (s.vendor || '').split(' / ')[0], trade: s.label.toLowerCase() + (s.sizeLabel ? ' (' + s.sizeLabel.replace(/\s*\(.*\)/, '').toLowerCase() + ')' : ''),
+      address: shortProp(t), unit: t.unit_label ? 'Unit ' + t.unit_label : '',
+      date: E.fmt(s.start), time: E.fmtTime(s.time), length: E.lengthText(s),
+      scope: s.note || '', access: t.scope.access || ''
+    });
+  }
+
+  function scheduleText(t) {
+    var lines = [shortProp(t) + (t.unit_label ? ' Unit ' + t.unit_label : '') + ' turn schedule',
+      'Move-out: ' + E.fmt(t.move_out_date) + ' · Rent ready: ' + E.fmt(t.rent_ready_date) + (t.move_in_date ? ' · Move-in: ' + E.fmt(t.move_in_date) : ''), ''];
+    t.steps.forEach(function (s, i) {
+      lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
+        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + ({ open: 'not booked', booked: 'booked', done: 'done' })[s.status] + ']');
+    });
+    return lines.join('\n');
+  }
+
+  function openMessage(t, i) {
+    var s = t.steps[i];
+    var contact = S.settings.contacts[s.vendor] || {};
+    var msg = messageFor(t, s);
+    var ov = $('#overlay');
+    ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal">' +
+      '<h3>' + esc(s.label) + ' · ' + esc(s.vendor || 'vendor') + '</h3>' +
+      '<div style="color:var(--muted);font-size:13px">' + esc(E.fmt(s.start)) + (s.time ? ', ' + E.fmtTime(s.time) : '') + '. Edit the draft if you like, then copy it.</div>' +
+      '<textarea id="msgtext">' + esc(msg) + '</textarea>' +
+      '<div class="row"><button class="btn primary" data-act="copy-msg">Copy message</button>' +
+      (contact.phone ? '<a class="btn" id="smslink" href="sms:' + esc(contact.phone) + '">Text ' + esc(contact.phone) + '</a>' : '') +
+      (contact.email ? '<a class="btn" id="maillink" href="mailto:' + esc(contact.email) + '">Email</a>' : '') +
+      (s.status === 'open' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Mark booked</button>' : '') +
+      '<div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
+    var ta = $('#msgtext');
+    function links() {
+      var body = encodeURIComponent(ta.value);
+      var sl = $('#smslink'); if (sl) sl.href = 'sms:' + contact.phone + '?&body=' + body;
+      var ml = $('#maillink'); if (ml) ml.href = 'mailto:' + contact.email + '?subject=' + encodeURIComponent(s.label + ' at ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + ', ' + E.fmt(s.start)) + '&body=' + body;
+    }
+    ta.addEventListener('input', links); links();
+  }
+
+  function closeModal() { $('#overlay').innerHTML = ''; }
+
+  function flashRR(before, t) {
+    if (before !== t.rent_ready_date) { var b = $('#rrbox'); if (b) { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); } }
+  }
+
+  function editStep(i, field, value) {
+    var t = cur(); var s = t.steps[i]; if (!s) return;
+    var before = t.rent_ready_date;
+    pushUndo(t);
+    if (field === 'start') { if (value) { s.start = value; s.pinned = true; } else { s.pinned = false; } }
+    else if (field === 'days') s.days = Math.max(1, Math.min(20, parseInt(value, 10) || 1));
+    else if (field === 'hours') { s.hours = Math.max(0.5, Number(value) || 8); s.hoursEdited = true; if (s.hours > 8 * s.days) s.days = Math.ceil(s.hours / 8); }
+    else if (field === 'time') s.time = value;
+    else if (field === 'vendor') { s.vendor = value; s.vendorEdited = true; }
+    else if (field === 'note') { s.note = value; syncTrade(t, s); }
+    else if (field === 'size') {
+      var z = E.sizeOf(catBy(s.key), value);
+      if (z) {
+        s.size = z.id; s.sizeLabel = z.label; s.days = z.days || 1; s.hours = z.hours || 8 * (z.days || 1); s.cure = z.cure || 0;
+        if (!s.vendorEdited) s.vendor = z.vendor || catBy(s.key).vendor || '';
+        s.fromTechPrep = false;
+      }
+      syncTrade(t, s);
+    }
+    queueSave(t); render(); flashRR(before, t);
+  }
+
+  function syncTrade(t, s) {
+    t.scope.trades = t.scope.trades || {};
+    t.scope.trades[s.key] = { size: s.size, note: s.note || '' };
+  }
+
+  // ---------- Calendar ----------
+  function viewCalendar() {
+    if (!S.calMonth) S.calMonth = today().slice(0, 7);
+    var y = +S.calMonth.slice(0, 4), m = +S.calMonth.slice(5, 7) - 1;
+    var first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+    var start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); // Monday on/before the 1st
+    var end = new Date(last); end.setDate(last.getDate() + ((5 - last.getDay() + 7) % 7)); // Friday on/after the last day
+    var events = {};
+    function add(d, ev) { (events[d] = events[d] || []).push(ev); }
+    var turns = S.turns.filter(function (t) { return !S.calUnit || t.id === S.calUnit; });
+    turns.forEach(function (t) {
+      var lab = calLabel(t);
+      if (t.scope.pmi_date) add(E.rollBiz(t.scope.pmi_date), { cls: 'visit', text: lab + ' · PMI' + (t.scope.pmi_time ? ' ' + E.fmtTime(t.scope.pmi_time) : ''), id: t.id, c: '#1E4632' });
+      if (t.move_out_date) add(E.rollBiz(t.move_out_date), { cls: 'visit', text: lab + ' · Move-out walk', id: t.id, c: '#1E4632' });
+      var tech = t.steps.filter(function (s) { return s.key === 'tech'; })[0];
+      t.steps.forEach(function (s) {
+        if (!s.start) return;
+        E.bizDaysInRange(s.start, s.end).forEach(function (d, k) {
+          add(d, { cls: s.status, text: lab + ' · ' + s.label + (k === 0 && s.time ? ' ' + E.fmtTime(s.time) : '') + (s.days > 1 ? ' (' + (k + 1) + '/' + s.days + ')' : ''), id: t.id, c: color(s.key) });
+        });
+      });
+      if (tech && tech.end) add(tech.end, { cls: 'visit', text: lab + ' · Quality check (before clean)', id: t.id, c: '#1E4632' });
+      if (t.rent_ready_date) add(t.rent_ready_date, { cls: 'mark', text: '★ ' + lab + ' rent ready', id: t.id });
+      if (t.move_in_date) add(E.rollBiz(t.move_in_date), { cls: 'mark', text: '⌂ ' + lab + ' move-in', id: t.id });
+    });
+    var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var h = '<div class="cal-head"><button class="btn sm" data-act="cal-prev">‹</button><h2>' + MONTHS[m] + ' ' + y + '</h2><button class="btn sm" data-act="cal-next">›</button>' +
+      '<button class="btn sm ghost" data-act="cal-today">Today</button><div class="spacer"></div>' +
+      '<label class="f"><select data-act-change="cal-unit"><option value="">All turns</option>' + S.turns.map(function (t) {
+        return '<option value="' + t.id + '"' + (S.calUnit === t.id ? ' selected' : '') + '>' + esc(calLabel(t)) + '</option>';
+      }).join('') + '</select></label></div>';
+    h += '<div class="legend">' + cat().map(function (c) { return '<span style="--c:' + c.color + '"><i></i>' + esc(c.label) + '</span>'; }).join('') +
+      '<span><i style="background:#fff;border:1.5px solid #1E4632"></i>Your visits</span><span><i style="background:#fff;border:1.5px dashed #888"></i>Not booked yet</span></div>';
+    h += '<div class="cal">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(function (d) { return '<div class="cal-dow">' + d + '</div>'; }).join('');
+    var td = today();
+    for (var d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      var key = E.iso(d), hol = E.holidayName(key);
+      var cls = 'day' + (d.getMonth() !== m ? ' other' : '') + (key === td ? ' today' : '') + (hol ? ' hol' : '');
+      h += '<div class="' + cls + '"><div class="day-n"><span>' + d.getDate() + '</span>' + (hol ? '<em>' + esc(hol) + '</em>' : '') + '</div>' +
+        (events[key] || []).map(function (ev) {
+          return '<div class="ev ' + ev.cls + '" style="--c:' + (ev.c || '#888') + '" data-open="' + ev.id + '" title="' + esc(ev.text) + '">' + esc(ev.text) + '</div>';
+        }).join('') + '</div>';
+    }
+    return h + '</div>';
+  }
+
+  // ---------- Forms ----------
+  function viewNew() {
+    if (!S.form || S.formKey !== 'scope-new') {
+      S.formKey = 'scope-new';
+      S.form = { trades: {}, walk_type: '', pests: 'None' };
+      Object.keys(S.settings.defaults || {}).forEach(function (k) { S.form.trades[k] = { size: S.settings.defaults[k], note: '' }; });
+    }
+    return '<div class="page-head"><button class="btn sm ghost" data-nav="turns">← Turns</button></div>' + formHtml('scope', S.form, null, true);
+  }
+
+  function viewForm(key, t) {
+    if (S.formKey !== key + ':' + t.id) {
+      S.formKey = key + ':' + t.id;
+      var src = key === 'scope' ? t.scope : key === 'techprep' ? t.tech_prep : t.move_out_check;
+      S.form = clone(src) || {};
+      if (key === 'scope') {
+        S.form.property = S.form.property || { id: t.property_id, label: t.property_label };
+        S.form.unit = S.form.unit || { id: t.unit_id, label: t.unit_label };
+        S.form.af_wo = S.form.af_wo || t.af_wo_number; S.form.move_out_date = t.move_out_date; S.form.move_in_date = t.move_in_date;
+      }
+      if (key !== 'scope' && !S.form.done_date) S.form.done_date = today();
+      if (key === 'techprep') { S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'No'; }
+      if (key === 'moveout') { S.form.rr_holds = S.form.rr_holds || 'Yes'; }
+      S.formDirty = false;
+    }
+    return formHtml(key, S.form, t, false);
+  }
+
+  function showIf(cond, d) {
+    if (!cond) return true;
+    var p = cond.split('=');
+    return p.length > 1 ? d[p[0]] === p[1] : !!d[p[0]];
+  }
+
+  function formHtml(key, d, t, isNew) {
+    var F = FORMS[key];
+    var h = '<div class="form"><div class="page-head"><h1>' + esc(F.title) + '</h1></div><div class="form-who">' + esc(F.who) + '</div>';
+    if (key === 'techprep' && t && t.move_out_check && t.move_out_check.exceptions) {
+      var added = t.move_out_check.exceptions.filter(function (x) { return x.type === 'New tech item'; });
+      if (added.length) h += '<div class="panel"><h3>Added at move-out</h3>' + added.map(function (x) { return '<div>• ' + esc(x.note) + '</div>'; }).join('') + '</div>';
+    }
+    F.sections.forEach(function (sec) {
+      h += '<div class="sec"><h3>' + esc(sec.title) + '</h3>' + (sec.help ? '<div class="help">' + esc(sec.help) + '</div>' : '') + '<div class="fields">';
+      sec.fields.forEach(function (f) { if (showIf(f.showIf, d)) h += fieldHtml(f, d, t); });
+      h += '</div></div>';
+    });
+    var submitted = d.submitted_at;
+    h += '<div class="form-foot">';
+    if (isNew) h += '<button class="btn primary" data-act="form-submit">Create turn + build schedule</button>';
+    else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">Save scope + update schedule</button>';
+    else {
+      h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (submitted ? 'Save changes' : 'Submit') + '</button>';
+      if (submitted) h += '<span style="color:var(--muted);font-size:13px">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
+    }
+    h += '<span class="dirty" id="dirty">' + (S.formDirty ? 'Unsaved changes' : '') + '</span></div></div>';
+    return h;
+  }
+
+  function lab(f) { return '<span>' + esc(f.label) + (f.required ? ' <b class="req">*</b>' : '') + '</span>'; }
+
+  function fieldHtml(f, d, t) {
+    var v = d[f.id];
+    var cls = 'f' + (f.half ? ' half' : '');
+    var dp = 'data-fp="' + f.id + '" data-fid="ff-' + f.id + '"';
+    switch (f.type) {
+      case 'text': case 'date': case 'time': case 'number':
+        return '<label class="' + cls + '">' + lab(f) + '<input type="' + f.type + '" ' + dp + ' value="' + esc(v == null ? '' : v) + '"' +
+          (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') + (f.step ? ' step="' + f.step + '"' : '') + '>' +
+          (f.help ? '<small style="color:var(--muted)">' + esc(f.help) + '</small>' : '') + '</label>';
+      case 'textarea':
+        return '<label class="' + cls + '">' + lab(f) + '<textarea rows="3" ' + dp + '>' + esc(v || '') + '</textarea></label>';
+      case 'select':
+        return '<label class="' + cls + '">' + lab(f) + '<select ' + dp + '><option value="">—</option>' + f.options.map(function (o) {
+          return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>';
+        }).join('') + '</select></label>';
+      case 'checkbox':
+        return '<div class="' + cls + '"><label class="cb"><input type="checkbox" ' + dp + (v ? ' checked' : '') + '>' + esc(f.label) + '</label></div>';
+      case 'property':
+        var plist = S.props || [];
+        return '<label class="' + cls + '">' + lab(f) + '<input list="proplist" ' + dp + ' value="' + esc(v && v.label || '') + '" placeholder="' + (S.props ? 'Start typing an address' : 'Loading properties…') + '">' +
+          '<datalist id="proplist">' + plist.map(function (p) { return '<option value="' + esc(propLabel(p)) + '">'; }).join('') + '</datalist></label>';
+      case 'unit':
+        var pid = d.property && d.property.id;
+        var units = pid ? S.units[pid] : null;
+        var uv = v && v.id || '';
+        if (pid && !units) loadUnits(pid);
+        return '<label class="' + cls + '">' + lab(f) + '<select ' + dp + '>' +
+          (!pid ? '<option value="">Pick a property first</option>' : !units ? '<option value="">Loading units…</option>' :
+            '<option value="">Whole property / single unit</option>' + units.map(function (u) {
+              return '<option value="' + u.unit_id + '"' + (u.unit_id === uv ? ' selected' : '') + '>' + esc(u.unit_label_af || '(no label)') + '</option>';
+            }).join('')) + '</select></label>';
+      case 'trades':
+        d.trades = d.trades || {};
+        return '<div class="f">' + cat().map(function (c) {
+          var tv = d.trades[c.key] || {};
+          return '<div class="trade-row' + (tv.size ? '' : ' off') + '" style="--c:' + c.color + '"><span class="dot"></span><span class="tname"><b>' + esc(c.label) + '</b></span>' +
+            '<select data-trade="' + c.key + '" data-tf="size" data-fid="tr-' + c.key + '"><option value="">Not needed</option>' + c.sizes.map(function (z) {
+              return '<option value="' + z.id + '"' + (tv.size === z.id ? ' selected' : '') + '>' + esc(z.label) + '</option>';
+            }).join('') + '</select>' +
+            '<input type="text" placeholder="Note for the vendor (rooms, colors, sizes)" data-trade="' + c.key + '" data-tf="note" data-fid="tn-' + c.key + '" value="' + esc(tv.note || '') + '"></div>';
+        }).join('') + '</div>';
+      case 'list':
+        var rows = v || [];
+        return '<div class="f"><table class="list-t"><tr>' + f.columns.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '<th></th></tr>' +
+          rows.map(function (r, ri) {
+            return '<tr>' + f.columns.map(function (c) {
+              var a = 'data-list="' + f.id + '" data-ri="' + ri + '" data-col="' + c.id + '" data-fid="l-' + f.id + '-' + ri + '-' + c.id + '"';
+              if (c.type === 'checkbox') return '<td style="width:110px"><label class="cb" style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ' + a + (r[c.id] ? ' checked' : '') + '>' + esc(c.label) + '</label></td>';
+              if (c.type === 'select' || c.type === 'tradeselect') {
+                var opts = c.type === 'select' ? c.options : cat().map(function (x) { return x.label; }).concat(['Other']);
+                return '<td><select ' + a + '><option value="">—</option>' + opts.map(function (o) { return '<option' + (o === r[c.id] ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></td>';
+              }
+              return '<td' + (c.type === 'number' ? ' style="width:80px"' : '') + '><input type="' + (c.type === 'number' ? 'number' : 'text') + '" ' + a + ' value="' + esc(r[c.id] == null ? '' : r[c.id]) + '"></td>';
+            }).join('') + '<td style="width:36px"><button class="iconbtn" data-act="list-del" data-list="' + f.id + '" data-ri="' + ri + '" title="Remove">✕</button></td></tr>';
+          }).join('') + '</table><div><button class="btn sm" data-act="list-add" data-list="' + f.id + '">+ Add ' + esc(f.label.toLowerCase()) + '</button></div></div>';
+      case 'checklist':
+        return '<div class="f">' + checklistHtml(d) + '</div>';
+      case 'plansummary':
+        return '<div class="f">' + planSummary(t) + '</div>';
+      case 'ncreview':
+        return '<div class="f">' + ncReview(t, d) + '</div>';
+    }
+    return '';
+  }
+
+  function roomInstances(d) {
+    var out = [];
+    CHECK_ROOMS.forEach(function (r) {
+      if (!r.repeat) { out.push({ id: r.id, label: r.label, items: r.items }); return; }
+      var n = parseInt(d[r.repeat], 10) || 0;
+      for (var i = 1; i <= n; i++) out.push({ id: r.id + i, label: r.label + (n > 1 ? ' ' + i : ''), items: r.items });
+    });
+    return out;
+  }
+
+  function checklistHtml(d) {
+    d.checklist = d.checklist || {};
+    var tot = { fix: 0, nc: 0, ok: 0 };
+    var rooms = roomInstances(d).map(function (r) {
+      var st = d.checklist[r.id] || {};
+      var cnt = { fix: 0, nc: 0, ok: 0 };
+      var items = r.items.map(function (it, ii) {
+        var e = st[ii] || {};
+        if (e.s) { cnt[e.s]++; tot[e.s]++; }
+        return '<div class="ci"><span>' + esc(it) + '</span><span class="tri">' + [['ok', 'OK'], ['fix', 'Fix'], ['nc', 'Not checked']].map(function (x) {
+          return '<button class="' + (e.s === x[0] ? 'on ' + x[0] : '') + '" data-act="ci" data-room="' + r.id + '" data-ii="' + ii + '" data-v="' + x[0] + '">' + x[1] + '</button>';
+        }).join('') + '</span>' +
+          (e.s === 'fix' || e.s === 'nc' ? '<div class="note"><input type="text" placeholder="' + (e.s === 'fix' ? 'What to fix / part needed' : 'Why not checked') + '" data-cin="1" data-room="' + r.id + '" data-ii="' + ii + '" data-fid="cin-' + r.id + '-' + ii + '" value="' + esc(e.note || '') + '"></div>' : '') + '</div>';
+      }).join('');
+      return '<details class="room"' + (cnt.fix || cnt.nc ? ' open' : '') + '><summary>' + esc(r.label) + '<em>' + (cnt.ok + cnt.fix + cnt.nc) + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items + '</details>';
+    }).join('');
+    return '<div style="margin-bottom:8px;font-weight:600">' + tot.fix + ' to fix · ' + tot.nc + ' not checked · ' + tot.ok + ' OK</div>' + rooms;
+  }
+
+  function ncItems(t) {
+    var out = [];
+    var tp = t && t.tech_prep;
+    if (!tp || !tp.checklist) return out;
+    roomInstances(tp).forEach(function (r) {
+      var st = tp.checklist[r.id] || {};
+      r.items.forEach(function (it, ii) { if (st[ii] && st[ii].s === 'nc') out.push({ key: r.id + ':' + ii, label: r.label + ': ' + it, note: st[ii].note || '' }); });
+    });
+    return out;
+  }
+
+  function ncReview(t, d) {
+    var items = ncItems(t);
+    if (!items.length) return '<div style="color:var(--muted)">' + (t && t.tech_prep ? 'Nothing was left unchecked at the PMI.' : 'Tech prep is not done yet.') + '</div>';
+    d.nc_review = d.nc_review || {};
+    return '<table class="list-t">' + items.map(function (x) {
+      var r = d.nc_review[x.key] || {};
+      return '<tr><td>' + esc(x.label) + (x.note ? '<div style="color:var(--muted);font-size:12px">' + esc(x.note) + '</div>' : '') + '</td><td style="width:190px"><select data-nc="' + esc(x.key) + '" data-fid="nc-' + esc(x.key) + '">' +
+        ['', 'Fine now', 'Add to tech list', 'Needs vendor'].map(function (o) { return '<option' + (o === r.r ? ' selected' : '') + ' value="' + o + '">' + (o || '—') + '</option>'; }).join('') + '</select></td></tr>';
+    }).join('') + '</table>';
+  }
+
+  function planSummary(t) {
+    if (!t) return '';
+    var rows = t.steps.map(function (s) {
+      return '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + color(s.key) + '"></span> <b>' + esc(s.label) + '</b> ' + esc(s.sizeLabel || '') +
+        (s.note ? '<div style="color:var(--muted);font-size:12px">' + esc(s.note) + '</div>' : '') + '</td><td>' + esc(s.vendor) + '</td><td>' + E.fmt(s.start) + '</td><td>' + ({ open: 'Not booked', booked: 'Booked', done: 'Done' })[s.status] + '</td></tr>';
+    }).join('');
+    var dm = (t.scope.damages || []).filter(function (x) { return x.item; });
+    return '<table class="summary-t">' + rows + '</table>' +
+      '<div style="margin-top:8px">Rent ready: <b>' + E.fmt(t.rent_ready_date) + '</b> · Move-in: <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
+      (dm.length ? '<div style="margin-top:8px"><b>Damages at PMI:</b> ' + dm.map(function (x) { return esc(x.item) + (x.room ? ' (' + esc(x.room) + ')' : '') + (x.charge ? ' [tenant]' : ''); }).join('; ') + '</div>' : '');
+  }
+
+  function propLabel(p) { return p.canonical_address + (p.af_account && p.af_account !== '11' ? ' (' + p.af_account + ')' : ''); }
+
+  function loadProps() {
+    if (S.props) return;
+    call('apiProperties').then(function (rows) { S.props = rows; if (S.view === 'new' || S.tab === 'scope') render(); }, function (e) { toast('Could not load properties: ' + e.message, true); });
+  }
+
+  var unitLoading = {};
+  function loadUnits(pid) {
+    if (unitLoading[pid]) return;
+    unitLoading[pid] = true;
+    call('apiUnits', pid).then(function (rows) { S.units[pid] = rows; render(); }, function (e) { unitLoading[pid] = false; toast('Could not load units: ' + e.message, true); });
+  }
+
+  function isCookieCutter(addr) {
+    var n = function (s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); };
+    var a = n(addr);
+    return (S.settings.cookieCutter || []).some(function (c) { var k = n(c).split(' ').slice(0, 3).join(' '); return k && a.indexOf(k) === 0; });
+  }
+
+  function markDirty() { S.formDirty = true; var el = $('#dirty'); if (el) el.textContent = 'Unsaved changes'; }
+
+  function formChange(el) {
+    var d = S.form; if (!d) return;
+    var rerender = false;
+    if (el.dataset.fp) {
+      var id = el.dataset.fp, val = el.type === 'checkbox' ? el.checked : el.value;
+      if (id === 'property') {
+        var p = (S.props || []).filter(function (x) { return propLabel(x) === val; })[0];
+        d.property = p ? { id: p.property_id, label: p.canonical_address } : { id: null, label: val };
+        d.unit = null;
+        if (p) d.walk_type = isCookieCutter(p.canonical_address) ? FORMS.scope.sections[0].fields[2].options[0] : FORMS.scope.sections[0].fields[2].options[1];
+        rerender = true;
+      } else if (id === 'unit') {
+        var units = S.units[d.property && d.property.id] || [];
+        var u = units.filter(function (x) { return x.unit_id === val; })[0];
+        d.unit = u ? { id: u.unit_id, label: u.unit_label_af } : null;
+      } else {
+        d[id] = el.type === 'number' ? (val === '' ? null : Number(val)) : val;
+        rerender = el.tagName === 'SELECT' || el.type === 'checkbox';
+      }
+    } else if (el.dataset.trade) {
+      d.trades = d.trades || {};
+      var tr = d.trades[el.dataset.trade] = d.trades[el.dataset.trade] || {};
+      tr[el.dataset.tf] = el.value;
+      rerender = el.dataset.tf === 'size';
+    } else if (el.dataset.list) {
+      var row = d[el.dataset.list][+el.dataset.ri];
+      row[el.dataset.col] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+    } else if (el.dataset.cin) {
+      d.checklist[el.dataset.room][el.dataset.ii].note = el.value;
+    } else if (el.dataset.nc) {
+      d.nc_review = d.nc_review || {};
+      d.nc_review[el.dataset.nc] = { r: el.value };
+    } else return;
+    markDirty();
+    if (rerender) render();
+  }
+
+  function validate(key, d) {
+    var miss = [];
+    FORMS[key].sections.forEach(function (sec) { sec.fields.forEach(function (f) {
+      if (!f.required || !showIf(f.showIf, d)) return;
+      var v = d[f.id];
+      if (f.type === 'property' ? !(v && v.id) : (v == null || v === '')) miss.push(f.label);
+    }); });
+    return miss;
+  }
+
+  function submitForm(final) {
+    var key = S.formKey.split(':')[0], d = S.form;
+    if (key === 'scope-new') key = 'scope';
+    if (final) {
+      var miss = validate(key, d);
+      if (miss.length) { toast('Still needed: ' + miss.join(', '), true); return; }
+    }
+    if (S.view === 'new') return createTurn(d);
+    var t = cur();
+    var before = t.rent_ready_date, doneMsg = '';
+    if (key === 'scope') {
+      pushUndo(t);
+      t.scope = clone(d);
+      t.property_id = d.property.id; t.property_label = d.property.label;
+      t.unit_id = d.unit ? d.unit.id : null; t.unit_label = d.unit ? d.unit.label : null;
+      t.af_wo_number = d.af_wo || null; t.move_out_date = d.move_out_date || null; t.move_in_date = d.move_in_date || null;
+      t.steps = E.mergeScope(t.steps, t.scope, cat(), techHours(t));
+    } else if (key === 'techprep') {
+      if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
+      t.tech_prep = clone(d);
+      var h = Number(d.tech_hours) || 0;
+      var tech = t.steps.filter(function (s) { return s.key === 'tech'; })[0];
+      if (final && h > 0) {
+        if (!tech) {
+          pushUndo(t);
+          tech = E.makeStep(catBy('tech'), 'basic', '');
+          insertInOrder(t, tech);
+          t.scope.trades = t.scope.trades || {}; t.scope.trades.tech = { size: 'basic', note: '' };
+        }
+        if (!tech.hoursEdited) { E.applyTechHours(tech, h); doneMsg = 'Submitted. Tech step set to ' + h + ' hours.'; }
+      }
+    } else if (key === 'moveout') {
+      if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
+      t.move_out_check = clone(d);
+    }
+    S.formDirty = false; S.formKey = null;
+    recompute(t);
+    saveNow(t).then(function () {
+      toast(doneMsg || (key === 'scope' ? 'Scope saved, schedule updated' : final ? 'Submitted' : 'Draft saved'));
+      if (key === 'scope') { S.tab = 'schedule'; }
+      render(); flashRR(before, t);
+    }, function () {});
+  }
+
+  function insertInOrder(t, step) {
+    var order = cat().map(function (c) { return c.key; });
+    var idx = t.steps.length;
+    for (var i = 0; i < t.steps.length; i++) if (order.indexOf(t.steps[i].key) > order.indexOf(step.key)) { idx = i; break; }
+    t.steps.splice(idx, 0, step);
+  }
+
+  function createTurn(d) {
+    var t = {
+      property_id: d.property.id, property_label: d.property.label,
+      unit_id: d.unit ? d.unit.id : null, unit_label: d.unit ? d.unit.label : null,
+      af_wo_number: d.af_wo || null, move_out_date: d.move_out_date, move_in_date: d.move_in_date || null,
+      scope: clone(d), steps: [], stage: 'scheduling', archived: false
+    };
+    t.scope.submitted_at = new Date().toISOString();
+    t.steps = E.stepsFromScope(t.scope, cat(), 0);
+    prepTurn(t);
+    var btn = $('[data-act="form-submit"]'); if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+    saveNow(t).then(function (saved) {
+      S.turns.push(saved);
+      S.formDirty = false; S.form = null; S.formKey = null;
+      toast('Turn created. Here is the recommended schedule.');
+      go('turn', { turnId: saved.id, tab: 'schedule' });
+    }, function () { if (btn) { btn.disabled = false; btn.textContent = 'Create turn + build schedule'; } });
+  }
+
+  // ---------- Settings ----------
+  var setDraft = null;
+  function viewSettings() {
+    if (!setDraft) setDraft = clone(S.settings);
+    var vendors = {};
+    setDraft.catalog.forEach(function (c) { if (c.vendor) vendors[c.vendor] = 1; c.sizes.forEach(function (z) { if (z.vendor) vendors[z.vendor] = 1; }); });
+    var h = '<div class="page-head"><h1>Settings</h1><div class="sub">Durations, vendors and the message template. Changes apply to new schedules and the Recommended button.</div></div>';
+    h += '<div class="sec"><h3>Trades + durations</h3><div class="help">Business days. Hours = time on site that day. Cure = no-entry days after the step.</div>' +
+      setDraft.catalog.map(function (c, ci) {
+        return '<div class="set-trade"><input type="color" value="' + c.color + '" data-set="color" data-ci="' + ci + '">' +
+          '<div class="fields"><label class="f half"><span>Step</span><input data-set="label" data-ci="' + ci + '" value="' + esc(c.label) + '"></label>' +
+          '<label class="f half"><span>Default vendor</span><input data-set="vendor" data-ci="' + ci + '" value="' + esc(c.vendor) + '"></label></div>' +
+          '<div><table class="size-t"><tr><th>Size</th><th style="width:60px">Days</th><th style="width:60px">Hours</th><th style="width:60px">Cure</th><th>Vendor (if different)</th></tr>' +
+          c.sizes.map(function (z, zi) {
+            function inp(k, w) { return '<td><input data-set="size-' + k + '" data-ci="' + ci + '" data-zi="' + zi + '" value="' + esc(z[k] == null ? '' : z[k]) + '"' + (w ? ' type="number" min="0" step="0.5"' : '') + '></td>'; }
+            return '<tr>' + inp('label') + inp('days', 1) + inp('hours', 1) + inp('cure', 1) + inp('vendor') + '</tr>';
+          }).join('') + '</table></div></div>';
+      }).join('') + '</div>';
+    h += '<div class="sec"><h3>Vendor contacts</h3><div class="help">Optional. Adds Text and Email buttons to the vendor message.</div><table class="list-t"><tr><th>Vendor</th><th>Phone</th><th>Email</th></tr>' +
+      Object.keys(vendors).sort().map(function (v) {
+        var c = setDraft.contacts[v] || {};
+        return '<tr><td><b>' + esc(v) + '</b></td><td><input type="text" data-set="phone" data-v="' + esc(v) + '" value="' + esc(c.phone || '') + '"></td><td><input type="text" data-set="email" data-v="' + esc(v) + '" value="' + esc(c.email || '') + '"></td></tr>';
+      }).join('') + '</table></div>';
+    h += '<div class="sec"><h3>Vendor message template</h3><div class="help">Placeholders: {vendor} {trade} {address} {unit} {date} {time} {length} {scope} {access}. A line whose placeholders are all empty is left out.</div>' +
+      '<div class="fields"><label class="f"><textarea rows="7" data-set="template">' + esc(setDraft.template) + '</textarea></label></div></div>';
+    h += '<div class="sec"><h3>Cookie-cutter properties</h3><div class="help">One address per line. These default to "Spencer alone" on the scope form.</div>' +
+      '<div class="fields"><label class="f"><textarea rows="8" data-set="cookie">' + esc((setDraft.cookieCutter || []).join('\n')) + '</textarea></label></div></div>';
+    h += '<div class="form-foot"><button class="btn primary" data-act="settings-save">Save settings</button><button class="btn ghost" data-act="settings-reset">Reset to defaults</button></div>';
+    return h;
+  }
+
+  function settingsChange(el) {
+    var k = el.dataset.set, ci = +el.dataset.ci, zi = +el.dataset.zi, v = el.value;
+    if (k === 'color' || k === 'label' || k === 'vendor') setDraft.catalog[ci][k] = v;
+    else if (k.indexOf('size-') === 0) {
+      var f = k.slice(5), z = setDraft.catalog[ci].sizes[zi];
+      if (f === 'label' || f === 'vendor') { if (v) z[f] = v; else delete z[f]; }
+      else { if (v === '') delete z[f]; else z[f] = Number(v); }
+    } else if (k === 'phone' || k === 'email') { var c = setDraft.contacts[el.dataset.v] = setDraft.contacts[el.dataset.v] || {}; c[k] = v.trim(); }
+    else if (k === 'template') setDraft.template = v;
+    else if (k === 'cookie') setDraft.cookieCutter = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click', function (e) {
+    var nav = e.target.closest('[data-nav]');
+    if (nav) { setDraft = null; go(nav.dataset.nav); return; }
+    var tab = e.target.closest('[data-tab]');
+    if (tab) { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = tab.dataset.tab; if (S.tab === 'scope') loadProps(); render(); return; }
+    var act = e.target.closest('[data-act]');
+    if (act) { handleAct(act, e); return; }
+    var open = e.target.closest('[data-open]');
+    if (open && open.dataset.open) { go('turn', { turnId: open.dataset.open, tab: 'schedule' }); }
+  });
+
+  function handleAct(el, e) {
+    var a = el.dataset.act, t = cur(), i = +el.dataset.i, before = t && t.rent_ready_date;
+    if (a === 'new-turn') { loadProps(); go('new'); return; }
+    if (a === 'close-modal') { if (e.target === el || el.tagName === 'BUTTON') closeModal(); return; }
+    if (a === 'cal-prev' || a === 'cal-next') {
+      var y = +S.calMonth.slice(0, 4), m = +S.calMonth.slice(5, 7) - 1 + (a === 'cal-next' ? 1 : -1);
+      var dt = new Date(y, m, 1); S.calMonth = E.iso(dt).slice(0, 7); render(); return;
+    }
+    if (a === 'cal-today') { S.calMonth = today().slice(0, 7); render(); return; }
+    if (a === 'archive') {
+      var id = el.dataset.id;
+      if (!confirm('Archive this turn? It leaves the board and calendar.')) return;
+      call('apiArchiveTurn', id, true).then(function () {
+        S.turns = S.turns.filter(function (x) { return x.id !== id; }); toast('Archived'); go('turns');
+      }, function (er) { toast(er.message, true); });
+      return;
+    }
+    if (a === 'settings-save') {
+      S.settings = mergeSettings(setDraft);
+      call('apiSaveSettings', S.settings).then(function () { setDraft = null; toast('Settings saved'); render(); }, function (er) { toast(er.message, true); });
+      return;
+    }
+    if (a === 'settings-reset') { if (confirm('Reset durations, vendors and template to the defaults?')) { setDraft = clone(DEFAULT_SETTINGS); setDraft.contacts = S.settings.contacts; render(); } return; }
+    if (a === 'form-save') { submitForm(false); return; }
+    if (a === 'form-submit') { submitForm(true); return; }
+    if (a === 'list-add') { e.preventDefault(); var L = S.form[el.dataset.list] = S.form[el.dataset.list] || []; L.push({}); markDirty(); render(); return; }
+    if (a === 'list-del') { e.preventDefault(); S.form[el.dataset.list].splice(+el.dataset.ri, 1); markDirty(); render(); return; }
+    if (a === 'ci') {
+      var cl = S.form.checklist = S.form.checklist || {}; var room = cl[el.dataset.room] = cl[el.dataset.room] || {};
+      var it = room[el.dataset.ii] = room[el.dataset.ii] || {};
+      it.s = it.s === el.dataset.v ? null : el.dataset.v; markDirty(); render(); return;
+    }
+    if (a === 'copy-msg') { copyText($('#msgtext').value).then(function (ok) { if (ok) toast('Copied. Paste it into a text or email.'); else { $('#msgtext').select(); toast('Press Ctrl/Cmd+C to copy', true); } }); return; }
+    if (!t) return;
+    if (a === 'msg-booked') { pushUndo(t); t.steps[i].status = 'booked'; closeModal(); queueSave(t); render(); toast(t.steps[i].label + ' marked booked'); return; }
+    if (a === 'message') { openMessage(t, i); return; }
+    if (a === 'copy-all') { copyText(scheduleText(t)).then(function (ok) { toast(ok ? 'Schedule copied' : 'Copy blocked by the browser', !ok); }); return; }
+    if (a === 'mark-ready') { if (!confirm('Mark this unit rent ready?')) return; t.stage = 'ready'; queueSave(t); render(); return; }
+    if (a === 'unready') { t.stage = 'scheduling'; t.stage = stageOf(t); queueSave(t); render(); return; }
+    if (a === 'project-status') { t.scope.project_status = el.dataset.v; queueSave(t); render(); return; }
+    if (a === 'undo') {
+      var snap = S.undo.pop(); if (!snap) return;
+      var o = JSON.parse(snap); if (o.id !== t.id) return;
+      t.steps = o.steps; t.scope.trades = o.trades; queueSave(t); render(); flashRR(before, t); return;
+    }
+    pushUndo(t);
+    if (a === 'recommended') { E.recommended(t.steps, t.move_out_date, cat()); toast('Recommended schedule laid out'); }
+    else if (a === 'status') t.steps[i].status = el.dataset.v;
+    else if (a === 'unpin') t.steps[i].pinned = false;
+    else if (a === 'up' && i > 0) { var tmp = t.steps[i - 1]; t.steps[i - 1] = t.steps[i]; t.steps[i] = tmp; }
+    else if (a === 'down' && i < t.steps.length - 1) { var tmp2 = t.steps[i + 1]; t.steps[i + 1] = t.steps[i]; t.steps[i] = tmp2; }
+    else if (a === 'remove-step') {
+      var s = t.steps[i];
+      if (s.status !== 'open' && !confirm(s.label + ' is ' + s.status + '. Remove it anyway? (Cancel it with the vendor yourself.)')) { S.undo.pop(); return; }
+      t.steps.splice(i, 1);
+      if (t.scope.trades && t.scope.trades[s.key]) t.scope.trades[s.key].size = '';
+    } else if (a === 'add-step') {
+      var c = catBy(el.dataset.k);
+      var st = E.makeStep(c, (S.settings.defaults || {})[c.key] || c.sizes[0].id, '');
+      insertInOrder(t, st); syncTrade(t, st);
+    } else { S.undo.pop(); return; }
+    queueSave(t); render(); flashRR(before, t);
+  }
+
+  document.addEventListener('change', function (e) {
+    var el = e.target;
+    if (el.dataset.actChange === 'cal-unit') { S.calUnit = el.value; render(); return; }
+    if (el.dataset.ed) { editStep(+el.dataset.i, el.dataset.ed, el.value); return; }
+    if (el.dataset.set) { settingsChange(el); return; }
+    formChange(el);
+  });
+  document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (el.dataset.fp || el.dataset.list || el.dataset.cin || (el.dataset.trade && el.dataset.tf === 'note')) markDirty();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+  // ---------- boot ----------
+  function boot() {
+    call('apiBoot').then(function (r) {
+      S.user = r.user; S.settings = mergeSettings(r.settings);
+      S.turns = (r.turns || []).map(prepTurn);
+      render();
+    }, function (e) {
+      $('#main').innerHTML = '<div class="empty"><h2>Could not load turns</h2><p>' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Try again</button></div>';
+    });
+  }
+  window.__turnsApp = S; // for debugging in the browser console
+  boot();
+})();
+</script>

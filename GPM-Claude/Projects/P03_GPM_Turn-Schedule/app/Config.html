@@ -1,0 +1,174 @@
+<script>
+/**
+ * Defaults + the three form drafts. Field lists are DRAFTS until Spencer + Jason approve
+ * (weekend of 2026-11-07). Edit FORMS here; saved answers are stored as JSON, so changing a
+ * field list never needs a database change.
+ */
+var DEFAULT_SETTINGS = {
+  version: 1,
+  // Locked order (TURN_PLAN.md). Trash-out position is provisional (Dumpster Divers, open item).
+  catalog: [
+    { key: 'trash', label: 'Trash-out', vendor: 'Dumpster Divers', color: '#7A6A58',
+      sizes: [{ id: 'std', label: 'Trash-out', days: 1 }] },
+    { key: 'preclean', label: 'Pre-clean (grease / smoke)', vendor: 'GR Cleaning Co / Up & Up', color: '#8E8A3A',
+      sizes: [{ id: 'std', label: 'Pre-clean', days: 1 }] },
+    { key: 'tub', label: 'Tub', vendor: '', color: '#3E73A8',
+      sizes: [{ id: 'resurface', label: 'Resurface (1 day + 24h no entry)', days: 1, cure: 1, vendor: 'Surface Tech' },
+              { id: 'replace', label: 'Replace', days: 1, vendor: 'Grand River Plumbing' }] },
+    { key: 'flooring', label: 'Flooring', vendor: 'Eastpointe Interiors', color: '#9C5B34',
+      sizes: [{ id: 'lvp', label: 'LVP / vinyl', days: 1 }, { id: 'carpet', label: 'Carpet', days: 1 },
+              { id: 'both', label: 'LVP + carpet', days: 1 }, { id: 'hardwood', label: 'Hardwood refinish (3 days per room)', days: 3 }] },
+    { key: 'drywall', label: 'Drywall / plaster', vendor: 'Matt Luschas', color: '#77736A',
+      sizes: [{ id: 'small', label: 'Small (2 days)', days: 2 }, { id: 'large', label: 'Large (3 days)', days: 3 }] },
+    { key: 'appliances', label: 'Appliances', vendor: '', color: '#6B4E8F',
+      sizes: [{ id: 'repair', label: 'Repair', days: 1 }, { id: 'replace', label: 'Replace / deliver', days: 1 }] },
+    { key: 'tech', label: 'Tech', vendor: 'Riley', color: '#1F4D36',
+      sizes: [{ id: 'quick', label: 'Quick (4 hours)', days: 1, hours: 4 }, { id: 'basic', label: 'Basic (1 day)', days: 1 },
+              { id: 'first', label: 'First-time property (2-3 days)', days: 3 }] },
+    { key: 'paint', label: 'Paint', vendor: 'Trevor', color: '#2C8C82',
+      sizes: [{ id: 'full', label: 'Full paint', days: 1 }, { id: 'touchup', label: 'Touch-up (4 hours)', days: 1, hours: 4 },
+              { id: 'color', label: 'Color change (2 days)', days: 2 }, { id: 'newhome', label: 'New home (3 days)', days: 3 }] },
+    { key: 'clean', label: 'Clean', vendor: 'GR Cleaning Co / Up & Up', color: '#C9962B',
+      sizes: [{ id: 'std', label: 'Standard', days: 1 }, { id: 'heavy', label: 'Heavy (2 days)', days: 2 }] },
+    { key: 'surface', label: 'Stainless + stovetop', vendor: 'Surface Experts', color: '#56707D',
+      sizes: [{ id: 'std', label: 'Standard (about 1 hour)', days: 1, hours: 1 }] },
+    { key: 'carpetclean', label: 'Carpet cleaning', vendor: '', color: '#A8566F',
+      sizes: [{ id: 'std', label: 'Standard', days: 1 }] }
+  ],
+  defaults: { tech: 'basic', paint: 'full', clean: 'std' },
+  contacts: {}, // vendor name -> {phone, email}; Spencer fills these in Settings
+  cookieCutter: ['900 Leonard St NW', '2935 Oak Valley Ave SW', '547 Cherry St SE', '2340 Michael Ave SW',
+    '6611 Prairie Winds Dr', '90 Wealthy St SE', '5943 8th Ave', '1960 Burton St SE', '2700 Clyde Park Ave SW',
+    '100 Commerce Ave SW', '730 Leonard St NW'],
+  template: 'Hi {vendor}, this is Spencer with Green Property Management.\n' +
+    'Can you do {trade} at {address} {unit} on {date}, starting {time}? Plan on {length}.\n' +
+    'Scope: {scope}\n' +
+    'Access: {access}\n' +
+    'Please confirm that works. Thanks!\nSpencer'
+};
+
+var CHECK_ROOMS = [
+  { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind'] },
+  { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock (2 key min)', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
+  { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 outside bedroom'] },
+  { id: 'kitchen', label: 'Kitchen', items: ['Light above sink', 'Run dishwasher', 'Disposal', 'Faucet', 'Drains under sink', 'Stove / oven', 'Drip pans', 'Hood filter', 'Microwave', 'Fridge / freezer', 'Countertops', 'Cabinets / drawers', 'GFCI protecting', 'Outlet / switch covers'] },
+  { id: 'basement', label: 'Basement', items: ['Smoke detector', 'Furnace filter (log size in Furnace Filter Sizes)', 'Washer', 'Dryer', 'Utility sink', 'Lights'] },
+  { id: 'bath', label: 'Bathroom', repeat: 'bathrooms', items: ['Light / vent fan', 'Tub faucet', 'Tub drain', 'Tub stopper', 'Shower caulk', 'Shower curtain', 'Shower bar', 'Toilet drain / fill', 'Bolt caps on toilet', 'Toilet seat / hinges', 'Vanity faucet', 'Vanity drain', 'Toilet paper bar', 'Towel bar', 'GFCI protecting', 'Outlet / switch covers'] },
+  { id: 'bed', label: 'Bedroom', repeat: 'bedrooms', items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Smoke detector', 'Closet door latches', 'Closet hardware'] }
+];
+
+var FORMS = {
+  scope: {
+    title: 'PMI Scope',
+    who: 'Spencer, at the pre-move-out inspection. Submitting this starts the turn and builds the schedule.',
+    sections: [
+      { title: 'Unit', fields: [
+        { id: 'property', type: 'property', label: 'Property', required: true },
+        { id: 'unit', type: 'unit', label: 'Unit' },
+        { id: 'walk_type', type: 'select', label: 'Walk type', options: ['Cookie cutter (Spencer alone)', 'Riley walk (Spencer + Riley)'] },
+        { id: 'af_wo', type: 'text', label: 'Unit Turn WO # (AppFolio)', placeholder: 'e.g. 18171-1' },
+        { id: 'pmi_date', type: 'date', label: 'PMI date', half: true },
+        { id: 'pmi_time', type: 'time', label: 'PMI time', half: true },
+        { id: 'move_out_date', type: 'date', label: 'Move-out date', required: true, half: true },
+        { id: 'move_in_date', type: 'date', label: 'Move-in date (if known)', half: true },
+        { id: 'access', type: 'text', label: 'Access for vendors', placeholder: 'Lockbox code, key location, gate, parking' }
+      ]},
+      { title: 'Trades', help: 'Pick a size, or leave it Not needed. Full paint is the default. The schedule is built from these.', fields: [
+        { id: 'trades', type: 'trades' }
+      ]},
+      { title: 'Project', fields: [
+        { id: 'project', type: 'checkbox', label: 'Possible value-add project (Jason prices it)' },
+        { id: 'project_note', type: 'textarea', label: 'Project idea', showIf: 'project' }
+      ]},
+      { title: 'Other vendors', help: 'Outside the 11 steps. Jason books these by hand.', fields: [
+        { id: 'other_vendors', type: 'list', label: 'Item', columns: [
+          { id: 'type', type: 'select', label: 'Type', options: ['HVAC', 'Water heater', 'Plumbing', 'Electrical', 'Glass', 'Roof', 'Other'] },
+          { id: 'note', type: 'text', label: 'What is needed' }] }
+      ]},
+      { title: 'Pests', fields: [
+        { id: 'pests', type: 'select', label: 'Pests seen', options: ['None', 'Roaches', 'Bed bugs', 'Mice / rodents', 'Other'] },
+        { id: 'pests_note', type: 'text', label: 'Pest notes' }
+      ]},
+      { title: 'Tenant damages', help: 'Tag Charge tenant for tenant-paid items. Untagged = owner.', fields: [
+        { id: 'damages', type: 'list', label: 'Damage', columns: [
+          { id: 'item', type: 'text', label: 'Damage' },
+          { id: 'room', type: 'text', label: 'Room' },
+          { id: 'charge', type: 'checkbox', label: 'Charge tenant' }] }
+      ]},
+      { title: 'Photos + notes', fields: [
+        { id: 'photos_on_wo', type: 'checkbox', label: 'Damage, trade and appliance-tag photos are on the Unit Turn WO in AppFolio' },
+        { id: 'notes', type: 'textarea', label: 'Notes' }
+      ]}
+    ]
+  },
+  techprep: {
+    title: 'PMI Tech Prep',
+    who: 'Riley (Spencer fills it at cookie-cutter properties). Goes to Jason for parts.',
+    sections: [
+      { title: 'Walk', fields: [
+        { id: 'done_by', type: 'select', label: 'Filled by', options: ['Riley', 'Spencer', 'Other tech'], half: true },
+        { id: 'done_date', type: 'date', label: 'Date', half: true },
+        { id: 'tech_hours', type: 'number', label: 'How many hours do you think you will need to get it done?', required: true, min: 0.5, step: 0.5,
+          help: 'Sets the length of the Tech step on the schedule.' },
+        { id: 'bedrooms', type: 'select', label: 'Bedrooms', options: ['0', '1', '2', '3', '4'], half: true },
+        { id: 'bathrooms', type: 'select', label: 'Bathrooms', options: ['1', '2'], half: true }
+      ]},
+      { title: 'Fix list', help: 'Tap each item: OK, Fix, or Not checked (blocked while occupied). Not-checked items show on Spencer\'s move-out check.', fields: [
+        { id: 'checklist', type: 'checklist' }
+      ]},
+      { title: 'Parts + tools', fields: [
+        { id: 'parts', type: 'list', label: 'Part', columns: [
+          { id: 'item', type: 'text', label: 'Part' },
+          { id: 'qty', type: 'number', label: 'Qty' },
+          { id: 'store', type: 'select', label: 'Store', options: ['Ace', 'HD Supply', 'Other'] }] },
+        { id: 'tools', type: 'text', label: 'Tools to bring' },
+        { id: 'blinds_count', type: 'number', label: 'Blinds to replace (count)', half: true },
+        { id: 'blinds_sizes', type: 'text', label: 'Blind sizes', half: true }
+      ]},
+      { title: 'Rekey + keys', fields: [
+        { id: 'rekey', type: 'select', label: 'Rekey needed', options: ['No', 'Yes'], half: true },
+        { id: 'lock_type', type: 'text', label: 'Lock type', half: true, showIf: 'rekey=Yes' },
+        { id: 'rekey_parts', type: 'text', label: 'Rekey parts', showIf: 'rekey=Yes' },
+        { id: 'keys_expected', type: 'text', label: 'Keys / remotes / mailbox keys to collect', placeholder: 'e.g. 2 entry, 1 mailbox, 1 garage remote' }
+      ]},
+      { title: 'Other', fields: [
+        { id: 'left_behind', type: 'textarea', label: 'Items left behind' },
+        { id: 'photos_on_wo', type: 'checkbox', label: 'Parts-to-match photos are on the Unit Turn WO' },
+        { id: 'notes', type: 'textarea', label: 'Notes for Jason' }
+      ]}
+    ]
+  },
+  moveout: {
+    title: 'Move-out / Deposit Check',
+    who: 'Spencer alone, on move-out day. Record exceptions only.',
+    sections: [
+      { title: 'Plan check', help: 'Look over the plan. Only record what is wrong or missing.', fields: [
+        { id: 'plan_summary', type: 'plansummary' },
+        { id: 'done_date', type: 'date', label: 'Date', half: true },
+        { id: 'keys_received', type: 'checkbox', label: 'Keys received', half: true }
+      ]},
+      { title: 'Riley could not check these', fields: [
+        { id: 'nc_review', type: 'ncreview' }
+      ]},
+      { title: 'Exceptions', help: 'Scope corrections, missed items, and new small fixes for the tech list. Change the schedule on the Schedule tab.', fields: [
+        { id: 'exceptions', type: 'list', label: 'Exception', columns: [
+          { id: 'type', type: 'select', label: 'Type', options: ['Scope correction', 'Missed item', 'New tech item'] },
+          { id: 'trade', type: 'tradeselect', label: 'Trade' },
+          { id: 'note', type: 'text', label: 'What' }] }
+      ]},
+      { title: 'Rent ready', fields: [
+        { id: 'rr_holds', type: 'select', label: 'Does the rent-ready date still hold?', options: ['Yes', 'No'] },
+        { id: 'rr_reason', type: 'text', label: 'Why not (then update the schedule)', showIf: 'rr_holds=No' }
+      ]},
+      { title: 'Final tenant damages', help: 'Tag Charge tenant for deposit deductions.', fields: [
+        { id: 'damages', type: 'list', label: 'Damage', columns: [
+          { id: 'item', type: 'text', label: 'Damage' },
+          { id: 'room', type: 'text', label: 'Room' },
+          { id: 'charge', type: 'checkbox', label: 'Charge tenant' }] },
+        { id: 'photos_whole_unit', type: 'checkbox', label: 'Whole empty unit photographed (on the WO)' },
+        { id: 'deposit_notes', type: 'textarea', label: 'Deposit notes' }
+      ]}
+    ]
+  }
+};
+</script>
