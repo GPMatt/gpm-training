@@ -30,6 +30,18 @@
     });
   }
 
+  /** Time dropdown, 6:00 AM to 9:00 PM in 10-minute steps. Keeps an off-grid saved value selectable. */
+  function timeSelect(attrs, val) {
+    var opts = [], has = false;
+    for (var m = 6 * 60; m <= 21 * 60; m += 10) {
+      var v = (m / 60 < 10 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60);
+      if (v === val) has = true;
+      opts.push('<option value="' + v + '"' + (v === val ? ' selected' : '') + '>' + E.fmtTime(v) + '</option>');
+    }
+    var extra = val && !has ? '<option value="' + esc(val) + '" selected>' + E.fmtTime(val) + '</option>' : '';
+    return '<select ' + attrs + '><option value="">—</option>' + extra + opts.join('') + '</select>';
+  }
+
   function toast(msg, err) {
     document.querySelectorAll('.toast').forEach(function (x) { x.remove(); });
     var t = document.createElement('div');
@@ -90,7 +102,7 @@
     if (pr.total && pr.booked + pr.done === pr.total) return 'booked';
     return 'scheduling';
   }
-  var STAGE_LABEL = { scheduling: 'Scheduling', booked: 'All booked', in_progress: 'In progress', ready: 'Rent ready' };
+  var STAGE_LABEL = { scheduling: 'Scheduling', booked: 'All confirmed', in_progress: 'In progress', ready: 'Rent ready' };
 
   function payload(t) {
     var o = {};
@@ -154,10 +166,10 @@
   function progressHtml(t, big) {
     var p = E.progress(t.steps);
     var segs = t.steps.length ? t.steps.map(function (s) {
-      return '<div class="prog-seg ' + s.status + '" style="--c:' + color(s.key) + '" title="' + esc(s.label + ': ' + (s.status === 'open' ? 'not booked' : s.status)) + '"></div>';
+      return '<div class="prog-seg ' + s.status + '" style="--c:' + color(s.key) + '" title="' + esc(s.label + ': ' + ({ open: 'not booked', booked: 'confirmed', done: 'done' })[s.status]) + '"></div>';
     }).join('') : '<div class="prog-seg"></div>';
     return '<div class="prog' + (big ? ' big' : '') + '"><div class="prog-bar">' + segs + '</div>' +
-      '<div class="prog-txt"><span>' + p.done + ' of ' + p.total + ' done · ' + p.booked + ' booked</span><b>' + p.pct + '%</b></div></div>';
+      '<div class="prog-txt"><span>' + p.done + ' of ' + p.total + ' done · ' + p.booked + ' confirmed</span><b>' + p.pct + '%</b></div></div>';
   }
 
   function formChips(t) {
@@ -172,7 +184,7 @@
     var td = today();
     for (var j = 0; j < t.steps.length; j++) if (t.steps[j].status !== 'done' && t.steps[j].end >= td) return 'Next on site: ' + t.steps[j].label + ', ' + E.fmt(t.steps[j].start);
     if (t.steps.length && E.progress(t.steps).done === t.steps.length) return 'All steps done. Mark rent ready.';
-    return 'Everything is booked';
+    return 'Everything is confirmed';
   }
 
   // ---------- router ----------
@@ -310,7 +322,7 @@
     var days = E.bizDaysInRange(startDay, endDay).slice(0, 45);
     var idx = {}; days.forEach(function (d, i) { idx[d] = i; });
     var mi = t.move_in_date ? E.rollBiz(t.move_in_date) : null;
-    var cols = '150px repeat(' + days.length + ', minmax(38px, 1fr))';
+    var cols = '150px repeat(' + days.length + ', minmax(92px, 1fr))';
     var h = '<div class="gantt-wrap"><div class="gantt" style="grid-template-columns:' + cols + '">';
     h += '<div class="g-h" style="text-align:left;padding-left:10px">Step</div>' + days.map(function (d) {
       var dt = E.parse(d);
@@ -324,14 +336,16 @@
       var a = idx[s.start], b = idx[s.end];
       if (a == null && b == null) return;
       a = a == null ? 0 : a; b = b == null ? days.length - 1 : b;
-      h += '<div class="g-bar ' + s.status + '" style="--c:' + color(s.key) + ';background:' + color(s.key) + ';grid-row:' + row + ';grid-column:' + (a + 2) + '/' + (b + 3) + '" title="' + esc(s.label + ' ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '')) + '">' +
-        (s.status === 'done' ? '✓ ' : '') + esc(s.vendor || s.label) + '</div>';
+      var mark = s.status === 'done' ? '✓✓ ' : s.status === 'booked' ? '✓ ' : '';
+      h += '<button class="g-bar ' + s.status + '" data-act="bar" data-i="' + r + '" style="--c:' + color(s.key) + ';background:' + color(s.key) + ';grid-row:' + row + ';grid-column:' + (a + 2) + '/' + (b + 3) + '" title="Click for details">' +
+        '<span class="g-v">' + mark + esc(s.vendor || s.label) + '</span><span class="g-t">' + esc((E.fmtTime(s.time) || 'no time') + (s.days > 1 ? ' · ' + s.days + ' days' : '')) + '</span></button>';
       if (s.cure) {
         var cureDay = E.addBiz(s.end, 1);
         if (idx[cureDay] != null) h += '<div class="g-cure" style="grid-row:' + row + ';grid-column:' + (idx[cureDay] + 2) + '/' + (idx[cureDay] + 3) + '">cure</div>';
       }
     });
-    return h + '</div></div>';
+    h += '</div><div class="g-legend"><span><i class="open"></i>Not booked</span><span><i class="booked"></i>✓ Confirmed</span><span><i class="done"></i>✓✓ Done</span><span>Click a bar for details</span></div>';
+    return h + '</div>';
   }
 
   function stepRow(t, s, i) {
@@ -342,7 +356,7 @@
       '<div class="step-title"><span class="n">' + (i + 1) + '</span><b>' + esc(s.label) + '</b><span class="when">' + when + '</span>' +
       (s.pinned ? '<button class="pin" data-act="unpin" data-i="' + i + '" title="You set this date. Click to let the system place it again.">📌 set by you · auto</button>' : '') +
       (s.fromTechPrep ? '<span class="chip">' + s.hours + ' h from tech prep</span>' : '') + '</div>' +
-      '<div class="step-side"><div class="seg" title="Status">' + [['open', 'Not booked'], ['booked', 'Booked'], ['done', 'Done']].map(function (x) {
+      '<div class="step-side"><div class="seg" title="Status">' + [['open', 'Not booked'], ['booked', 'Confirmed'], ['done', 'Done']].map(function (x) {
         return '<button class="' + (s.status === x[0] ? 'on ' + x[0] : '') + '" data-act="status" data-v="' + x[0] + '" data-i="' + i + '">' + x[1] + '</button>';
       }).join('') + '</div>' +
       '<button class="iconbtn" data-act="up" data-i="' + i + '" title="Move earlier"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
@@ -354,7 +368,7 @@
       }).join('') + '</select></label>' +
       '<label class="f w-vendor"><span>Vendor</span><input type="text" data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '" value="' + esc(s.vendor) + '"></label>' +
       '<label class="f w-date"><span>Day</span><input type="date" data-ed="start" data-i="' + i + '" data-fid="d' + i + '" value="' + esc(s.start || '') + '"></label>' +
-      '<label class="f w-time"><span>Time</span><input type="time" data-ed="time" data-i="' + i + '" data-fid="t' + i + '" value="' + esc(s.time || '') + '"></label>' +
+      '<label class="f w-time"><span>Time</span>' + timeSelect('data-ed="time" data-i="' + i + '" data-fid="t' + i + '"', s.time || '') + '</label>' +
       '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
       '<label class="f w-num"><span>Hours</span><input type="number" min="0.5" step="0.5" data-ed="hours" data-i="' + i + '" data-fid="h' + i + '" value="' + esc(s.hours) + '"></label>' +
       '<label class="f grow"><span>Scope note (goes in the message)</span><input type="text" data-ed="note" data-i="' + i + '" data-fid="o' + i + '" value="' + esc(s.note) + '"></label>' +
@@ -377,7 +391,7 @@
       'Move-out: ' + E.fmt(t.move_out_date) + ' · Rent ready: ' + E.fmt(t.rent_ready_date) + (t.move_in_date ? ' · Move-in: ' + E.fmt(t.move_in_date) : ''), ''];
     t.steps.forEach(function (s, i) {
       lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
-        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + ({ open: 'not booked', booked: 'booked', done: 'done' })[s.status] + ']');
+        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + ({ open: 'not booked', booked: 'confirmed', done: 'done' })[s.status] + ']');
     });
     return lines.join('\n');
   }
@@ -394,7 +408,7 @@
       '<div class="row"><button class="btn primary" data-act="copy-msg">Copy message</button>' +
       (contact.phone ? '<a class="btn" id="smslink" href="sms:' + esc(contact.phone) + '">Text ' + esc(contact.phone) + '</a>' : '') +
       (contact.email ? '<a class="btn" id="maillink" href="mailto:' + esc(contact.email) + '">Email</a>' : '') +
-      (s.status === 'open' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Mark booked</button>' : '') +
+      (s.status === 'open' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Vendor confirmed</button>' : '') +
       '<div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
     var ta = $('#msgtext');
     function links() {
@@ -403,6 +417,57 @@
       var ml = $('#maillink'); if (ml) ml.href = 'mailto:' + contact.email + '?subject=' + encodeURIComponent(s.label + ' at ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + ', ' + E.fmt(s.start)) + '&body=' + body;
     }
     ta.addEventListener('input', links); links();
+  }
+
+  function vkey(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  /** Every other booking for the same vendor on the days this step covers, across all open turns. */
+  function vendorDay(t, s) {
+    var out = [], days = s.start ? E.bizDaysInRange(s.start, s.end) : [], k = vkey(s.vendor);
+    if (!k) return out;
+    days.forEach(function (d) {
+      S.turns.forEach(function (o) {
+        o.steps.forEach(function (x, xi) {
+          if (o === t && x === s) return;
+          if (vkey(x.vendor) !== k || !x.start || d < x.start || d > x.end) return;
+          out.push({ day: d, turn: o, step: x });
+        });
+      });
+    });
+    out.sort(function (a, b) { return (a.day + (a.step.time || '')).localeCompare(b.day + (b.step.time || '')); });
+    return out;
+  }
+
+  function openBar(t, i) {
+    var s = t.steps[i];
+    var others = vendorDay(t, s);
+    var st = ({ open: 'Not booked', booked: 'Confirmed', done: 'Done' })[s.status];
+    var rows = [
+      ['Unit', shortProp(t) + (t.unit_label ? ' · ' + t.unit_label : '')],
+      ['Size', s.sizeLabel || ''],
+      ['Day', E.fmt(s.start) + (s.days > 1 ? ' → ' + E.fmt(s.end) + ' (' + s.days + ' business days)' : '')],
+      ['Start', E.fmtTime(s.time) || '—'],
+      ['Length', E.lengthText(s)],
+      ['Status', st + (s.confirmedAt && s.status !== 'open' ? ' · ' + new Date(s.confirmedAt).toLocaleDateString() : '')],
+      ['Scope', s.note || '—'],
+      ['Access', t.scope.access || '—']
+    ];
+    var ov = $('#overlay');
+    ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal bar-modal" style="--c:' + color(s.key) + '">' +
+      '<div class="bm-top"><span class="bm-dot"></span><div><h3>' + esc(s.label) + '</h3><div class="bm-v">' + esc(s.vendor || 'No vendor yet') + '</div></div></div>' +
+      '<table class="summary-t">' + rows.map(function (r) { return '<tr><td style="width:80px;color:var(--muted)">' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
+      '<div class="bm-sec">' + esc(s.vendor || 'This vendor') + ' that day</div>' +
+      (others.length ? others.map(function (o) {
+        var os = ({ open: 'not booked', booked: 'confirmed', done: 'done' })[o.step.status];
+        return '<div class="bm-other" data-open="' + o.turn.id + '"><b>' + E.fmt(o.day) + (o.step.time ? ' · ' + E.fmtTime(o.step.time) : '') + '</b> ' +
+          esc(calLabel(o.turn) + ' · ' + o.step.label) + ' <span class="chip">' + os + '</span></div>';
+      }).join('') : '<div style="color:var(--muted);font-size:13px">No other jobs booked for them on ' + (s.days > 1 ? 'those days' : 'that day') + '.</div>') +
+      '<div class="row" style="margin-top:14px">' +
+      (s.status === 'booked' ? '<button class="btn" data-act="bar-status" data-v="open" data-i="' + i + '">Undo confirmed</button>'
+        : '<button class="btn primary" data-act="bar-status" data-v="booked" data-i="' + i + '">✓ Vendor confirmed this time</button>') +
+      (s.status !== 'done' ? '<button class="btn" data-act="bar-status" data-v="done" data-i="' + i + '">Mark done</button>' : '') +
+      '<button class="btn" data-act="message" data-i="' + i + '">✉ Vendor message</button>' +
+      '<div class="spacer"></div><button class="btn ghost" data-act="bar-edit" data-i="' + i + '">Edit</button></div></div></div>';
   }
 
   function closeModal() { $('#overlay').innerHTML = ''; }
@@ -506,7 +571,7 @@
         S.form.af_wo = S.form.af_wo || t.af_wo_number; S.form.move_out_date = t.move_out_date; S.form.move_in_date = t.move_in_date;
       }
       if (key !== 'scope' && !S.form.done_date) S.form.done_date = today();
-      if (key === 'techprep') { S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'No'; }
+      if (key === 'techprep') { S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'OK as is'; }
       if (key === 'moveout') { S.form.rr_holds = S.form.rr_holds || 'Yes'; }
       S.formDirty = false;
     }
@@ -515,6 +580,7 @@
 
   function showIf(cond, d) {
     if (!cond) return true;
+    if (cond.indexOf('!=') > 0) { var q = cond.split('!='); return !!d[q[0]] && d[q[0]] !== q[1]; }
     var p = cond.split('=');
     return p.length > 1 ? d[p[0]] === p[1] : !!d[p[0]];
   }
@@ -550,7 +616,9 @@
     var cls = 'f' + (f.half ? ' half' : '');
     var dp = 'data-fp="' + f.id + '" data-fid="ff-' + f.id + '"';
     switch (f.type) {
-      case 'text': case 'date': case 'time': case 'number':
+      case 'time':
+        return '<label class="' + cls + '">' + lab(f) + timeSelect(dp, v || '') + '</label>';
+      case 'text': case 'date': case 'number':
         return '<label class="' + cls + '">' + lab(f) + '<input type="' + f.type + '" ' + dp + ' value="' + esc(v == null ? '' : v) + '"' +
           (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') + (f.step ? ' step="' + f.step + '"' : '') + '>' +
           (f.help ? '<small style="color:var(--muted)">' + esc(f.help) + '</small>' : '') + '</label>';
@@ -622,19 +690,19 @@
 
   function checklistHtml(d) {
     d.checklist = d.checklist || {};
-    var tot = { fix: 0, nc: 0, ok: 0 };
+    var tot = { fix: 0, nc: 0, ok: 0, na: 0 };
     var rooms = roomInstances(d).map(function (r) {
       var st = d.checklist[r.id] || {};
-      var cnt = { fix: 0, nc: 0, ok: 0 };
+      var cnt = { fix: 0, nc: 0, ok: 0, na: 0 };
       var items = r.items.map(function (it, ii) {
         var e = st[ii] || {};
         if (e.s) { cnt[e.s]++; tot[e.s]++; }
-        return '<div class="ci"><span>' + esc(it) + '</span><span class="tri">' + [['ok', 'OK'], ['fix', 'Fix'], ['nc', 'Not checked']].map(function (x) {
+        return '<div class="ci"><span>' + esc(it) + '</span><span class="tri">' + [['ok', 'OK'], ['fix', 'Fix'], ['nc', 'Not checked'], ['na', 'N/A']].map(function (x) {
           return '<button class="' + (e.s === x[0] ? 'on ' + x[0] : '') + '" data-act="ci" data-room="' + r.id + '" data-ii="' + ii + '" data-v="' + x[0] + '">' + x[1] + '</button>';
         }).join('') + '</span>' +
           (e.s === 'fix' || e.s === 'nc' ? '<div class="note"><input type="text" placeholder="' + (e.s === 'fix' ? 'What to fix / part needed' : 'Why not checked') + '" data-cin="1" data-room="' + r.id + '" data-ii="' + ii + '" data-fid="cin-' + r.id + '-' + ii + '" value="' + esc(e.note || '') + '"></div>' : '') + '</div>';
       }).join('');
-      return '<details class="room"' + (cnt.fix || cnt.nc ? ' open' : '') + '><summary>' + esc(r.label) + '<em>' + (cnt.ok + cnt.fix + cnt.nc) + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items + '</details>';
+      return '<details class="room"' + (cnt.fix || cnt.nc ? ' open' : '') + '><summary>' + esc(r.label) + '<em>' + (cnt.ok + cnt.fix + cnt.nc + cnt.na) + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items + '</details>';
     }).join('');
     return '<div style="margin-bottom:8px;font-weight:600">' + tot.fix + ' to fix · ' + tot.nc + ' not checked · ' + tot.ok + ' OK</div>' + rooms;
   }
@@ -665,7 +733,7 @@
     if (!t) return '';
     var rows = t.steps.map(function (s) {
       return '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + color(s.key) + '"></span> <b>' + esc(s.label) + '</b> ' + esc(s.sizeLabel || '') +
-        (s.note ? '<div style="color:var(--muted);font-size:12px">' + esc(s.note) + '</div>' : '') + '</td><td>' + esc(s.vendor) + '</td><td>' + E.fmt(s.start) + '</td><td>' + ({ open: 'Not booked', booked: 'Booked', done: 'Done' })[s.status] + '</td></tr>';
+        (s.note ? '<div style="color:var(--muted);font-size:12px">' + esc(s.note) + '</div>' : '') + '</td><td>' + esc(s.vendor) + '</td><td>' + E.fmt(s.start) + '</td><td>' + ({ open: 'Not booked', booked: 'Confirmed', done: 'Done' })[s.status] + '</td></tr>';
     }).join('');
     var dm = (t.scope.damages || []).filter(function (x) { return x.item; });
     return '<table class="summary-t">' + rows + '</table>' +
@@ -865,7 +933,7 @@
     var act = e.target.closest('[data-act]');
     if (act) { handleAct(act, e); return; }
     var open = e.target.closest('[data-open]');
-    if (open && open.dataset.open) { go('turn', { turnId: open.dataset.open, tab: 'schedule' }); }
+    if (open && open.dataset.open) { closeModal(); go('turn', { turnId: open.dataset.open, tab: 'schedule' }); }
   });
 
   function handleAct(el, e) {
@@ -902,8 +970,20 @@
     }
     if (a === 'copy-msg') { copyText($('#msgtext').value).then(function (ok) { if (ok) toast('Copied. Paste it into a text or email.'); else { $('#msgtext').select(); toast('Press Ctrl/Cmd+C to copy', true); } }); return; }
     if (!t) return;
-    if (a === 'msg-booked') { pushUndo(t); t.steps[i].status = 'booked'; closeModal(); queueSave(t); render(); toast(t.steps[i].label + ' marked booked'); return; }
+    if (a === 'msg-booked') { pushUndo(t); t.steps[i].status = 'booked'; t.steps[i].confirmedAt = new Date().toISOString(); closeModal(); queueSave(t); render(); toast(t.steps[i].label + ' marked confirmed'); return; }
     if (a === 'message') { openMessage(t, i); return; }
+    if (a === 'bar') { openBar(t, i); return; }
+    if (a === 'bar-status') {
+      pushUndo(t); t.steps[i].status = el.dataset.v;
+      if (el.dataset.v === 'booked') t.steps[i].confirmedAt = new Date().toISOString();
+      queueSave(t); render(); openBar(t, i); return;
+    }
+    if (a === 'bar-edit') {
+      closeModal();
+      var row = document.querySelector('.step[data-i="' + i + '"]');
+      if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('hl'); setTimeout(function () { row.classList.remove('hl'); }, 1600); }
+      return;
+    }
     if (a === 'copy-all') { copyText(scheduleText(t)).then(function (ok) { toast(ok ? 'Schedule copied' : 'Copy blocked by the browser', !ok); }); return; }
     if (a === 'mark-ready') { if (!confirm('Mark this unit rent ready?')) return; t.stage = 'ready'; queueSave(t); render(); return; }
     if (a === 'unready') { t.stage = 'scheduling'; t.stage = stageOf(t); queueSave(t); render(); return; }
@@ -915,7 +995,7 @@
     }
     pushUndo(t);
     if (a === 'recommended') { E.recommended(t.steps, t.move_out_date, cat()); toast('Recommended schedule laid out'); }
-    else if (a === 'status') t.steps[i].status = el.dataset.v;
+    else if (a === 'status') { t.steps[i].status = el.dataset.v; if (el.dataset.v === 'booked') t.steps[i].confirmedAt = new Date().toISOString(); }
     else if (a === 'unpin') t.steps[i].pinned = false;
     else if (a === 'up' && i > 0) { var tmp = t.steps[i - 1]; t.steps[i - 1] = t.steps[i]; t.steps[i] = tmp; }
     else if (a === 'down' && i < t.steps.length - 1) { var tmp2 = t.steps[i + 1]; t.steps[i + 1] = t.steps[i]; t.steps[i] = tmp2; }

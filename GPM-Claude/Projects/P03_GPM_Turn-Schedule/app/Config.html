@@ -48,11 +48,12 @@ var DEFAULT_SETTINGS = {
 };
 
 var CHECK_ROOMS = [
+  // Items match Jason's "TURN checklist 2026" (Drive 1CQD_TPlhFzpN3wyr3NTS4-0Dk6gzmSpdhwQrSywkutU) room by room.
   { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind'] },
-  { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock (2 key min)', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
-  { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 outside bedroom'] },
+  { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock', '2 key min', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
+  { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 (outside bedroom)'] },
   { id: 'kitchen', label: 'Kitchen', items: ['Light above sink', 'Run dishwasher', 'Disposal', 'Faucet', 'Drains under sink', 'Stove / oven', 'Drip pans', 'Hood filter', 'Microwave', 'Fridge / freezer', 'Countertops', 'Cabinets / drawers', 'GFCI protecting', 'Outlet / switch covers'] },
-  { id: 'basement', label: 'Basement', items: ['Smoke detector', 'Furnace filter (log size in Furnace Filter Sizes)', 'Washer', 'Dryer', 'Utility sink', 'Lights'] },
+  { id: 'basement', label: 'Basement', items: ['Smoke detector', 'Furnace filter', 'Washer', 'Dryer', 'Utility sink', 'Lights'] },
   { id: 'bath', label: 'Bathroom', repeat: 'bathrooms', items: ['Light / vent fan', 'Tub faucet', 'Tub drain', 'Tub stopper', 'Shower caulk', 'Shower curtain', 'Shower bar', 'Toilet drain / fill', 'Bolt caps on toilet', 'Toilet seat / hinges', 'Vanity faucet', 'Vanity drain', 'Toilet paper bar', 'Towel bar', 'GFCI protecting', 'Outlet / switch covers'] },
   { id: 'bed', label: 'Bedroom', repeat: 'bedrooms', items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Smoke detector', 'Closet door latches', 'Closet hardware'] }
 ];
@@ -113,8 +114,9 @@ var FORMS = {
         { id: 'bedrooms', type: 'select', label: 'Bedrooms', options: ['0', '1', '2', '3', '4'], half: true },
         { id: 'bathrooms', type: 'select', label: 'Bathrooms', options: ['1', '2'], half: true }
       ]},
-      { title: 'Fix list', help: 'Tap each item: OK, Fix, or Not checked (blocked while occupied). Not-checked items show on Spencer\'s move-out check.', fields: [
-        { id: 'checklist', type: 'checklist' }
+      { title: 'Fix list', help: 'Jason\'s TURN checklist 2026, room by room. Tap each item: OK, Fix (repair needed / missing / replace), Not checked (blocked while occupied), or N/A (unit does not have it). Not-checked items show on Spencer\'s move-out check.', fields: [
+        { id: 'checklist', type: 'checklist' },
+        { id: 'furnace_filter_size', type: 'text', label: 'Furnace filter size (also add it to "Furnace Filter Sizes" in Drive)', placeholder: 'e.g. 16x25x1' }
       ]},
       { title: 'Parts + tools', fields: [
         { id: 'parts', type: 'list', label: 'Part', columns: [
@@ -125,11 +127,14 @@ var FORMS = {
         { id: 'blinds_count', type: 'number', label: 'Blinds to replace (count)', half: true },
         { id: 'blinds_sizes', type: 'text', label: 'Blind sizes', half: true }
       ]},
-      { title: 'Rekey + keys', fields: [
-        { id: 'rekey', type: 'select', label: 'Rekey needed', options: ['No', 'Yes'], half: true },
-        { id: 'lock_type', type: 'text', label: 'Lock type', half: true, showIf: 'rekey=Yes' },
-        { id: 'rekey_parts', type: 'text', label: 'Rekey parts', showIf: 'rekey=Yes' },
-        { id: 'keys_expected', type: 'text', label: 'Keys / remotes / mailbox keys to collect', placeholder: 'e.g. 2 entry, 1 mailbox, 1 garage remote' }
+      { title: 'Locks + keys', help: 'From the checklist: entry lock replaced or re-keyed, 2 GPM entry keys (2 key min), mailbox key, 1 garage remote per door. Counts are what is LEFT IN THE UNIT; the tech recounts on build day.', fields: [
+        { id: 'rekey', type: 'select', label: 'Entry lock', options: ['OK as is', 'Re-key', 'Replace'], half: true },
+        { id: 'lock_type', type: 'text', label: 'Lock type / brand', half: true, showIf: 'rekey!=OK as is' },
+        { id: 'rekey_parts', type: 'text', label: 'Lock parts to order', showIf: 'rekey!=OK as is' },
+        { id: 'keys_entry', type: 'number', label: '# entry keys left in unit', half: true },
+        { id: 'keys_mailbox', type: 'number', label: '# mailbox keys left in unit', half: true },
+        { id: 'remotes_garage', type: 'number', label: '# garage remotes left (1 per door)', half: true },
+        { id: 'keys_other', type: 'text', label: 'Other keys / fobs', half: true }
       ]},
       { title: 'Other', fields: [
         { id: 'left_behind', type: 'textarea', label: 'Items left behind' },
