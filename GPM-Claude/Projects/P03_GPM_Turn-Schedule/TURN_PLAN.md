@@ -188,6 +188,20 @@ Excluded entirely (owner uses own vendors):
       registration status before designing vendor texts.
       11/5: Matt's login = Analytics only (no Admin Portal); developer portal = No_Permission.
       Draft to Laura (unsent) asks for admin/custom role. Matt on RingCentral webinar Thu 11/12.
+      11/5 later: developer portal now works; sample app + JWT credential created (secret stays in
+      RingCentral / Script Properties only, never in repo or email). Pre-build checks (RC docs 11/5):
+      a) Sending number must belong to the logged-in extension (company numbers: one designated
+         extension). Decide whose extension owns the turn number; a dedicated "Turns" user is safest.
+      b) SMS is OFF by default. Local numbers need an approved TCR brand + campaign; toll-free needs
+         toll-free verification. Check per number: API "list my phone numbers" -> feature SmsSender,
+         and sms-configuration campaign status = Confirmed.
+      c) Campaign use case must match the texts (AccountNotification / CustomerCare); vendors must
+         have agreed to get texts. LowVolume tier (6,000/day) is plenty.
+      d) Use standard Business SMS, not High Volume (High Volume has no MMS = no vendor photos).
+      e) Replies: webhook needs an HTTPS endpoint that echoes a Validation-Token header within 3s;
+         Apps Script web apps can't set response headers. Recommend GAS polling the message store
+         every 5 min instead (no webhook, no new server).
+      f) STOP / UNSUBSCRIBE replies: carriers block further texts; the tool must track opt-outs too.
 - [ ] Dumpster Divers: duration answered (normally 1d, depends on volume; Jody 11/5). Still open: where it
       sits in the 11 steps (likely right after PMI, before Projects).
 - [ ] Vendor notice + "done" signal: ONE mechanism for invited / booked / finished. Many vendors are
