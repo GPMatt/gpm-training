@@ -112,13 +112,10 @@ old "PMI scheduled" email to PM, old "scope brief so PM creates the WO" email.
 - PM: receives rent-ready dates.
 
 ## Property lists
-Cookie cutter (Spencer alone; unit counts):
-900 Leonard St NW, Grand Rapids 49504 (120) · 2935 Oak Valley Ave SW, Wyoming 49519 (117) ·
-547 Cherry St SE, Grand Rapids 49503 (99) · 2340 Michael Ave SW, Wyoming 49509 (92) ·
-6611 Prairie Winds Dr, Zeeland 49464 (80) · 90 Wealthy St SE, Grand Rapids 49503 (61) ·
-5943 8th Ave, Grandville 49418 (60) · 1960 Burton St SE, Grand Rapids 49506 (46) ·
-2700 Clyde Park Ave SW, Wyoming 49509 (37) · 100 Commerce Ave SW, Grand Rapids 49503 (32) ·
-730 Leonard St NW, Grand Rapids 49504 (31)
+Cookie cutter (Spencer alone). UPDATED 2026-11-06 by Matt, these are the ONLY ones for now:
+900 Leonard St NW 49504 · 90 Wealthy St SE 49503 · 5943 8th Ave, Grandville 49418 · 1960 Burton St SE 49506 ·
+100 Commerce Ave SW 49503 · 730 Leonard St NW 49504 · 445 Knapp St NE 49505
+(Removed: 2935 Oak Valley, 547 Cherry, 2340 Michael, 6611 Prairie Winds, 2700 Clyde Park; now Riley walks.)
 
 Excluded entirely (owner uses own vendors):
 - Kyle Visser: 956 Innes St NE 49503 · 1114 E Fulton 49503 · 228 Baynton Ave NE 49503 ·

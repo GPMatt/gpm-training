@@ -688,9 +688,10 @@
   }
 
   function isCookieCutter(addr) {
-    var n = function (s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim(); };
-    var a = n(addr);
-    return (S.settings.cookieCutter || []).some(function (c) { var k = n(c).split(' ').slice(0, 3).join(' '); return k && a.indexOf(k) === 0; });
+    // Match on house number + street name only ("90 Wealthy Street SE," = "90 Wealthy St SE").
+    var key = function (s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 2).join(' '); };
+    var a = key(addr);
+    return !!a && (S.settings.cookieCutter || []).some(function (c) { return key(c) === a; });
   }
 
   function markDirty() { S.formDirty = true; var el = $('#dirty'); if (el) el.textContent = 'Unsaved changes'; }
