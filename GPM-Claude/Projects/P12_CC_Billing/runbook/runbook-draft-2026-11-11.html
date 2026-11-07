@@ -1,0 +1,2770 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>GPM CC Billing — Operator Runbook</title>
+
+<style>
+/* ============================================================
+   Tokens — complete light palette on bare :root.
+   Dark redefines tokens only, never components.
+   ============================================================ */
+:root {
+  --paper:      #FBFAF7;
+  --surface:    #FFFFFF;
+  --surface-2:  #F3F1EA;
+  --ink:        #1B201C;
+  --ink-soft:   #4B534C;
+  --ink-faint:  #78806F;
+  --rule:       #E3E0D6;
+  --rule-hard:  #C9C5B7;
+  --accent:     #2E5C3E;
+  --accent-bg:  #E8F0E8;
+  --warn:       #A8541B;
+  --warn-bg:    #FBF0E4;
+  --stop:       #94211C;
+  --stop-bg:    #FBE9E7;
+  --ok:         #3F6B4A;
+  --ok-bg:      #E9F2E9;
+  --code-bg:    #EFEDE4;
+  --shadow:     0 1px 2px rgba(27,32,28,.06), 0 6px 18px rgba(27,32,28,.05);
+
+  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:     #141815;
+    --surface:   #1B201C;
+    --surface-2: #222823;
+    --ink:       #E7E5DB;
+    --ink-soft:  #ABB2A9;
+    --ink-faint: #838B81;
+    --rule:      #2E352F;
+    --rule-hard: #414940;
+    --accent:    #7FBB8E;
+    --accent-bg: #1E2A21;
+    --warn:      #E0985F;
+    --warn-bg:   #2C231A;
+    --stop:      #E88079;
+    --stop-bg:   #2E1D1C;
+    --ok:        #86BC93;
+    --ok-bg:     #1D271F;
+    --code-bg:   #232A24;
+    --shadow:    0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper:     #141815;
+  --surface:   #1B201C;
+  --surface-2: #222823;
+  --ink:       #E7E5DB;
+  --ink-soft:  #ABB2A9;
+  --ink-faint: #838B81;
+  --rule:      #2E352F;
+  --rule-hard: #414940;
+  --accent:    #7FBB8E;
+  --accent-bg: #1E2A21;
+  --warn:      #E0985F;
+  --warn-bg:   #2C231A;
+  --stop:      #E88079;
+  --stop-bg:   #2E1D1C;
+  --ok:        #86BC93;
+  --ok-bg:     #1D271F;
+  --code-bg:   #232A24;
+  --shadow:    0 1px 2px rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+h1, h2, h3, h4 { font-family: var(--serif); text-wrap: balance; margin: 0; font-weight: 600; }
+
+/* ============================================================
+   Shell
+   ============================================================ */
+.shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 56px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 32px 140px;
+  align-items: start;
+}
+
+@media (max-width: 940px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding: 0 20px 100px; }
+}
+
+/* ---- Masthead ---- */
+.masthead {
+  grid-column: 1 / -1;
+  padding: 52px 0 30px;
+  border-bottom: 1px solid var(--rule-hard);
+  margin-bottom: 40px;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 14px;
+}
+.masthead h1 {
+  font-size: clamp(31px, 5vw, 46px);
+  line-height: 1.08;
+  letter-spacing: -.015em;
+  margin-bottom: 14px;
+}
+.standfirst {
+  max-width: var(--measure);
+  font-size: 18px;
+  color: var(--ink-soft);
+  margin: 0 0 26px;
+}
+.masthead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ---- Sidebar ---- */
+.rail {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding-bottom: 20px;
+}
+@media (max-width: 940px) {
+  .rail { position: static; max-height: none; margin-bottom: 44px; }
+}
+
+.search-wrap { margin-bottom: 26px; }
+.search-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-hard);
+  border-radius: 3px;
+}
+.search-input::placeholder { color: var(--ink-faint); }
+.search-hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 7px;
+}
+
+.rail-group { margin-bottom: 24px; }
+.rail-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding-bottom: 7px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.rail-group ol, .rail-group ul { list-style: none; margin: 0; padding: 0; }
+.rail-group li { margin: 0; }
+.rail-group a {
+  display: block;
+  padding: 3.5px 0;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.rail-group a:hover { color: var(--accent); text-decoration: underline; }
+.rail-num {
+  display: inline-block;
+  width: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ---- Main column ---- */
+.main { min-width: 0; }
+.main > * { max-width: var(--measure); }
+.main > .wide, .main > section > .wide { max-width: none; }
+
+section { margin-bottom: 68px; scroll-margin-top: 20px; }
+section > * { max-width: var(--measure); }
+section > .wide { max-width: none; }
+
+/* Section head: the ledger double-rule */
+.sec-head { border-bottom: 3px double var(--rule-hard); padding-bottom: 10px; margin-bottom: 26px; max-width: none; }
+.sec-head .eyebrow { margin-bottom: 8px; }
+.sec-head h2 { font-size: clamp(23px, 3vw, 29px); letter-spacing: -.01em; }
+
+h3 {
+  font-size: 20px;
+  margin: 40px 0 12px;
+  letter-spacing: -.005em;
+  scroll-margin-top: 20px;
+}
+h4 {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 26px 0 8px;
+}
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 7px; }
+li > ul, li > ol { margin-top: 7px; }
+
+/* ---- Mono conventions: cells, menu items, statuses ---- */
+code, .cell, .menu, .val {
+  font-family: var(--mono);
+  font-size: .875em;
+  background: var(--code-bg);
+  padding: 1.5px 5px;
+  border-radius: 2.5px;
+  white-space: nowrap;
+}
+.menu { color: var(--accent); font-weight: 500; }
+.cell { color: var(--ink-soft); }
+
+/* ---- Numbered steps ---- */
+.step { margin-bottom: 56px; scroll-margin-top: 20px; max-width: none; }
+.step > * { max-width: var(--measure); }
+.step > .wide { max-width: none; }
+.step-head {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  border-top: 1px solid var(--rule-hard);
+  padding-top: 16px;
+  margin-bottom: 16px;
+  max-width: none;
+}
+.step-n {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  color: var(--accent);
+  flex: 0 0 auto;
+  padding-top: 5px;
+}
+.step-head h3 { margin: 0; font-size: 22px; }
+.step-head .who {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 3px;
+  letter-spacing: .04em;
+}
+
+/* ---- Callouts ---- */
+.warn, .stop, .note, .ok-box {
+  border-left: 3px solid;
+  padding: 13px 16px 13px 15px;
+  margin: 18px 0;
+  border-radius: 0 3px 3px 0;
+  font-size: 15px;
+}
+.warn   { border-color: var(--warn); background: var(--warn-bg); }
+.stop   { border-color: var(--stop); background: var(--stop-bg); }
+.note   { border-color: var(--rule-hard); background: var(--surface-2); }
+.ok-box { border-color: var(--ok); background: var(--ok-bg); }
+.warn > :last-child, .stop > :last-child, .note > :last-child, .ok-box > :last-child { margin-bottom: 0; }
+
+.cl-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.warn .cl-label { color: var(--warn); }
+.stop .cl-label { color: var(--stop); }
+.note .cl-label { color: var(--ink-faint); }
+.ok-box .cl-label { color: var(--ok); }
+
+/* ---- Jump links to the exceptions half ---- */
+.jump {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* ---- Tables ---- */
+.tbl-wrap { overflow-x: auto; margin: 18px 0 22px; max-width: none; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 540px;
+  font-size: 14.5px;
+}
+th, td {
+  text-align: left;
+  padding: 9px 14px 9px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--rule-hard);
+  font-weight: 600;
+  white-space: nowrap;
+}
+td.num, th.num { font-variant-numeric: tabular-nums; }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---- Status chips: literal sheet colors ---- */
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 2.5px;
+  color: #1B201C;
+  border: 1px solid rgba(27,32,28,.18);
+  white-space: nowrap;
+}
+.c-pending  { background: #fff2cc; }
+.c-ready    { background: #d0e0e3; }
+.c-sent     { background: #d9ead3; }
+.c-error    { background: #f4cccc; }
+.c-nonbill, .c-non-billable { background: #efefef; }
+.c-prior    { background: #d9d2e9; }
+.c-credited { background: #b4a7d6; }
+.c-netted   { background: #cfe2f3; }
+
+/* ---- Risk chips on menu items ---- */
+.risk {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 1.5px 7px;
+  border-radius: 2.5px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.r-free { color: var(--ok);   border-color: var(--ok);   background: var(--ok-bg); }
+.r-cost { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.r-irr  { color: var(--stop); border-color: var(--stop); background: var(--stop-bg); }
+
+/* ---- Exception cards ---- */
+.exc {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  scroll-margin-top: 20px;
+  box-shadow: var(--shadow);
+  max-width: none;
+}
+.exc > * { max-width: var(--measure); }
+.exc > .tbl-wrap { max-width: none; }
+.exc h3 { margin: 0 0 4px; font-size: 18px; }
+.exc .symptom {
+  font-size: 14px;
+  color: var(--ink-faint);
+  margin-bottom: 14px;
+  font-style: italic;
+}
+.exc > :last-child { margin-bottom: 0; }
+
+/* ---- Sheet-tab spec blocks ---- */
+.spec { display: grid; gap: 0; margin: 16px 0 24px; max-width: none; }
+.spec-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0,1fr);
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14.5px;
+}
+.spec-row:last-child { border-bottom: none; }
+.spec-key { font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); padding-top: 2px; }
+@media (max-width: 600px) {
+  .spec-row { grid-template-columns: minmax(0,1fr); gap: 3px; }
+}
+
+/* ---- Search behavior ---- */
+.hidden-by-search { display: none !important; }
+mark {
+  background: var(--accent-bg);
+  color: var(--ink);
+  padding: 0 1px;
+  border-radius: 2px;
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+#noresults {
+  display: none;
+  padding: 26px 0;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 14px;
+}
+#noresults.on { display: block; }
+
+.searching .rail-group.filterable { opacity: .45; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+html { scroll-behavior: smooth; }
+
+/* ---- Draft markers: visible only while the wrapper has class "draft" ---- */
+.pkg, .tbc, .draft-banner { display: none; }
+.draft .pkg, .draft .tbc {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: .05em;
+  padding: 1px 6px;
+  border-radius: 2.5px;
+  margin-left: 4px;
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+.draft .pkg { color: var(--accent); border: 1px dashed var(--accent); }
+.draft .tbc { color: var(--warn); border: 1px dashed var(--warn); background: var(--warn-bg); }
+.draft .draft-banner {
+  display: block;
+  grid-column: 1 / -1;
+  margin: 24px 0 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--warn);
+  background: var(--warn-bg);
+  border-radius: 3px;
+  font-size: 14.5px;
+  max-width: none;
+}
+.draft-banner > :last-child { margin-bottom: 0; }
+
+/* ---- At-a-glance checklist ---- */
+.glance { list-style: none; padding: 0; margin: 0 0 8px; counter-reset: g; }
+.glance li {
+  counter-increment: g;
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr);
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  margin: 0;
+}
+.glance li:last-child { border-bottom: none; }
+.glance li::before {
+  content: counter(g);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  padding-top: 3px;
+}
+
+/* ---- "Three ways in" cards ---- */
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 14px 0 22px; max-width: none; }
+.way {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  padding: 14px 16px;
+  font-size: 14.5px;
+}
+.way h4 { margin: 0 0 6px; }
+.way .when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin-bottom: 6px; display: block; }
+.way p { margin: 0; }
+
+/* ---- Recon status chips (4 statuses) ---- */
+.rs { display: inline-block; font-family: var(--mono); font-size: 12px; padding: 2px 8px; border-radius: 2.5px; border: 1px solid; white-space: nowrap; }
+.rs-matched { color: var(--ok);   border-color: var(--ok);   background: var(--ok-bg); }
+.rs-look    { color: var(--stop); border-color: var(--stop); background: var(--stop-bg); }
+.rs-missing { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); }
+.rs-nobill  { color: var(--ink-soft); border-color: var(--rule-hard); background: var(--surface-2); }
+</style>
+
+<div id="draftwrap" class="draft">
+<div class="shell">
+
+  <div class="draft-banner">
+    <p><strong>DRAFT, 2026-11-07.</strong> Written ahead of packages 1-4 going live. It describes the
+    system as it will run on cycle day, Thu 11/12. Do not publish until packages 1-4 pass the tester
+    (target Wed 11/11 evening).</p>
+    <p>Dashed green tags (<span class="pkg" style="display:inline-block">pkg 3</span>) name the package
+    a passage depends on. If that package doesn't go live, restore the old text from
+    <span class="val">runbook-live-2026-08-18.html</span>. Orange tags
+    (<span class="tbc" style="display:inline-block">confirm</span>) are details to check against the
+    build or the live menu on 11/11. To publish: remove <span class="val">class="draft"</span> from
+    <span class="val">#draftwrap</span>, which hides every tag and this banner.</p>
+  </div>
+
+  <header class="masthead">
+    <p class="eyebrow">GPM · P12 BillBack · Operator Runbook</p>
+    <h1>Credit-card receipts to owner invoices, one cycle at a time</h1>
+    <p class="standfirst">
+      What you click, in the order you click it, and what to do when a cycle doesn't go the ordinary
+      way. Start with the five-line checklist below. Most of your time goes into the
+      <strong>Needs a Look</strong> tab at Step&nbsp;4.
+    </p>
+    <div class="masthead-meta">
+      <span>Sheet: GPM CC Receipts</span>
+      <span>Menu: GPM Billing</span>
+      <span>Runs it: Laura · backup: Matt</span>
+      <span>Cadence: monthly, ~1 statement</span>
+      <span>Updated: 2026-11-11</span>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Contents">
+    <div class="search-wrap">
+      <input id="search" class="search-input" type="search" placeholder="Search this runbook…"
+             aria-label="Search this runbook" autocomplete="off">
+      <p class="search-hint">Press <strong>/</strong> to focus · Esc to clear</p>
+    </div>
+
+    <div class="rail-group filterable">
+      <p class="rail-label">Start here</p>
+      <ul>
+        <li><a href="#glance">This month's cycle at a glance</a></li>
+        <li><a href="#orientation">What the system does</a></li>
+        <li><a href="#rules">The five standing rules</a></li>
+      </ul>
+    </div>
+
+    <div class="rail-group filterable">
+      <p class="rail-label">The monthly cycle</p>
+      <ol>
+        <li><a href="#step-1"><span class="rail-num">1</span>Health Check</a></li>
+        <li><a href="#step-2"><span class="rail-num">2</span>Drop in the statement</a></li>
+        <li><a href="#step-3"><span class="rail-num">3</span>Parse Statement</a></li>
+        <li><a href="#step-4"><span class="rail-num">4</span>Work the Needs a Look tab</a></li>
+        <li><a href="#step-5"><span class="rail-num">5</span>Re-run Matching</a></li>
+        <li><a href="#step-6"><span class="rail-num">6</span>Send Chase Emails</a></li>
+        <li><a href="#step-7"><span class="rail-num">7</span>Invoice &amp; Send</a></li>
+        <li><a href="#step-8"><span class="rail-num">8</span>Confirm and close out</a></li>
+      </ol>
+    </div>
+
+    <div class="rail-group filterable">
+      <p class="rail-label">When it's not ordinary</p>
+      <ul>
+        <li><a href="#exceptions">All situations (index)</a></li>
+        <li><a href="#x-needs-a-look">Needs a look: reasons and fixes</a></li>
+        <li><a href="#x-parse-refused">Parse refused</a></li>
+        <li><a href="#x-delta">Delta isn't $0.00</a></li>
+        <li><a href="#x-missing">Missing receipt</a></li>
+        <li><a href="#x-unmatched">Receipt with no charge</a></li>
+        <li><a href="#x-no-charge">Bill with no charge at all</a></li>
+        <li><a href="#x-orphan">Orphan Ready rows</a></li>
+        <li><a href="#x-credits">Refunds &amp; credits</a></li>
+        <li><a href="#x-error">Error rows</a></li>
+        <li><a href="#x-stalled">Cycle stalled</a></li>
+      </ul>
+    </div>
+
+    <div class="rail-group filterable">
+      <p class="rail-label">Reference</p>
+      <ul>
+        <li><a href="#ref-menu">Every menu item</a></li>
+        <li><a href="#ref-status">Every status</a></li>
+        <li><a href="#ref-tabs">Every tab</a></li>
+        <li><a href="#ref-matching">How Reconciliation decides</a></li>
+        <li><a href="#ref-config">Config keys</a></li>
+        <li><a href="#ref-email">Who gets emailed</a></li>
+        <li><a href="#upkeep">Data upkeep</a></li>
+        <li><a href="#setup">Appendix: setting up from scratch</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ==================== AT A GLANCE ==================== -->
+    <section id="glance">
+      <div class="sec-head">
+        <p class="eyebrow">Start here</p>
+        <h2>This month's cycle at a glance</h2>
+      </div>
+
+      <ol class="glance">
+        <li><span><strong>Check and load.</strong> Run <span class="menu">Health Check</span>, drop the
+          statement PDF in the Drive folder, run <span class="menu">Part 1 — Parse Statement</span>,
+          read the report, click OK. <a class="jump" href="#step-1">Steps 1-3 →</a></span></li>
+        <li><span><strong>Fix what's flagged.</strong> Open the <strong>Needs a Look</strong> tab. Each
+          line says what's wrong and how to fix it. Fix the detail on Submissions (or with Override
+          Amount), then <span class="menu">Re-run Matching</span>. Repeat until only Missing receipts
+          are left. <a class="jump" href="#step-4">Steps 4-5 →</a></span></li>
+        <li><span><strong>Chase.</strong> <span class="menu">Send Chase Emails</span> for charges with no
+          receipt. Check the names in the confirm box first. <a class="jump" href="#step-6">Step 6 →</a></span></li>
+        <li><span><strong>Bill.</strong> <span class="menu">Part 2 — Invoice &amp; Send</span>. Read the
+          pre-flight popup (owners, totals, TEST mode), then click <strong>Send these invoices</strong>.
+          <a class="jump" href="#step-7">Step 7 →</a></span></li>
+        <li><span><strong>Close out.</strong> Look for the "cycle finished" email, run Health Check
+          again (no Error, no Ready left), and confirm Alaina got every part of the receipt packet.
+          <a class="jump" href="#step-8">Step 8 →</a></span></li>
+      </ol>
+    </section>
+
+    <!-- ==================== ORIENTATION ==================== -->
+    <section id="orientation">
+      <div class="sec-head">
+        <p class="eyebrow">Orientation</p>
+        <h2>What the system does, in one pass</h2>
+      </div>
+
+      <p>
+        Employees buy things on the company credit card and submit a photo of each receipt through
+        a Google Form. Once a month the bank sends one statement PDF listing every charge on that
+        card. This system's whole job is to <strong>pair each submitted receipt with the real charge
+        that matches it</strong>, then bill the property owner for it in QuickBooks: one invoice per
+        owner, with the receipt images attached.
+      </p>
+
+      <h3>Who does what</h3>
+      <ul>
+        <li><strong>Laura</strong> runs the full cycle, Invoice &amp; Send included.</li>
+        <li><strong>Matt</strong> backs her up, and gets every operational alert.</li>
+        <li><strong>Alaina</strong> gets the per-owner summary and the receipt packet after each cycle.</li>
+      </ul>
+
+      <h3>Three ways in</h3>
+      <div class="ways">
+        <div class="way">
+          <span class="when">TODAY</span>
+          <h4>The GPM Billing menu</h4>
+          <p>In the GPM CC Receipts sheet. Everything in this runbook is done from here.</p>
+        </div>
+        <div class="way">
+          <span class="when">COMING</span>
+          <h4>The Billing Console</h4>
+          <p>A full-page screen: the statement line and the receipt photo side by side. Same steps,
+             same code underneath. The menu keeps working.</p>
+        </div>
+        <div class="way">
+          <span class="when">COMING</span>
+          <h4>Laura's Claude</h4>
+          <p>For reasoning through a hard match. Claude reads the live data and proposes the fix.
+             Laura makes it.</p>
+        </div>
+      </div>
+
+      <h3>What happens without you</h3>
+      <p>These run on their own. You don't start them and you don't wait for them:</p>
+      <div class="tbl-wrap wide">
+        <table>
+          <thead>
+            <tr><th>When</th><th>What runs</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num">~4:00 am</td>
+              <td>Enrich Receipts</td>
+              <td>Reads each new receipt photo and writes an itemized breakdown into
+                  <span class="cell">col H</span>, plus the date printed on the receipt
+                  (<span class="cell">col S</span>) and the store (<span class="cell">col T</span>).</td>
+            </tr>
+            <tr>
+              <td class="num">~5:00 am</td>
+              <td>Assign GL Codes</td>
+              <td>Picks an internal accounting code for each enriched row into
+                  <span class="cell">col I</span>. Never reaches QuickBooks, never blocks a bill.</td>
+            </tr>
+            <tr>
+              <td class="num">every 15 min</td>
+              <td>File-organize retry</td>
+              <td>Files any receipt photo Drive wasn't ready to hand over at submit time.</td>
+            </tr>
+            <tr>
+              <td class="num">every 15 min</td>
+              <td>Billing watchdog</td>
+              <td>Notices if a running billing cycle dies partway, or if the receipt packet didn't
+                  finish, and emails Matt. Reports only. It never restarts anything.
+                  <span class="pkg">pkg 2</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="cl-label">Why this matters to you</span>
+        A receipt submitted today has no description and no GL code until tomorrow morning. If you
+        run a cycle the same afternoon someone submits, those rows still bill correctly. The invoice
+        just shows the employee's own typed text instead of an itemized breakdown.
+        <strong>The amount is never affected.</strong>
+      </div>
+
+      <h3>The three tabs you actually work in</h3>
+      <p>
+        <strong>Submissions</strong> is the permanent ledger: one row per receipt, forever. Every row
+        carries a <span class="cell">Status</span> in <span class="cell">col O</span>, and that status
+        decides whether it bills. <strong>This is where fixes happen.</strong>
+      </p>
+      <p>
+        <strong>Reconciliation</strong> is a scratch pad, rebuilt from zero every time you parse a
+        statement or re-run matching. One row per charge on the card, each with one of four statuses.
+      </p>
+      <p>
+        <strong>Needs a Look</strong> <span class="pkg">pkg 4</span> is your to-do list for the cycle.
+        It's rebuilt on every Re-run and lists only open items, each with the reason and the fix.
+        When the only lines left on it are Missing receipts, you can bill.
+      </p>
+    </section>
+
+    <!-- ==================== RULES ==================== -->
+    <section id="rules">
+      <div class="sec-head">
+        <p class="eyebrow">Non-negotiable</p>
+        <h2>The five standing rules</h2>
+      </div>
+
+      <p>
+        Everything below follows from these. If something you're about to do would break one, stop
+        and ask Matt instead.
+      </p>
+
+      <h4>1 · Fix the detail, never approve <span class="pkg">pkg 1</span></h4>
+      <p>
+        There is no Approve tick on the purchases tab any more. When a charge is flagged, something on
+        the receipt row is wrong: the amount, the date, the store, or it's a duplicate. Correct that
+        detail, then <span class="menu">Re-run Matching</span>. A clean re-run is what clears the flag.
+        You never wave a flag through.
+      </p>
+
+      <h4>2 · Nothing bills without a matching statement charge</h4>
+      <p>
+        A receipt only becomes billable once the system has found the actual bank charge behind it.
+        This is what stops GPM invoicing an owner for a purchase the card was never charged for.
+        There is no hand-typed exception any more: a <span class="chip c-ready">Ready</span> row that
+        no matched charge points at is set back to Pending on the next Re-run. <span class="pkg">pkg 4</span>
+        See <a class="jump" href="#x-no-charge">no charge at all →</a>
+      </p>
+
+      <h4>3 · The billed amount is always Submissions col K</h4>
+      <p>
+        <span class="cell">Amount (Parsed)</span> is a human-entered number. No automatic process
+        ever calculates it, adjusts it, or copies the bank's figure into it. The one tool that
+        changes it from the Reconciliation tab is <a class="jump" href="#x-override">Override Amount →</a>,
+        and it can only correct a receipt to <strong>exactly the card charge</strong>, and only on that
+        cardholder's own Pending receipt. <span class="pkg">pkg 1</span>
+      </p>
+
+      <h4>4 · "Col K" means two different things. Always say which tab</h4>
+      <div class="warn">
+        <span class="cl-label">Naming hazard</span>
+        On <strong>Submissions</strong>, <span class="cell">col K</span> is the dollar amount that
+        gets billed. On <strong>Reconciliation</strong>, <span class="cell">col K</span> is the link
+        that opens the receipt photo. They are unrelated. Never say "col K" without naming the tab.
+      </div>
+
+      <h4>5 · There are two Lauras</h4>
+      <p>
+        <strong>Laura</strong> (president) runs the cycle and is on the summary emails and the
+        <span class="cell">CC Laura</span> checkbox. <strong>Laura C</strong> is a maintenance tech
+        and an ordinary cardholder like anyone else. On the statement she prints differently.
+        Don't merge them on the Cardholders tab.
+      </p>
+      <div class="note">
+        <span class="cl-label">Known issue</span>
+        Drive's "CC Receipts — By Cardholder" folder has two folders for the tech:
+        <span class="val">Laura-C</span> and <span class="val">Laura C</span>. Billing isn't affected
+        (attachments are fetched by file, not by folder). Being looked into. Don't merge or rename
+        them by hand.
+      </div>
+    </section>
+
+    <!-- ==================== THE CYCLE ==================== -->
+    <section id="cycle">
+      <div class="sec-head">
+        <p class="eyebrow">The monthly cycle · Steps 1–8</p>
+        <h2>Start to finish</h2>
+      </div>
+
+      <p>
+        Do these in order. Steps 4 and 5 loop (fix, re-run, fix again) and that loop is free.
+        Everything before Step 7 can be undone or repeated. Step 7 cannot.
+      </p>
+
+      <!-- STEP 1 -->
+      <div class="step" id="step-1">
+        <div class="step-head">
+          <span class="step-n">STEP 1</span>
+          <div>
+            <h3>Run Health Check</h3>
+            <p class="who">GPM Billing → Health Check · <span class="risk r-free">free · read-only</span></p>
+          </div>
+        </div>
+
+        <p>
+          Safe to run any time, as often as you like. It writes nothing. Read the whole report
+          before you go further. Several problems only ever show up here.
+        </p>
+
+        <p>The last line tells you where you stand:</p>
+        <ul>
+          <li><span class="val">=== INTAKE READY ===</span>: the blocking checks passed. Warnings above may still deserve attention.</li>
+          <li><span class="val">=== ACTION REQUIRED ===</span>: something blocking is wrong. Do not proceed.</li>
+        </ul>
+
+        <div class="stop">
+          <span class="cl-label">The single most dangerous setting: TEST_EMAIL_OVERRIDE</span>
+          <p>
+            <span class="cell">TEST_EMAIL_OVERRIDE</span> on the Config tab reroutes <em>every</em>
+            email (owner invoices, chase emails, the receipt packet) to one address. If it is set
+            while <span class="cell">TEST_MODE</span> is <span class="val">FALSE</span>, a real cycle
+            sends every owner's invoice to that one inbox and reports complete success. Nothing
+            errors. You find out when an owner asks where their bill is.
+          </p>
+          <p>
+            For a real run: <span class="cell">TEST_MODE</span> = <span class="val">FALSE</span>,
+            <span class="cell">TEST_EMAIL_OVERRIDE</span> and <span class="cell">TEST_ROWS</span>
+            <strong>blank</strong>. Health Check refuses to pass while that combination is wrong, and
+            the Invoice &amp; Send popup shows TEST mode if it's on. Believe both.
+          </p>
+        </div>
+
+        <h4>What each section is telling you</h4>
+        <div class="tbl-wrap wide">
+          <table>
+            <thead>
+              <tr><th>Section</th><th>Blocking?</th><th>What to do</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TEST MODE / STOP banner</strong></td><td>Yes</td>
+                <td>Stop entirely. See the red box above. Never run a cycle past this.</td>
+              </tr>
+              <tr>
+                <td><strong>Config (Intake)</strong>, <strong>Secrets</strong></td><td>Yes</td>
+                <td>A missing QuickBooks or Claude credential. Matt's job.</td>
+              </tr>
+              <tr>
+                <td><strong>Config (Billing)</strong></td><td>No</td>
+                <td>A missing email address means that person silently gets nothing. Fill it.</td>
+              </tr>
+              <tr>
+                <td><strong>Submissions Tab</strong></td><td>Partly</td>
+                <td>Read the counts. <span class="chip c-error">Error</span> rows need
+                    <a class="jump" href="#x-error">Fix / Retry →</a>. A "dated before…" warning needs
+                    <a class="jump" href="#x-prior">Prior Period →</a>.</td>
+              </tr>
+              <tr>
+                <td><strong>PropertyMap</strong></td><td>No</td>
+                <td>Missing QB Customer IDs mean those properties get skipped at billing.
+                    <a class="jump" href="#upkeep-propertymap">Fix →</a></td>
+              </tr>
+              <tr>
+                <td><strong>GPM Contracted Work</strong></td><td>No</td>
+                <td>Rows waiting for you to type in who gets billed.
+                    <a class="jump" href="#x-contracted">How →</a></td>
+              </tr>
+              <tr>
+                <td><strong>Statement Parser</strong></td><td>No</td>
+                <td>Pings the deterministic parser. Unreachable means the <em>next</em> Parse
+                    Statement falls back to Claude: slower and it costs an API call, but billing is
+                    unaffected. <a class="jump" href="#step-3">How the two parsers relate →</a></td>
+              </tr>
+              <tr>
+                <td><strong>GL Coding</strong>, <strong>Receipt Archiving</strong>,
+                    <strong>Enrichment</strong>, <strong>Watchdog</strong></td><td>No</td>
+                <td>Bookkeeping quality and safety nets. None of these can stop an owner being
+                    billed correctly. Worth fixing, never worth delaying a cycle for.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="cl-label">One line worth hunting for</span>
+          <strong>"Pending awaiting enrichment: N"</strong>: receipts that don't have their itemized
+          description yet. If N is large, the 4am pass hasn't caught up. They'll still bill; the
+          invoice just reads less clearly. You can force it early with
+          <span class="menu">Maintenance → Enrich Receipts</span>.
+        </div>
+
+        <div class="warn">
+          <span class="cl-label">"The receipt packet for … did not finish"</span>
+          <p>
+            You may see this in Health Check, and Matt also gets an email about it the next morning.
+            <span class="pkg">pkg 2</span> It's narrower than a stalled cycle
+            (<a class="jump" href="#x-stalled">below →</a>): every invoice already went out and
+            <span class="cell">STATEMENT_END_DATE</span> already moved forward. Only Alaina's receipt
+            packet, or the archive sweep after it, didn't complete. Invoices are not at risk.
+          </p>
+          <p>
+            The packet normally resumes by itself from the next unsent part. If it hasn't, Matt runs
+            <span class="val">finishBillingCycle</span> from the Apps Script editor. No part is sent
+            twice. <span class="tbc">confirm resume entry point</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step" id="step-2">
+        <div class="step-head">
+          <span class="step-n">STEP 2</span>
+          <div>
+            <h3>Put the statement PDF in the Drive folder</h3>
+            <p class="who">Drive · nothing to click in the sheet</p>
+          </div>
+        </div>
+
+        <p>
+          Download the month's statement from the bank and drop it into the statement folder (the
+          one whose ID is in Config under <span class="cell">STATEMENT_FOLDER_ID</span>). Drop it in
+          the folder itself, not into the <span class="val">Processed</span> subfolder.
+        </p>
+
+        <div class="warn">
+          <span class="cl-label">Exactly one PDF</span>
+          If there is more than one unprocessed PDF in there, Step 3 refuses to run rather than guess
+          which one you meant, and tells you so before spending anything. Move the others out first.
+          Files already in <span class="val">Processed</span> are ignored and can stay.
+        </div>
+
+        <p>
+          The statement is from First National Bank of Michigan, processed by Elan Financial. It
+          lists each charge under a <strong>cardholder heading</strong> printed as
+          <span class="val">LAST,FIRST</span>, for example <span class="val">GREEN,MARTIN W</span>.
+          That heading matters in the next step.
+        </p>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step" id="step-3">
+        <div class="step-head">
+          <span class="step-n">STEP 3</span>
+          <div>
+            <h3>Part 1 — Parse Statement</h3>
+            <p class="who">GPM Billing → Part 1 — Parse Statement ·
+               <span class="risk r-free">free on the normal path</span></p>
+          </div>
+        </div>
+
+        <div class="note">
+          <span class="cl-label">Two parsers: one free, one failsafe</span>
+          <p>
+            Parse Statement tries a <strong>deterministic parser</strong> first: a Cloud Run service
+            that reads the PDF's text columns with fixed rules. No AI, no cost, well under a second. It
+            then checks its own answer against the statement's printed numbers: the purchases total,
+            the credits total, and a subtotal for <em>every individual card</em>. That's about 28 checks
+            on a typical statement, and all of them must pass before its answer is trusted.
+          </p>
+          <p>
+            <strong>Claude only runs as the failsafe</strong>: when the service is unreachable or one
+            of those checks fails (almost always because the bank changed the statement's layout).
+            That's the one case that costs an API call and takes a minute or two. Either way, the
+            report and everything after it are identical. (The menu label still says "1 API call".
+            On the normal path it's free.)
+          </p>
+        </div>
+
+        <h4>Then a report appears. Read it. Don't just click OK.</h4>
+
+        <div class="tbl-wrap wide">
+          <table>
+            <thead>
+              <tr><th>In the report</th><th>What you're checking</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Parser</strong></td>
+                <td>
+                  The first line. <span class="val">PARSED BY: the deterministic parser (Cloud Run).
+                  No model was used.</span> is the normal case.
+                  <span class="val">*** PARSED BY: CLAUDE (FALLBACK) ***</span> means the service
+                  couldn't vouch for itself this month. The reason is printed right there, and an
+                  error report is filed automatically.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Charge total check</strong></td>
+                <td>
+                  <span class="val">DELTA: $0.00 ✓ exact</span> means every charge was read and they
+                  sum to the printed purchases total. Anything else and the parse already refused
+                  itself. <a class="jump" href="#x-delta">See here →</a>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Cardholders found</strong></td>
+                <td>
+                  Mostly a worry <strong>on a Claude-fallback parse</strong>. The cardholder is a
+                  <em>heading</em>, not a column, so it has to be carried across page breaks. A mistake
+                  doesn't error. It puts charges on the wrong person, and Step 6 then emails them about
+                  it. You want <span class="val">✓ every statement name matches a cardholder</span>.
+                  On the deterministic path this is already one of its self-checks.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>First 10 charges</strong></td>
+                <td>Spot-check these against the statement, line by line. Dates, amounts, vendor text.</td>
+              </tr>
+              <tr>
+                <td><strong>Credits / refunds</strong></td>
+                <td>
+                  Refunds are read separately from purchases. If the count looks wrong, or the
+                  self-consistency warning appears, don't keep the parse.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Click it <strong>once per statement</strong>. To re-match after fixing things, that's
+          <a href="#step-5">Step 5</a>, which never re-reads the PDF.
+        </p>
+
+        <div class="stop">
+          <span class="cl-label">The OK / Cancel decision</span>
+          <p>
+            <strong>OK</strong> keeps the parse and immediately runs the first match. The Statements
+            row stays, the Reconciliation and Needs a Look tabs fill in, and the PDF moves to
+            <span class="val">Processed</span>.
+          </p>
+          <p>
+            <strong>Cancel</strong> undoes all of it: the Statements row is deleted, Reconciliation is
+            cleared, and the PDF goes back where you found it. On the normal path a re-parse costs
+            nothing. On a Claude-fallback parse the API call is spent either way.
+          </p>
+        </div>
+
+        <div class="note">
+          <span class="cl-label">Why the dialog can feel slow to appear</span>
+          Everything is written to the sheet <em>before</em> you're asked, on purpose: the script has a
+          hard six-minute limit, and a dialog waiting on a person burns that clock.
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div class="step" id="step-4">
+        <div class="step-head">
+          <span class="step-n">STEP 4</span>
+          <div>
+            <h3>Work the Needs a Look tab</h3>
+            <p class="who">Fixing data on Submissions · <span class="risk r-free">nothing here bills anything</span></p>
+          </div>
+        </div>
+
+        <p>
+          This is where most of your time goes. Every charge on the Reconciliation tab now gets one of
+          four statuses <span class="pkg">pkg 3</span>, and only one of them is work:
+        </p>
+
+        <div class="tbl-wrap wide">
+          <table>
+            <thead>
+              <tr><th>Status</th><th>Means</th><th>Blocks Invoice &amp; Send?</th><th>Your move</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="rs rs-matched">Matched</span></td>
+                <td>The charge and a receipt agree to the cent, same cardholder, dates in the window. It will bill.</td>
+                <td>No</td>
+                <td>Nothing.</td>
+              </tr>
+              <tr>
+                <td><span class="rs rs-look">Needs a look</span></td>
+                <td>Something doesn't line up. The note says what and how to fix it.</td>
+                <td><strong>Yes</strong></td>
+                <td>Fix the detail, then Re-run Matching.</td>
+              </tr>
+              <tr>
+                <td><span class="rs rs-missing">Missing receipt</span></td>
+                <td>Nothing on the sheet accounts for this charge.</td>
+                <td>No</td>
+                <td>Step 6 chases it. If no one should ever be chased for it, add a
+                    <a class="jump" href="#x-missing">noReceipt rule →</a></td>
+              </tr>
+              <tr>
+                <td><span class="rs rs-nobill">No bill</span></td>
+                <td>Accounted for, but nothing bills: GPM pays, already billed, netted against a refund,
+                    or a standing exemption.</td>
+                <td>No</td>
+                <td>Nothing.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Work from the Needs a Look tab, not the Reconciliation tab</h4>
+        <p>
+          The <strong>Needs a Look</strong> tab <span class="pkg">pkg 4</span> lists only the open
+          items: cardholder, amount, date, Ref #, what's wrong, the dollars at stake, the fix, and who
+          to ask. Missing receipts are listed too, marked "doesn't block". It also lists
+          <a class="jump" href="#x-orphan">orphan Ready rows →</a>. It's rebuilt on every Re-run, so
+          there's nothing to tick or type on it. You fix things on Submissions.
+        </p>
+
+        <h4>Reason → fix</h4>
+        <div class="tbl-wrap wide">
+          <table>
+            <thead>
+              <tr><th>The note says</th><th>The fix</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Receipt is a few cents off the charge</td>
+                <td>Type the exact charge into <a class="jump" href="#x-override">Override Amount →</a></td>
+              </tr>
+              <tr>
+                <td>Receipt is <em>bigger</em> than the charge</td>
+                <td>Override Amount to the exact charge. An owner never pays more than the card was charged.</td>
+              </tr>
+              <tr>
+                <td>Same amount, but the receipt date is outside the window</td>
+                <td>Correct the date on Submissions (<span class="cell">col S</span>
+                    <span class="tbc">confirm which date column</span>), from the photo.</td>
+              </tr>
+              <tr>
+                <td>Several receipts could add up to this charge (a split)</td>
+                <td>A split only matches when it's exact. Fix the missing detail, for example a blank
+                    store in <span class="cell">col T</span>. <a class="jump" href="#x-needs-a-look">Detail →</a></td>
+              </tr>
+              <tr>
+                <td>Look-alike receipts (same person, amount, date, store)</td>
+                <td>If one is a re-submission, set it <span class="chip c-non-billable">Non-Billable</span>
+                    with <span class="menu">Set Status for Row(s)…</span>. If both are real, chase the
+                    missing second charge.</td>
+              </tr>
+              <tr>
+                <td>Store names disagree</td>
+                <td>Correct the store in <span class="cell">col T</span> from the photo, or if it's a
+                    genuine alias, add it to the Merchant Map. <span class="tbc">confirm fix path</span></td>
+              </tr>
+              <tr>
+                <td>The receipt row is in Error</td>
+                <td><a class="jump" href="#x-error">Fix / Retry Error Rows →</a></td>
+              </tr>
+              <tr>
+                <td>Ready row with no matching charge (orphan)</td>
+                <td>Already set back to Pending for you. <a class="jump" href="#x-orphan">Detail →</a></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="cl-label">The date window</span>
+          A receipt can be dated up to <strong>7 days before</strong> the charge's transaction date, or
+          up to <strong>4 days after</strong> it. <span class="pkg">pkg 3</span> Outside that, an
+          exact amount still won't bill. It shows up as Needs a look with "fix the date".
+        </div>
+
+        <h4>The Reconciliation columns you'll still look at</h4>
+        <div class="spec wide">
+          <div class="spec-row">
+            <span class="spec-key">col G</span>
+            <span><strong>Status</strong>: one of the four above. Written by code.</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-key">col H</span>
+            <span><strong>Receipt Row</strong>: which Submissions row it paired with, or the candidates
+              for a Needs a look.</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-key">col K</span>
+            <span><strong>Receipt</strong>: a link that opens the photo. Open it before you fix anything.</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-key">col M</span>
+            <span><strong>Notes</strong>: the reason and the fix. Read this first.</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-key">col N</span>
+            <span><strong>Override Amount</strong>: <strong>yours to type</strong>. The only dollar
+              figure you can correct from this tab.</span>
+          </div>
+        </div>
+
+        <div class="warn">
+          <span class="cl-label">Anything you type on Reconciliation is wiped on the next re-run, except Override Amount</span>
+          The tab is rebuilt from scratch every time. Column L (once Approve) is still there so the
+          other columns don't shift, but it has no checkboxes and a tick in it does nothing.
+          <span class="pkg">pkg 1</span> <span class="tbc">confirm col H edits are no longer carried forward</span>
+        </div>
+
+        <h4>Below the charges: unmatched receipts</h4>
+        <p>
+          Past the last charge there's a grey separator,
+          <span class="val">--- UNMATCHED RECEIPTS (no statement charge) ---</span>. These are receipts
+          nothing on this statement pairs with. Each carries a reason. The two you'll see most:
+        </p>
+        <ul>
+          <li><strong>"…before this statement's first transaction"</strong>: its charge is on the
+              <em>previous</em> statement. <a class="jump" href="#x-prior">Handle →</a></li>
+          <li><strong>"…after this statement's last transaction"</strong>: its charge lands on the
+              <em>next</em> statement. <strong>Leave it alone.</strong> It stays
+              <span class="chip c-pending">Pending</span> and matches next month.</li>
+        </ul>
+
+        <h4>Credits and refunds live on their own tab</h4>
+        <p>
+          If the statement had refunds, the <strong>Reconciliation Credits</strong> tab fills in too.
+          That tab <strong>keeps its Approve tick</strong>: every credit needs one, even a clean one.
+          <a class="jump" href="#x-credits">Detail →</a>
+        </p>
+      </div>
+
+      <!-- STEP 5 -->
+      <div class="step" id="step-5">
+        <div class="step-head">
+          <span class="step-n">STEP 5</span>
+          <div>
+            <h3>Part 1 — Re-run Matching</h3>
+            <p class="who">GPM Billing → Part 1 — Re-run Matching (free) ·
+              <span class="risk r-free">free · repeat freely</span></p>
+          </div>
+        </div>
+
+        <p>
+          Click this after every round of fixes. It costs nothing, calls nothing outside the sheet,
+          and you can run it twenty times in an afternoon. It reads the charges already on the
+          Reconciliation tab. It does <strong>not</strong> re-read the PDF.
+        </p>
+
+        <p>What one run does, in order:</p>
+        <ol>
+          <li>Applies any <span class="cell">Override Amount</span> you typed, writing it into
+              Submissions <span class="cell">col K</span> first, so the corrected figure matches on
+              this same run.</li>
+          <li>Re-matches everything from scratch. <strong>The closest date wins across all of a
+              person's charges</strong>, so the order of rows on the tab never changes the result.
+              <span class="pkg">pkg 3</span></li>
+          <li>Promotes every Matched receipt from <span class="chip c-pending">Pending</span> to
+              <span class="chip c-ready">Ready</span>.</li>
+          <li>Sets any orphan <span class="chip c-ready">Ready</span> row back to Pending and emails
+              Matt the list. <span class="pkg">pkg 4</span></li>
+          <li>Rewrites the Reconciliation and Needs a Look tabs and shows you a report.</li>
+        </ol>
+
+        <h4>Read the report's top section first</h4>
+        <p>
+          Under <span class="val">--- Your decisions ---</span> the report lists every Override Amount
+          as <strong>APPLIED</strong> or <strong>REJECTED</strong>, with the reason. A rejected override
+          is one you think you already made, so it's listed first. The reason is also written on the row.
+          <span class="tbc">confirm report wording after pkg 1</span>
+        </p>
+
+        <div class="warn">
+          <span class="cl-label">An override is used up whether or not it worked</span>
+          Once a run reads <span class="cell">Override Amount</span>, the cell is cleared, accepted or
+          rejected. It can never be applied twice by accident. If yours was rejected, read why, fix the
+          cause, and type it again.
+        </div>
+
+        <div class="ok-box">
+          <span class="cl-label">You're ready for Step 6 when</span>
+          The Needs a Look tab lists nothing but Missing receipts.
+        </div>
+      </div>
+
+      <!-- STEP 6 -->
+      <div class="step" id="step-6">
+        <div class="step-head">
+          <span class="step-n">STEP 6</span>
+          <div>
+            <h3>Send Chase Emails</h3>
+            <p class="who">GPM Billing → Send Chase Emails ·
+              <span class="risk r-irr">emails real people · no undo</span></p>
+          </div>
+        </div>
+
+        <div class="stop">
+          <span class="cl-label">Highest blast radius in the project</span>
+          One click emails every cardholder who has a charge with no receipt. It relies on the
+          cardholder headings being read correctly in Step 3. If one was carried wrong, this emails
+          Riley about John's charges, to their real inbox, with no undo.
+          <strong>Finish Steps 4 and 5 before you touch this.</strong>
+        </div>
+
+        <p>
+          It's a separate button on purpose. You'll re-run matching several times in one sitting, and
+          bundling emails into that would nag everyone three times an afternoon.
+        </p>
+
+        <h4>A confirmation box appears first</h4>
+        <ul>
+          <li>Every recipient name and the exact address it's going to</li>
+          <li>How many charges and what dollar total each person is being chased for</li>
+          <li>Anyone marked <span class="val">(NO EMAIL — will be skipped)</span></li>
+          <li>Whether <span class="cell">TEST_EMAIL_OVERRIDE</span> is diverting everything</li>
+        </ul>
+        <p>
+          <strong>Read the names against the statement</strong> before clicking OK. That's the whole
+          point of the box. Cancel sends nothing.
+        </p>
+
+        <div class="note">
+          <span class="cl-label">What actually goes out</span>
+          Each cardholder gets their own email, <span class="val">Receipt needed — &lt;period&gt;</span>,
+          listing <strong>only their own</strong> charges. Laura and Jason get one combined digest,
+          <span class="val">Missing receipts — &lt;period&gt;</span>, grouped by person. A cardholder with
+          no email on the Cardholders tab is skipped and appears only in that digest.
+        </div>
+
+        <div class="ok-box">
+          <span class="cl-label">Missing receipts never block billing</span>
+          You don't wait for replies. Nothing bills off a Missing receipt, so it never stops Invoice
+          &amp; Send. Receipts that come in later ride the normal flow: if they're inside this
+          statement's window they match on the next Re-run; if the statement has closed by then they
+          land as <span class="chip c-prior">Prior Period</span>.
+        </div>
+      </div>
+
+      <!-- STEP 7 -->
+      <div class="step" id="step-7">
+        <div class="step-head">
+          <span class="step-n">STEP 7</span>
+          <div>
+            <h3>Part 2 — Invoice &amp; Send</h3>
+            <p class="who">GPM Billing → Part 2 — Invoice &amp; Send ·
+              <span class="risk r-irr">creates real invoices · no undo</span></p>
+          </div>
+        </div>
+
+        <div class="stop">
+          <span class="cl-label">This is the irreversible one</span>
+          It creates real QuickBooks invoices and emails them to real property owners. There is no
+          undo and no draft state. Everything before this point was reversible; nothing after it is.
+        </div>
+
+        <h4>The pre-flight popup <span class="pkg">pkg 4</span></h4>
+        <p>Clicking the menu item opens a popup first. Nothing is sent until you press its button.</p>
+        <ul>
+          <li><strong>"Will invoice N owners, $X total"</strong>, then one line per owner with their total.</li>
+          <li><strong>TEST mode</strong>, shown plainly if it's on.</li>
+          <li><strong>Blockers, in plain words.</strong> While anything on Needs a Look is still open
+              (other than Missing receipts), the <strong>Send these invoices</strong> button isn't
+              there. The list of blockers is shown in its place. Close the popup, fix them, Re-run
+              Matching, and try again.</li>
+          <li>With nothing blocking, check the owners and totals look right, then click
+              <strong>Send these invoices</strong>.</li>
+        </ul>
+
+        <h4>What it will bill</h4>
+        <p>
+          Every Submissions row that is <span class="chip c-ready">Ready</span> at the moment you click
+          Send, nothing else. Not <span class="chip c-pending">Pending</span>, not
+          <span class="chip c-error">Error</span>. That set is frozen when the cycle starts, so a
+          receipt submitted while it's running waits for next month.
+        </p>
+
+        <h4>Other things that refuse before anything happens</h4>
+        <ol>
+          <li><strong>QuickBooks isn't connected</strong>: a missing credential. Matt's job.</li>
+          <li><strong>The test-mode guard</strong>: see the red box in <a href="#step-1">Step 1</a>.</li>
+          <li><strong>No reconciled statement</strong>: the Reconciliation tab must hold charges from
+              the newest Statements row. This stops this month's receipts being billed against last
+              month's numbers.</li>
+          <li><strong>Nothing is Ready</strong>: go back to Steps 4 and 5.</li>
+        </ol>
+
+        <h4>Then it runs for 20–30 minutes, mostly without you</h4>
+        <p>
+          Google caps any single script run at six minutes. So it bills <strong>one owner per run</strong>
+          and schedules itself again about a minute later, until it's done. Those follow-on runs skip
+          the popup (there's no screen for them).
+        </p>
+
+        <div class="warn">
+          <span class="cl-label">Do not click it again while it's running</span>
+          <p>
+            You'll see a toast reading <em>"Billing started — N owners…"</em>, then progress toasts.
+            <strong>You can close the sheet.</strong> It keeps running on Google's servers and emails
+            you when it finishes. A second click mid-cycle is caught by a lock, but don't rely on it.
+          </p>
+        </div>
+
+        <h4>What each owner gets</h4>
+        <ul>
+          <li><strong>One invoice per owner</strong>, not per property. Each property is its own group
+              of lines on that invoice.</li>
+          <li>Each line shows the property address (and unit), then the itemized description.</li>
+          <li>Every receipt photo is attached, all pages.</li>
+          <li>It goes to the owner's AppFolio email from PropertyMap <span class="cell">col D</span>,
+              copying Alaina, and copying Laura when <span class="cell">CC Laura</span> is checked on
+              any of their properties.</li>
+        </ul>
+        <p>
+          A refund row (negative amount) becomes a <strong>Credit Memo</strong> rather than an invoice
+          line. <a class="jump" href="#x-credits">Detail →</a>
+        </p>
+
+        <h4>As each row finishes</h4>
+        <p>
+          It turns <span class="chip c-sent">Sent</span> with the invoice number in
+          <span class="cell">col P</span>, or <span class="chip c-error">Error</span> with the reason in
+          <span class="cell">col R</span>. An Error row here is <em>a dollar that's stuck, not a dollar
+          that's lost</em>. <a class="jump" href="#x-error">Recovering it →</a>
+        </p>
+      </div>
+
+      <!-- STEP 8 -->
+      <div class="step" id="step-8">
+        <div class="step-head">
+          <span class="step-n">STEP 8</span>
+          <div>
+            <h3>Confirm the cycle finished, then close it out</h3>
+            <p class="who">Mostly reading email · <span class="risk r-free">nothing to click if all went well</span></p>
+          </div>
+        </div>
+
+        <h4>The emails that should arrive</h4>
+        <div class="tbl-wrap wide">
+          <table>
+            <thead>
+              <tr><th>Subject</th><th>To</th><th>Means</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="val">cycle finished (&lt;period&gt;)</span></td>
+                <td>Matt, Laura</td>
+                <td><strong>The one to look for.</strong> Owners invoiced, owners errored, total
+                    billed. If it never arrives, see <a class="jump" href="#x-stalled">stalled →</a></td>
+              </tr>
+              <tr>
+                <td><span class="val">GPM CC Billing — &lt;period&gt;</span></td>
+                <td>Alaina</td>
+                <td>Per-owner breakdown: amount, receipt count, invoice number, who it went to.
+                    Credit-only owners show as a <strong>Credit Memo</strong>.</td>
+              </tr>
+              <tr>
+                <td><span class="val">…&lt;period&gt; (your properties)</span></td>
+                <td>Laura</td>
+                <td>Same, filtered to her flagged owners. <strong>Silent when she has none.</strong>
+                    That's intentional.</td>
+              </tr>
+              <tr>
+                <td><span class="val">CC Receipts — &lt;period&gt;</span></td>
+                <td>Alaina (+ Laura, filtered)</td>
+                <td>The receipt packet: the photos themselves, tagged with GL code and property.
+                    Big owners arrive in several parts. See below.</td>
+              </tr>
+              <tr>
+                <td>Any alert email</td>
+                <td>Matt</td>
+                <td>Something operational failed. Not billing content.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>The receipt packet <span class="pkg">pkg 2</span></h4>
+        <ul>
+          <li>An owner with a lot of photos arrives as <strong>"part N of M"</strong> zips, each up to
+              15 MB of photos (about 20 MB as sent). Each part's email lists only the receipts in its
+              own zip.</li>
+          <li>One receipt's photos are never split across parts. Only a single photo too big for any
+              zip goes as a Drive link.</li>
+          <li>Headers count receipts and photos separately, for example
+              <strong>"18 receipts, 22 photos"</strong>.</li>
+          <li>A line with a blank store shows the employee's own description instead.</li>
+          <li>If the packet runs out of time it picks up at the next unsent part by itself. No part is
+              sent twice. If it still hasn't finished by the next morning, Matt gets an email.</li>
+        </ul>
+        <p>
+          Close-out check: ask Alaina to confirm she got every part (all the "N of M" for each owner).
+        </p>
+
+        <h4>Then check the sheet</h4>
+        <ul>
+          <li>Run <span class="menu">Health Check</span> again. The <span class="chip c-error">Error</span>
+              count should be zero. If not → <a class="jump" href="#x-error">Fix / Retry →</a>
+              Do this <strong>before</strong> you parse the next statement.</li>
+          <li>No rows should still be <span class="chip c-ready">Ready</span>. Any that are didn't
+              bill. Health Check names them.</li>
+        </ul>
+
+        <h4>Archiving happens by itself</h4>
+        <p>
+          Receipt photos are filed into a folder for the statement period their purchase date falls
+          in. This starts at the end of Step 7 and keeps going until it's finished.
+          <span class="menu">Archive Settled Receipts</span> forces it by hand. It's safe to run any
+          time and moves nothing that's already filed.
+        </p>
+
+        <div class="note">
+          <span class="cl-label">One thing that quietly moves forward</span>
+          When the cycle completes, Config <span class="cell">STATEMENT_END_DATE</span> moves to the
+          period you just billed. From then on, a new receipt dated on or before that date is flagged
+          <span class="chip c-prior">Prior Period</span> at submission instead of sitting Pending
+          forever. It only ever moves forward, and it is never blanked.
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== EXCEPTIONS ==================== -->
+    <section id="exceptions">
+      <div class="sec-head">
+        <p class="eyebrow">Situations &amp; exceptions</p>
+        <h2>When it isn't the ordinary case</h2>
+      </div>
+
+      <p>
+        Each of these is linked from the step where you'd hit it, and reads on its own.
+      </p>
+
+      <div class="exc" id="x-needs-a-look">
+        <h3>Needs a look: reasons and fixes <span class="pkg">pkg 1 · 3</span></h3>
+        <p class="symptom">A charge reads "Needs a look" and is listed on the Needs a Look tab</p>
+        <p>
+          These used to be six separate statuses (Near miss, Over charge, Double Matched, Merchant
+          Mismatch, Date Mismatch, Possible duplicate) and most had an Approve tick. Now they're one
+          status, and every one clears the same way: <strong>find the wrong detail, correct it,
+          Re-run Matching.</strong> Amounts never legitimately differ. A gap means a typo or a split.
+        </p>
+
+        <h4>Receipt a few cents off, or bigger than the charge</h4>
+        <p>
+          Usually a typo when the amount was entered (<span class="val">$95.36</span> for
+          <span class="val">$95.37</span>, or <span class="val">$910.50</span> for
+          <span class="val">$91.05</span>). Open the photo. Then type the <strong>exact charge</strong>
+          into <a class="jump" href="#x-override">Override Amount →</a>. An owner is never billed more
+          than the card was charged.
+        </p>
+        <p>
+          If the charge is <em>more</em> than the receipt (often an unprinted tip), the fix is the same:
+          Override Amount to the exact charge, so the owner is billed what the card paid.
+          <span class="tbc">confirm tip case with Matt</span>
+        </p>
+
+        <h4>Same amount, date outside the window</h4>
+        <p>
+          The amount and person agree to the cent, but the receipt is dated more than 7 days before or
+          4 days after the charge. Nothing is paired until it's fixed. Check the date on the photo and
+          correct it on Submissions. If the photo really is from a different day, it's a different
+          purchase: leave it and treat the charge as Missing receipt.
+        </p>
+
+        <h4>A split: one purchase, several properties</h4>
+        <p>
+          One card charge, several receipt rows (one form per property) that add up to it. It matches
+          automatically only when <strong>all</strong> of these hold: same person, the rows add up to
+          the cent, every date in the window, same store, and no other combination of that person's
+          receipts also adds up. The same rule covers one Amazon order charged in pieces.
+        </p>
+        <p>
+          If it didn't match, the note names the rows that nearly add up. Fix the detail that's off,
+          most often a blank store in <span class="cell">col T</span> or one row's amount or date.
+        </p>
+
+        <h4>Look-alikes (two receipts, one charge)</h4>
+        <p>
+          Same person, same amount, same date, same store, and both rows are shown. The system won't
+          guess which is real. Open both photos:
+        </p>
+        <ul>
+          <li><strong>The same receipt submitted twice</strong>: set the re-submission to
+              <span class="chip c-non-billable">Non-Billable</span> with
+              <span class="menu">Set Status for Row(s)…</span>.</li>
+          <li><strong>Two genuinely identical purchases</strong> (memberships often bill several
+              identical amounts on one day): the second charge hasn't shown up. Chase it, or wait for
+              next month's statement.</li>
+        </ul>
+
+        <h4>Store names disagree</h4>
+        <p>
+          Amount, person and date line up, but the vendor names don't. Store numbers, city suffixes,
+          <span class="val">LLC</span>/<span class="val">INC</span> and prefixes like
+          <span class="val">SQ *</span> are already ignored, so a disagreement that survives is worth a
+          look. If the store on Submissions <span class="cell">col T</span> is wrong, correct it. If both
+          are right and it's simply an alias (<span class="val">RYLEE'S ACE HARDWARE</span> ↔
+          <span class="val">Great Lakes Ace Hardware</span>), add the pairing to the Merchant Map.
+          <span class="val">DOLLAR-GENERAL</span> and <span class="val">Family Dollar</span> are
+          different stores and should stay flagged. <span class="tbc">confirm with pkg 3 build</span>
+        </p>
+
+        <h4>Several suggestions, different amounts</h4>
+        <p>
+          When nothing matches exactly, the note lists up to three ranked suggestions. A suggestion
+          never uses a receipt up, so the same receipt can still match another charge. Pick the right
+          one from the photos and fix its amount with Override Amount.
+        </p>
+      </div>
+
+      <div class="exc" id="x-override">
+        <h3>How Override Amount works <span class="pkg">pkg 1</span></h3>
+        <p class="symptom">Reconciliation col N</p>
+        <p>
+          Type a figure into <span class="cell">col N</span> on the charge's row and Re-run Matching. It
+          writes that figure into Submissions <span class="cell">col K</span> before matching, so the
+          corrected receipt matches on the same run. It's accepted only if all of these hold, and
+          refused with the reason written on the row otherwise:
+        </p>
+        <ol>
+          <li>It equals <strong>exactly</strong> the charge amount on that row.</li>
+          <li><span class="cell">col H</span> names exactly one Submissions row.</li>
+          <li>That row was submitted by <strong>this charge's cardholder</strong>. (A refusal names
+              both people, for example "row 162 is Jody's receipt, this is Blake's card".)</li>
+          <li>That row is <span class="chip c-pending">Pending</span>.</li>
+          <li>That row is dated on or before this statement's last transaction.
+              <span class="tbc">confirm still enforced</span></li>
+        </ol>
+        <p>
+          Accepted or refused, the cell is then cleared. If yours was refused, fix the cause and type
+          it again.
+        </p>
+      </div>
+
+      <div class="exc" id="x-parse-refused">
+        <h3>Parse Statement refused</h3>
+        <p class="symptom">"Parse Statement REFUSED — …"</p>
+        <p>Five refusals, all checked <em>before</em> any money is spent:</p>
+        <ul>
+          <li><strong>More than one PDF in the folder</strong>: move all but the current statement out.</li>
+          <li><strong>This exact PDF is already recorded</strong>: you've already parsed it. Use
+              <span class="menu">Re-run Matching</span> instead.</li>
+          <li><strong>The newest Statements row already covers this period</strong>: a re-download of
+              the same statement is a different Drive file, so this catches what the check above can't.
+              If it genuinely is a new statement, correct or delete the offending Statements row.</li>
+          <li><strong>Open/close dates didn't read as a valid period</strong>: nothing was written, the
+              PDF stayed put. Re-run; if it repeats, tell Matt.</li>
+          <li><strong>Charges don't add up to the printed total</strong>: see below.</li>
+        </ul>
+      </div>
+
+      <div class="exc" id="x-delta">
+        <h3>The delta isn't $0.00</h3>
+        <p class="symptom">"✗ HARD FAIL — charges were dropped or misread"</p>
+        <p>
+          The parsed charges don't sum to the purchases total printed on the statement. This is a hard
+          refusal: lines were dropped or misread, and everything downstream depends on that list being
+          complete.
+        </p>
+        <p>
+          Nothing was written and the PDF was left where it is. <strong>Run Parse Statement
+          again.</strong> If it fails twice, send Matt the report text. Don't try to correct the tab by
+          hand.
+        </p>
+      </div>
+
+      <div class="exc" id="x-missing">
+        <h3>Missing receipt, and suppressing the ones that don't need chasing</h3>
+        <p class="symptom">Dozens of charges reading "Missing receipt"</p>
+        <p>
+          Most of what's on the card isn't billable to any owner: fuel, car washes, Comcast, Zoom,
+          Intuit, subscriptions, restaurants, parking. Left alone, every one reads
+          <span class="val">Missing receipt</span> and Step 6 chases someone for it. They never block
+          Invoice &amp; Send.
+        </p>
+        <h4>The fix: a noReceipt rule</h4>
+        <p>Add a row to the <strong>noReceipt</strong> tab:</p>
+        <div class="spec">
+          <div class="spec-row"><span class="spec-key">col A</span>
+            <span>Cardholder: the employee name or the printed statement name. Both work.</span></div>
+          <div class="spec-row"><span class="spec-key">col B</span>
+            <span>Vendor: matched by <em>containment</em> against the statement's vendor text.</span></div>
+          <div class="spec-row"><span class="spec-key">col C</span>
+            <span>Amount, optional. Blank covers any amount; a figure covers only that exact one.</span></div>
+        </div>
+        <p>A charge a rule covers reads <span class="rs rs-nobill">No bill</span> and is never chased.</p>
+        <div class="warn">
+          <span class="cl-label">Keep vendor strings specific</span>
+          Because it matches by containment, a vague string covers more than you intend. Prefer
+          <span class="val">MISTER CAR WASH</span> over <span class="val">WASH</span>. Anything under
+          three characters is rejected. A short but specific name like <span class="val">VIOC</span>
+          is fine.
+        </div>
+        <h4>These rules are permanent. There's no monthly cleanup</h4>
+        <div class="spec wide">
+          <div class="spec-row">
+            <span class="spec-key">ADD</span>
+            <span>When a new recurring vendor shows up as Missing receipt noise that nobody should ever
+              be chased for. A handful of rows a year, at most.</span>
+          </div>
+          <div class="spec-row">
+            <span class="spec-key">REMOVE</span>
+            <span>Only when an exemption has become <em>wrong</em>: that person has started submitting
+              genuinely billable receipts for that vendor. Rare.</span>
+          </div>
+        </div>
+        <p>
+          Rows worth an occasional second look are stores that sell both groceries and property
+          supplies: <span class="val">MEIJER</span>, <span class="val">AMAZON</span>,
+          <span class="val">AUTOZONE</span>, <span class="val">DOLLAR-GENERAL</span>. Vehicle-service
+          rows (<span class="val">VIOC</span>, <span class="val">MUFFLER MAN</span>,
+          <span class="val">KOOL CHEVROLET</span>) are safely permanent.
+        </p>
+        <div class="note">
+          <span class="cl-label">How the report tells you a rule got too broad</span>
+          A noReceipt warning appears when one rule covered <strong>two or more different
+          merchants</strong> on one statement, and names them so you can check none should have been
+          chased.
+        </div>
+        <div class="warn">
+          <span class="cl-label">The one narrow risk of an exemption</span>
+          Exemptions only apply to charges nothing matched, so a rule can't hide a matched receipt.
+          But if a receipt exists and <em>fails</em> to match (wrong amount, date outside the window),
+          a rule can make its charge read No bill instead of Missing receipt. The receipt isn't lost:
+          it's still in the unmatched block below the charges. Scan that block every cycle.
+        </div>
+        <p>
+          Also check: a cardholder whose <span class="cell">Statement Name</span> is blank on the
+          Cardholders tab has <em>every</em> charge read as Missing receipt. The report names them
+          under "Cardholders with no Statement Name."
+        </p>
+      </div>
+
+      <div class="exc" id="x-unmatched">
+        <h3>A receipt with no charge on this statement</h3>
+        <p class="symptom">A row in the unmatched block below the separator</p>
+        <p>Read its note. It always gives a reason. The three cases:</p>
+        <ul>
+          <li><strong>Dated after this statement's last transaction.</strong> Its charge posts on the
+              next statement. <strong>Do nothing.</strong> It stays Pending and matches next month.</li>
+          <li><strong>Dated before this statement's first transaction.</strong> Its charge was on the
+              previous statement. If that one is already billed, treat it as a straggler:
+              <a class="jump" href="#x-prior">here →</a></li>
+          <li><strong>"no charge on this statement matches this amount."</strong> Either the amount
+              typed is wrong, or the purchase hasn't hit the card yet. Check the photo against
+              Submissions <span class="cell">col K</span>.</li>
+        </ul>
+      </div>
+
+      <div class="exc" id="x-no-charge">
+        <h3>A receipt you must bill with no statement charge at all</h3>
+        <p class="symptom">Rare. Ask Matt before doing anything.</p>
+        <p>
+          The old escape hatch (typing <span class="val">Ready</span> by hand) is gone. A hand-typed
+          Ready with no matched charge is an <a class="jump" href="#x-orphan">orphan →</a> and goes back
+          to Pending on the next Re-run. <span class="pkg">pkg 4</span>
+        </p>
+        <div class="stop">
+          <span class="cl-label">Proposed path, pending Matt's answer</span>
+          <ul>
+            <li><strong>The charge is on an older statement that's already billed</strong>: bill it by
+                hand in QuickBooks, then set the row to <span class="chip c-prior">Prior Period</span>
+                (<a class="jump" href="#x-prior">how →</a>).</li>
+            <li><strong>The charge hasn't posted yet</strong>: leave it Pending. It matches when it
+                posts.</li>
+            <li><strong>It was never paid on the company card</strong> (cash, personal card): it isn't a
+                card bill-back. Set it <span class="chip c-non-billable">Non-Billable</span> and handle
+                the reimbursement outside this system.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="exc" id="x-orphan">
+        <h3>Orphan Ready rows <span class="pkg">pkg 4</span></h3>
+        <p class="symptom">Email to Matt after a Re-run; a line on the Needs a Look tab</p>
+        <p>
+          An orphan is a <span class="chip c-ready">Ready</span> receipt that no Matched charge points
+          at: hand-typed Ready, a row that was Ready only because of an old Approve tick, or a row
+          restored to Ready after a billing error whose charge sits on an older statement. Re-run
+          Matching sets each one back to <span class="chip c-pending">Pending</span> and emails Matt
+          the list (cardholder, amount, date, row, how it got Ready).
+        </p>
+        <p>
+          From there it's an ordinary receipt: it either matches a real charge on a later run, or
+          it's a straggler (<a class="jump" href="#x-prior">Prior Period →</a>) or a
+          <a class="jump" href="#x-no-charge">no-charge case →</a>.
+        </p>
+      </div>
+
+      <div class="exc" id="x-prior">
+        <h3>Prior Period and stragglers</h3>
+        <p class="symptom">Health Check: "N Pending/Ready row(s) dated before …"</p>
+        <p>
+          A receipt dated inside a statement that has already closed and billed can never match on its
+          own. That statement's Reconciliation tab was overwritten long ago.
+        </p>
+        <h4>Going forward, this is automatic</h4>
+        <p>
+          A new receipt dated on or before Config <span class="cell">STATEMENT_END_DATE</span> lands as
+          <span class="chip c-prior">Prior Period</span> at submission, and Laura gets a batched digest
+          about ten minutes later (one email for ten late receipts).
+        </p>
+        <h4>For rows already on the sheet</h4>
+        <ol>
+          <li>Bill them by hand outside the system.</li>
+          <li><span class="menu">Set Status for Row(s)…</span> → enter the rows (accepts
+              <span class="val">14</span>, <span class="val">14-19</span>, or
+              <span class="val">14,15,20-25</span>) → type <span class="val">Prior Period</span>.</li>
+          <li>Confirm the preview. Each row records the change in <span class="cell">col R</span>.</li>
+        </ol>
+        <div class="warn">
+          <span class="cl-label">Prior Period, not Non-Billable</span>
+          <span class="chip c-non-billable">Non-Billable</span> means "GPM pays this".
+          <span class="chip c-prior">Prior Period</span> means "billed by hand, belongs to a closed
+          statement" and lets it archive. Both only ever match a charge exactly, so neither can grab an
+          unrelated receipt's charge. <span class="pkg">pkg 3</span> They still aren't interchangeable.
+        </div>
+      </div>
+
+      <div class="exc" id="x-credits">
+        <h3>Refunds and credits</h3>
+        <p class="symptom">The Reconciliation Credits tab fills in</p>
+        <p>
+          A refund is submitted through the same form with a <strong>negative amount</strong>.
+          Statement credits are read separately from purchases and matched on their own tab.
+        </p>
+        <div class="note">
+          <span class="cl-label">This tab keeps its Approve tick, and every credit needs one</span>
+          A purchase checks itself: the itemized receipt has to add up to the billed amount. A credit
+          has no such check, so <strong>your approval is the safety rail</strong>. Nothing on this tab
+          is processed automatically, however good the match.
+        </div>
+        <h4>The two proposals</h4>
+        <ul>
+          <li>
+            <strong>"Refund — would net, no bill"</strong>: exactly one unbilled purchase for the same
+            owner matches the credit to the cent. Approving marks <em>both</em> rows
+            <span class="chip c-netted">Netted — No Bill</span>. Neither bills; no QuickBooks document
+            is created.
+          </li>
+          <li>
+            <strong>"Refund — would credit"</strong>: no single clean offset. Approving promotes the
+            row to <span class="chip c-ready">Ready</span>, and Step 7 creates a <strong>Credit
+            Memo</strong> in QuickBooks.
+          </li>
+        </ul>
+        <div class="ok-box">
+          <span class="cl-label">Netted purchases stay put now <span class="pkg">pkg 3</span></span>
+          A purchase marked <span class="chip c-netted">Netted — No Bill</span> now reads
+          <span class="rs rs-nobill">No bill</span> on the purchases tab and only matches its own charge
+          exactly. Before, it could grab unrelated receipts and shuffle them between runs (Blake's
+          $157.94 Amazon refund, August).
+        </div>
+        <div class="note">
+          <span class="cl-label">Credit Memos show as "unsent" in QuickBooks. That's correct</span>
+          A Credit Memo is never emailed to the owner. It sits open and comes off that owner's next
+          invoice automatically, as long as <em>Automatically apply credits</em> is on in QuickBooks
+          Advanced settings.
+        </div>
+        <p>
+          Credits have <strong>no earliest-date limit</strong>, on purpose: a refund often posts a
+          statement or two after the purchase it reverses.
+        </p>
+      </div>
+
+      <div class="exc" id="x-error">
+        <h3>Error rows: recovering a stuck dollar</h3>
+        <p class="symptom">Red rows; Health Check warns with a count and the oldest date</p>
+        <p>
+          <strong>Nothing retries on its own.</strong> Read <span class="cell">col R</span>, fix what
+          was actually wrong (a PropertyMap gap, a bad amount, a QuickBooks issue), then run
+          <span class="menu">Fix / Retry Error Rows</span>.
+        </p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Row looks like</th><th>What Fix / Retry does</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>No owner, no QB ID, no invoice #</td>
+                <td>Never made it through intake. Re-runs the classification a fresh submission gets.</td>
+              </tr>
+              <tr>
+                <td>Owner and QB ID filled, no invoice #</td>
+                <td>
+                  <strong>If the error came from Invoice &amp; Send</strong> (its note starts
+                  "Billing:"), the row goes straight back to <span class="chip c-ready">Ready</span>.
+                  <strong>Otherwise</strong> it goes back to <span class="chip c-pending">Pending</span>
+                  and has to match a real charge again. <span class="pkg">pkg 1</span>
+                </td>
+              </tr>
+              <tr>
+                <td>Invoice # is filled</td>
+                <td>The QuickBooks document already exists; only attaching or sending failed. Retries
+                    <em>only</em> those, against the existing document.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="warn">
+          <span class="cl-label">Fix billing errors before the next statement is parsed</span>
+          A row put back to Ready is only safe while its charge is still on the Reconciliation tab. Once
+          the next statement is parsed, the next Re-run treats it as an
+          <a class="jump" href="#x-orphan">orphan →</a> and sets it back to Pending, and it becomes a
+          straggler to bill by hand.
+        </div>
+        <div class="stop">
+          <span class="cl-label">Never hand-flip a row that has an invoice number back to Pending</span>
+          A fresh cycle has no memory of the earlier invoice. It would create a second one and bill the
+          owner <strong>twice</strong>. That's why <span class="menu">Set Status for Row(s)…</span>
+          refuses any row with an invoice number. Use Fix / Retry, which repairs the existing invoice.
+        </div>
+        <p>
+          Rows sharing an invoice number are repaired together. Worst case is a duplicate photo
+          attachment or a duplicate send email, never a duplicate charge.
+        </p>
+      </div>
+
+      <div class="exc" id="x-stalled">
+        <h3>The cycle stopped and never emailed you</h3>
+        <p class="symptom">Alert to Matt: "cycle STALLED", or simply no "cycle finished" email</p>
+        <p>
+          The cycle moves forward by scheduling its own next run, so a run that dies outright leaves it
+          stopped. The watchdog notices within about fifteen minutes and emails Matt. It never restarts
+          anything itself.
+        </p>
+        <h4>To resume</h4>
+        <p>
+          Click <span class="menu">Part 2 — Invoice &amp; Send</span> again. It picks up from where it
+          stopped: owners already done are skipped, and an owner whose invoice already exists is
+          <strong>resumed, never recreated</strong>. <span class="tbc">confirm a resume skips or shows the popup</span>
+        </p>
+        <p>
+          Health Check also reports a cycle in progress: the period, how many owners remain, and how
+          long since it last moved.
+        </p>
+      </div>
+
+      <div class="exc" id="x-contracted">
+        <h3>GPM Contracted Work: assigning an owner by hand</h3>
+        <p class="symptom">Health Check: "N Ready row(s) still need Owner Name + QB Customer ID"</p>
+        <p>
+          <span class="val">GPM Contracted Work</span> works like any property, except the owner changes
+          with every receipt, so it can't be looked up. The row matches and goes Ready normally.
+        </p>
+        <p>
+          <strong>Type the owner onto the Submissions row</strong>: Owner Name in
+          <span class="cell">col L</span> and QB Customer ID in <span class="cell">col M</span>, any time
+          before Step 7.
+        </p>
+        <div class="warn">
+          <span class="cl-label">Do it before you run Part 2</span>
+          A row still missing a QB Customer ID at Step 7 becomes <span class="chip c-error">Error</span>
+          and doesn't bill that cycle. Fix / Retry recovers it, but Health Check lists these
+          <em>before</em> a cycle for exactly this reason.
+        </div>
+        <p>
+          A brand-new owner has to be created in QuickBooks first. Nothing here creates customers.
+        </p>
+      </div>
+
+      <div class="exc" id="x-description">
+        <h3>A description or GL code is wrong</h3>
+        <p class="symptom">col H reads oddly, or col I is blank or clearly miscoded</p>
+        <p>
+          Use <span class="menu">Fill GL Code / Description for Row(s)…</span>. Give it a row or a range,
+          choose <span class="val">description</span>, <span class="val">gl</span>, or
+          <span class="val">both</span>, and confirm. It <strong>always overwrites</strong>, unlike the
+          nightly passes, which never touch a filled cell.
+        </p>
+        <div class="note">
+          <span class="cl-label">Why a description might be one plain line</span>
+          If the receipt's own numbers don't add up to <span class="cell">col K</span> within ten cents,
+          the row falls back to one line and gets a note in <span class="cell">col R</span>. Fix the
+          amount, then re-fill.
+        </div>
+      </div>
+
+      <div class="exc" id="x-multiphoto">
+        <h3>A receipt that needs more than one photo</h3>
+        <p>
+          The form takes up to five files per submission, and every stage treats them as one receipt:
+          filed together, read together, all attached to the invoice and the packet.
+          <span class="cell">col N</span> holds one link per line.
+        </p>
+        <p>
+          <strong>If someone forgot a page, they resubmit the whole receipt</strong> with all photos.
+          Then set the incomplete row to <span class="chip c-non-billable">Non-Billable</span> so the two
+          don't show up as look-alikes.
+        </p>
+      </div>
+
+      <div class="exc" id="x-gpmpays">
+        <h3>GPM Pays (Non-Billable)</h3>
+        <p>
+          Receipts submitted against the <span class="val">GPM Pays</span> property choice never bill an
+          owner. They land <span class="chip c-non-billable">Non-Billable</span> immediately, skip
+          enrichment and GL coding, and are never chased. Their charge reads
+          <span class="rs rs-nobill">No bill</span>, which keeps it out of the Missing receipt list.
+        </p>
+      </div>
+    </section>
+
+    <!-- ==================== REFERENCE ==================== -->
+    <section id="ref-menu">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>Every menu item, and what it costs you</h2>
+      </div>
+
+      <p><span class="tbc">re-check against the live menu on 11/11</span></p>
+
+      <div class="tbl-wrap wide">
+        <table>
+          <thead>
+            <tr><th>Menu item</th><th>Risk</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="menu">Health Check</span></td>
+              <td><span class="risk r-free">free</span></td>
+              <td>Read-only report. Run it often.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Part 1 — Parse Statement</span></td>
+              <td><span class="risk r-free">free normally</span></td>
+              <td>Reads the PDF: the free parser first, Claude only as a paid failsafe. Once per
+                  statement. Cancel undoes everything. (Label says "1 API call".)</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Part 1 — Re-run Matching (free)</span></td>
+              <td><span class="risk r-free">free</span></td>
+              <td>Applies overrides, re-matches, rebuilds Reconciliation and Needs a Look, demotes
+                  orphan Ready rows. Repeat freely.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Send Chase Emails</span></td>
+              <td><span class="risk r-irr">no undo</span></td>
+              <td>Emails cardholders about charges with no receipt. Confirm box first.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Part 2 — Invoice &amp; Send</span></td>
+              <td><span class="risk r-irr">no undo</span></td>
+              <td>Pre-flight popup, then creates and sends real QuickBooks invoices. 20–30 minutes.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Archive Settled Receipts</span></td>
+              <td><span class="risk r-free">safe</span></td>
+              <td>Files settled receipt photos by purchase date. Normally automatic.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Fix / Retry Error Rows</span></td>
+              <td><span class="risk r-cost">acts on QB</span></td>
+              <td>Repairs Error rows. Never creates a second invoice.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Fill GL Code / Description for Row(s)...</span></td>
+              <td><span class="risk r-cost">costs a little</span></td>
+              <td>Re-reads chosen receipts. Always overwrites.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Set Status for Row(s)...</span></td>
+              <td><span class="risk r-cost">changes the ledger</span></td>
+              <td>Hand-sets status (Non-Billable for a duplicate, Prior Period for a straggler). Refuses
+                  invoiced rows and refuses Sent/Credited/Netted as targets.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Ask Claude to Diagnose Row...</span></td>
+              <td><span class="risk r-free">safe</span></td>
+              <td>Files a flagged row for Matt to investigate. Changes nothing.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Maintenance → Sync Property Confirm Sections</span></td>
+              <td><span class="risk r-cost">edits the form</span></td>
+              <td>Rebuilds the form's property choices (A–Z). Run after editing PropertyMap.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Maintenance → Refresh QB Customer List</span></td>
+              <td><span class="risk r-cost">edits PropertyMap</span></td>
+              <td>Matches owners to QuickBooks customers and fills IDs. Never auto-assigns a fuzzy match.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Maintenance → Enrich Receipts</span></td>
+              <td><span class="risk r-cost">costs money</span></td>
+              <td>Runs the 4am pass early. Skips anything already filled.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Maintenance → Assign GL Codes</span></td>
+              <td><span class="risk r-cost">costs a little</span></td>
+              <td>Runs the 5am pass early. Skips anything already coded.</td>
+            </tr>
+            <tr>
+              <td><span class="menu">Maintenance → Repair GL Chart Numbers</span></td>
+              <td><span class="risk r-free">safe</span></td>
+              <td>Only after re-pasting a chart. Forces account numbers back to plain text.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="cl-label">Both nightly passes run in four-minute slices</span>
+        Enrich Receipts and Assign GL Codes stop before Google's six-minute cap and tell you how many
+        remain. Click again. Five failures in a row stop the run and email Matt: that's an outage or a
+        bad key, not a bad receipt.
+      </div>
+    </section>
+
+    <section id="ref-status">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>Every status</h2>
+      </div>
+
+      <h3>On the Reconciliation tab (one per charge) <span class="pkg">pkg 3</span></h3>
+      <div class="tbl-wrap wide">
+        <table>
+          <thead>
+            <tr><th>Status</th><th>Blocks billing?</th><th>Covers what used to be</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="rs rs-matched">Matched</span></td><td>No. It bills</td>
+                <td>Matched</td></tr>
+            <tr><td><span class="rs rs-look">Needs a look</span></td><td><strong>Yes</strong></td>
+                <td>Near miss, Over charge, Double Matched, Merchant Mismatch, Date Mismatch, Matched
+                    (row in Error), look-alikes</td></tr>
+            <tr><td><span class="rs rs-missing">Missing receipt</span></td><td>No</td>
+                <td>Missing receipt</td></tr>
+            <tr><td><span class="rs rs-nobill">No bill</span></td><td>No</td>
+                <td>Matched (GPM pays), Already billed, Skipped (noReceipt), netted refunds</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>"Matched (approved)" no longer exists. There's no tick to approve with.</p>
+
+      <h3>On Submissions (one per receipt)</h3>
+      <p>These are the actual cell colours the sheet paints in <span class="cell">col O</span>.</p>
+      <div class="tbl-wrap wide">
+        <table>
+          <thead>
+            <tr><th>Status</th><th>Set by</th><th>Bills?</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="chip c-pending">Pending</span></td><td>Intake, Re-run, Fix / Retry</td><td>Not yet</td>
+              <td>Waiting to be matched to a statement charge.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-ready">Ready</span></td><td>Re-run Matching, Fix / Retry (billing errors only)</td><td>Yes, next Part 2</td>
+              <td>Matched to a real charge and cleared to invoice. A Ready row no Matched charge points
+                  at is set back to Pending.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-sent">Sent</span></td><td>Part 2</td><td>Already did</td>
+              <td>On a QuickBooks invoice. Invoice number in <span class="cell">col P</span>.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-error">Error</span></td><td>Anywhere</td><td>No, stuck</td>
+              <td>Needs a person. Reason in <span class="cell">col R</span>. Recoverable.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-non-billable">Non-Billable</span></td><td>Intake, or you</td><td>Never</td>
+              <td>GPM pays, or a duplicate. Still accounts for its charge (exact match only).</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-prior">Prior Period</span></td><td>Intake, or you</td><td>Never automatically</td>
+              <td>Belongs to a statement that already closed. Bill by hand.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-credited">Credited</span></td><td>Part 2</td><td>Credit Memo issued</td>
+              <td>A refund that produced a QuickBooks Credit Memo.</td>
+            </tr>
+            <tr>
+              <td><span class="chip c-netted">Netted — No Bill</span></td><td>Credit approval</td><td>Never</td>
+              <td>A refund cancelled against an unbilled purchase. Both rows carry this. Its charge
+                  reads No bill.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn">
+        <span class="cl-label">Three statuses you must never type by hand</span>
+        <span class="chip c-sent">Sent</span>, <span class="chip c-credited">Credited</span> and
+        <span class="chip c-netted">Netted — No Bill</span> each say a QuickBooks document exists (or a
+        refund was approved). Typing one makes a receipt vanish from every list with nothing behind it.
+        <span class="menu">Set Status for Row(s)…</span> refuses all three. Typing
+        <span class="chip c-ready">Ready</span> by hand doesn't work either: the next Re-run sets it back.
+      </div>
+    </section>
+
+    <section id="ref-tabs">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>Every tab in the sheet</h2>
+      </div>
+
+      <div class="tbl-wrap wide">
+        <table>
+          <thead>
+            <tr><th>Tab</th><th>Lifespan</th><th>What it's for</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Submissions</strong></td><td>Permanent</td>
+                <td>One row per receipt, forever. The ledger. Fixes happen here.</td></tr>
+            <tr><td><strong>Reconciliation</strong></td><td>Rebuilt every match</td>
+                <td>One row per charge on the current statement, plus the unmatched-receipts block
+                    below. <a class="jump" href="#ref-matching">Columns and how it decides →</a></td></tr>
+            <tr><td><strong>Needs a Look</strong> <span class="pkg">pkg 4</span></td><td>Rebuilt every match</td>
+                <td>Only the open items: cardholder, amount, date, Ref #, what's wrong, $ at stake, the
+                    fix, who to ask. Missing receipts marked "doesn't block". Orphan Ready rows. No
+                    columns to type in.</td></tr>
+            <tr><td><strong>Reconciliation Credits</strong></td><td>Rebuilt every match</td>
+                <td>Refunds and credits, with their own Approve tick.</td></tr>
+            <tr><td><strong>Statements</strong></td><td>Permanent</td>
+                <td>One row per statement ever parsed. Dates, label, totals, archive folder.</td></tr>
+            <tr><td><strong>PropertyMap</strong></td><td>You maintain</td>
+                <td>Address → owner → QuickBooks customer → AppFolio email → CC Laura.</td></tr>
+            <tr><td><strong>Cardholders</strong></td><td>You maintain</td>
+                <td>Name, email, and the exact string the statement prints.</td></tr>
+            <tr><td><strong>noReceipt</strong></td><td>You maintain</td>
+                <td>Standing exemptions: charges nobody should be chased for.</td></tr>
+            <tr><td><strong>Merchant Map</strong></td><td>Mostly self-learning</td>
+                <td>Statement vendor ↔ receipt store pairings. Permanent, add-only.</td></tr>
+            <tr><td><strong>GL Memory</strong></td><td>Self-learning</td>
+                <td>Remembered GL codes so repeat purchases don't pay for a fresh lookup.</td></tr>
+            <tr><td><strong>GL Chart - …</strong> (five)</td><td>Reference</td>
+                <td>The five AppFolio charts of accounts. Don't edit by hand.</td></tr>
+            <tr><td><strong>Config</strong></td><td>You maintain</td>
+                <td>Key/value settings. See below.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warn">
+        <span class="cl-label">The five GL charts disagree with each other</span>
+        The same account number means different things in different charts:
+        <span class="val">6118</span> is "Decks - Materials" in one and "Garage Maintenance" in another.
+        A wrong-chart pick fails <em>silently</em>. Which chart applies comes from PropertyMap
+        <span class="cell">col D</span> and is shown read-only in <span class="cell">col G</span>. Fix a
+        wrong chart by correcting <span class="cell">col D</span>.
+      </div>
+    </section>
+
+    <!-- ==================== HOW RECONCILIATION DECIDES ==================== -->
+    <section id="ref-matching">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>How the Reconciliation tab decides <span class="pkg">pkg 3</span></h2>
+      </div>
+
+      <p>
+        You don't need this to run a cycle. It's here for when a status surprises you and you want to
+        know <em>why</em>.
+      </p>
+
+      <h3>Every column on the Reconciliation tab</h3>
+      <div class="spec wide">
+        <div class="spec-row"><span class="spec-key">A–C</span>
+          <span>Post Date, Trans Date, Ref #, straight off the statement. Matching uses Trans Date; Post
+            Date is display only.</span></div>
+        <div class="spec-row"><span class="spec-key">D · E</span>
+          <span>Cardholder, Vendor: the statement's own text. Cardholder is looked up against
+            Cardholders <span class="cell">col C</span>; Vendor is compared with Submissions
+            <span class="cell">col T</span>.</span></div>
+        <div class="spec-row"><span class="spec-key">F</span>
+          <span>Amount (charge): what the bank charged. Everything is judged against this.</span></div>
+        <div class="spec-row"><span class="spec-key">G</span>
+          <span><strong>Status</strong>: Matched, Needs a look, Missing receipt or No bill.</span></div>
+        <div class="spec-row"><span class="spec-key">H</span>
+          <span><strong>Receipt Row</strong>: the Submissions row it's paired with, or the candidate
+            rows for a Needs a look.</span></div>
+        <div class="spec-row"><span class="spec-key">I · J</span>
+          <span>Receipt Amount, Difference: read-only, shown when they differ from the charge.</span></div>
+        <div class="spec-row"><span class="spec-key">K</span>
+          <span>Receipt: a link to the photo. A different col K from Submissions'.</span></div>
+        <div class="spec-row"><span class="spec-key">L</span>
+          <span>Unused. It was Approve; it stays so the other columns don't shift.</span></div>
+        <div class="spec-row"><span class="spec-key">M</span>
+          <span>Notes: the reason and the fix, rebuilt fresh every run.</span></div>
+        <div class="spec-row"><span class="spec-key">N</span>
+          <span><strong>Override Amount</strong>: yours to type. <a class="jump" href="#x-override">Rules →</a></span></div>
+        <div class="spec-row"><span class="spec-key">O</span>
+          <span>Statement Period: stamped on every row so a stray sort never mixes two statements.</span></div>
+      </div>
+
+      <h3>The matching rules, in order</h3>
+      <ol>
+        <li>
+          <strong>Who's in the pool.</strong> Every Pending receipt can match. Receipts that are already
+          billed (Sent), netted, GPM-paid, Prior Period or in Error can match too, but
+          <strong>only exactly</strong>: same person, same cents, date in the window. That keeps their
+          charges from reading Missing receipt every month, without letting them grab someone else's
+          charge.
+        </li>
+        <li>
+          <strong>The window.</strong> A receipt can be dated up to 7 days before the charge's
+          transaction date, or up to 4 days after.
+        </li>
+        <li>
+          <strong>Exact matches, closest date wins.</strong> Same cardholder, same cents, inside the
+          window. When one receipt could fit more than one of that person's charges, the closest date
+          wins across all of them, so the order of rows never changes the answer. When an unbilled and
+          an already-billed receipt tie, <strong>the unbilled one wins</strong>.
+        </li>
+        <li>
+          <strong>Look-alikes are held.</strong> Two receipts with the same person, amount, date and
+          store → Needs a look, both rows shown, until one is fixed.
+        </li>
+        <li>
+          <strong>Splits, exact only.</strong> 2–4 of one person's receipts that add up to the cent,
+          all dated in the window, same store, and no other combination also adds up → Matched.
+          Anything less → Needs a look with the rows named. Same for one order charged in pieces.
+        </li>
+        <li>
+          <strong>Same cents, outside the window</strong> → Needs a look with "fix the date". Nothing
+          is paired.
+        </li>
+        <li>
+          <strong>Different amounts</strong> → Needs a look with up to 3 ranked suggestions. A
+          suggestion uses nothing up.
+        </li>
+        <li>
+          <strong>Nothing at all.</strong> Only now is a <a class="jump" href="#x-missing">noReceipt</a>
+          exemption checked, so a rule can never hide a real receipt. A hit → No bill. No hit →
+          Missing receipt.
+        </li>
+      </ol>
+      <p><span class="tbc">confirm how store names rank/flag in the new matcher</span></p>
+
+      <h3>Reconciliation Credits</h3>
+      <p>
+        Credits are matched the same way, against submitted refund rows. Then one more search decides
+        the proposal: across <strong>every unbilled row for the same owner</strong> (by QB Customer ID,
+        all their properties), exactly one purchase matching the credit to the cent → "would net, no
+        bill". Zero or two-plus → "would credit". Either way, nothing happens until you tick Approve.
+      </p>
+      <div class="spec wide">
+        <div class="spec-row"><span class="spec-key">A–F</span>
+          <span>Same as the purchase tab.</span></div>
+        <div class="spec-row"><span class="spec-key">G</span>
+          <span>Status: one of the two proposals, or a passed-through ambiguous match to resolve.</span></div>
+        <div class="spec-row"><span class="spec-key">H · I</span>
+          <span>Credit Row, Offset Row: written by code.</span></div>
+        <div class="spec-row"><span class="spec-key">J</span>
+          <span><strong>Approve</strong>: the only column on this tab you tick.</span></div>
+        <div class="spec-row"><span class="spec-key">K · L</span>
+          <span>Notes, Statement Period.</span></div>
+      </div>
+    </section>
+
+    <section id="ref-config">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>Config keys</h2>
+      </div>
+
+      <div class="tbl-wrap wide">
+        <table>
+          <thead><tr><th>Key</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="cell">QB_REIMBURSEMENT_ITEM_ID</span></td>
+                <td>The QuickBooks line item every invoice uses.</td></tr>
+            <tr><td><span class="cell">STATEMENT_FOLDER_ID</span></td>
+                <td>Drive folder you drop the statement into. Bare ID, not a URL.</td></tr>
+            <tr><td><span class="cell">STATEMENT_END_DATE</span></td>
+                <td>The newest period that has been billed. Moves forward when a cycle completes;
+                    never blanked. Drives the Prior Period check.</td></tr>
+            <tr><td><span class="cell">ALAINA_EMAIL</span></td>
+                <td>Summary email, receipt packet, and copied on every owner invoice.</td></tr>
+            <tr><td><span class="cell">LAURA_EMAIL</span></td>
+                <td>Laura Porter, president. Filtered summary and packet, chase digest, Prior Period
+                    digest. <strong>Never Laura C the tech.</strong></td></tr>
+            <tr><td><span class="cell">JASON_EMAIL</span></td>
+                <td>Head of maintenance. On the chase digest only.</td></tr>
+            <tr><td><span class="cell">MATT_EMAIL</span></td>
+                <td>Every operational alert, plus the orphan Ready list.</td></tr>
+            <tr><td><span class="cell">FORM_ID</span></td>
+                <td>The submission form.</td></tr>
+            <tr><td><span class="cell">TEST_EMAIL_OVERRIDE</span></td>
+                <td><strong>Must be blank for a real run.</strong> Reroutes every email to one address.
+                    <a class="jump" href="#step-1">Why →</a></td></tr>
+            <tr><td><span class="cell">TEST_MODE</span> / <span class="cell">TEST_ROWS</span></td>
+                <td>Matt's testing harness. Leave <span class="val">FALSE</span> and blank.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="note">
+        <span class="cl-label">Two keys live in Script Properties, not on this sheet</span>
+        <span class="cell">STATEMENT_PARSER_URL</span> and <span class="cell">STATEMENT_PARSER_SECRET</span>
+        point Parse Statement at the free parser. They're kept off the Config tab because anyone who can
+        edit the sheet can read it. Set both from the Apps Script editor's Project Settings, or neither.
+        Health Check calls out a half-set pair.
+      </div>
+    </section>
+
+    <section id="ref-email">
+      <div class="sec-head">
+        <p class="eyebrow">Reference</p>
+        <h2>Who gets emailed, and when</h2>
+      </div>
+
+      <div class="tbl-wrap wide">
+        <table>
+          <thead><tr><th>Email</th><th>Trigger</th><th>To</th></tr></thead>
+          <tbody>
+            <tr><td>The owner's invoice</td><td>Step 7, per owner</td>
+                <td>Owner's AppFolio address, cc Alaina, cc Laura if flagged</td></tr>
+            <tr><td><span class="val">Receipt needed — …</span></td><td>Step 6, per cardholder</td>
+                <td>That cardholder only</td></tr>
+            <tr><td><span class="val">Missing receipts — …</span></td><td>Step 6, once</td>
+                <td>Laura + Jason</td></tr>
+            <tr><td><span class="val">GPM CC Billing — &lt;period&gt;</span></td><td>Cycle complete</td>
+                <td>Alaina (all owners)</td></tr>
+            <tr><td><span class="val">… (your properties)</span></td><td>Cycle complete</td>
+                <td>Laura, only her flagged owners; silent if none</td></tr>
+            <tr><td><span class="val">CC Receipts — &lt;period&gt;</span> (one per part)</td><td>Cycle complete</td>
+                <td>Alaina, and Laura filtered</td></tr>
+            <tr><td><span class="val">cycle finished</span></td><td>Cycle complete</td>
+                <td>Matt + Laura. Always sent, even if nothing billed.</td></tr>
+            <tr><td>Orphan Ready list <span class="pkg">pkg 4</span></td><td>Re-run Matching, when any are demoted</td>
+                <td>Matt</td></tr>
+            <tr><td>Packet didn't finish <span class="pkg">pkg 2</span></td><td>Next morning</td>
+                <td>Matt</td></tr>
+            <tr><td>Prior Period digest</td><td>~10 min after a late submission</td>
+                <td>Laura. Batched.</td></tr>
+            <tr><td>Operational alerts</td><td>Failures</td>
+                <td>Matt only</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== UPKEEP ==================== -->
+    <section id="upkeep">
+      <div class="sec-head">
+        <p class="eyebrow">Data upkeep</p>
+        <h2>Keeping the reference tabs correct</h2>
+      </div>
+
+      <p>
+        Not part of a cycle. This is what you do when something changes in the real world: a new
+        property, a new employee, a card reissue.
+      </p>
+
+      <h3 id="upkeep-propertymap">Adding or changing a property</h3>
+      <div class="spec wide">
+        <div class="spec-row"><span class="spec-key">col A</span>
+          <span><strong>Property Address</strong>: exactly as it should appear on the form.</span></div>
+        <div class="spec-row"><span class="spec-key">col B</span>
+          <span><strong>Owner Name</strong>: close enough to the QuickBooks customer name to be matched.</span></div>
+        <div class="spec-row"><span class="spec-key">col C</span>
+          <span><strong>QB Customer ID</strong>: fill with Refresh QB Customer List, or paste by hand.
+            Blank means the property can't bill.</span></div>
+        <div class="spec-row"><span class="spec-key">col D</span>
+          <span><strong>AppFolio Email</strong>: addresses the invoice <em>and</em> decides which GL
+            chart applies. Getting this wrong is silent.</span></div>
+        <div class="spec-row"><span class="spec-key">col E</span>
+          <span>Match notes from Refresh QB Customer List. Don't type here.</span></div>
+        <div class="spec-row"><span class="spec-key">col F</span>
+          <span><strong>CC Laura</strong>: copies Laura on this property's invoices and puts the owner
+            in her filtered summary.</span></div>
+        <div class="spec-row"><span class="spec-key">col G</span>
+          <span>GL Chart, derived and read-only. A wrong value means col D is wrong.</span></div>
+      </div>
+      <p>Then run <span class="menu">Maintenance → Sync Property Confirm Sections</span> so the form offers it.</p>
+      <div class="note">
+        <span class="cl-label">Three rows that aren't properties</span>
+        <span class="val">GPM Pays (Non-Billable)</span>, <span class="val">GPM Contracted Work</span> and
+        <span class="val">Property Not Found</span> are routing buckets so a receipt always has somewhere
+        to land. They never have a QuickBooks ID or AppFolio email, and Health Check skips them.
+      </div>
+
+      <h3>Adding a cardholder</h3>
+      <div class="spec wide">
+        <div class="spec-row"><span class="spec-key">col A</span>
+          <span><strong>Name</strong>: as it appears on the form and on Submissions.</span></div>
+        <div class="spec-row"><span class="spec-key">col B</span>
+          <span><strong>Email</strong>: for chase emails. Blank means never chased.</span></div>
+        <div class="spec-row"><span class="spec-key">col C</span>
+          <span><strong>Statement Name</strong>: the <em>exact</em> string the statement prints,
+            <span class="val">LAST,FIRST</span> with any middle initial.</span></div>
+      </div>
+      <div class="warn">
+        <span class="cl-label">Col C is matched exactly. No fuzzy matching, ever</span>
+        <p>
+          A near-match on a name is how a charge ends up on the wrong person. A blank
+          <span class="cell">col C</span> means <em>every</em> charge of theirs reads Missing receipt.
+        </p>
+        <p>
+          Statement names contain a comma, so <strong>separate alternatives with a semicolon</strong>:
+          for a card reissue that changed the printed name, write
+          <span class="val">SMITH,JOHN;SMITH,JOHN A</span>.
+        </p>
+      </div>
+      <p>Then update the form's name list. <span class="tbc">confirm which menu item syncs cardholders now</span></p>
+
+      <h3>Merchant Map and GL Memory</h3>
+      <p>
+        Both are permanent and only ever added to. GL Memory learns at Step 7. The Merchant Map learns
+        pairings at Step 7 too, and you can add one by hand when a "store names disagree" flag turns out
+        to be a genuine alias. <span class="tbc">confirm learning still happens without ticks</span>
+      </p>
+
+      <h3>Re-connecting QuickBooks</h3>
+      <p>
+        Matt's job. If QuickBooks calls start failing across the board, the connection has likely
+        expired. Health Check says whether the credentials are present, not whether they still work; a
+        cycle failing on every owner with QuickBooks errors is the real signal.
+      </p>
+
+      <h3>One-time form setting</h3>
+      <p>
+        The "Receipt Photo" question must allow multiple files, max 5, in the Form editor. If
+        multi-photo receipts aren't arriving as multiple links in <span class="cell">col N</span>, check
+        that setting.
+      </p>
+    </section>
+
+    <!-- ==================== APPENDIX: SETUP ==================== -->
+    <section id="setup">
+      <div class="sec-head">
+        <p class="eyebrow">Appendix</p>
+        <h2>Setting up from scratch</h2>
+      </div>
+
+      <div class="note">
+        <span class="cl-label">Only for a new sheet or a rebuild</span>
+        Several cycles have run on the live sheet, so none of this applies to a normal month. It's kept
+        for the day the sheet is rebuilt or copied.
+      </div>
+
+      <h3>1 · Run Repair GL Chart Numbers once</h3>
+      <p>
+        <span class="menu">Maintenance → Repair GL Chart Numbers</span>. Hyphenated account numbers
+        (<span class="val">6100-1</span>) can be stored by Sheets as <em>dates</em>. This forces the
+        column back to plain text. Needed after chart data is pasted in.
+      </p>
+
+      <h3>2 · Fill in the Config tab</h3>
+      <ul>
+        <li><span class="cell">QB_REIMBURSEMENT_ITEM_ID</span>, <span class="cell">STATEMENT_FOLDER_ID</span></li>
+        <li><span class="cell">STATEMENT_END_DATE</span>: the end date of the newest statement that has
+            <em>already been billed</em></li>
+        <li><span class="cell">ALAINA_EMAIL</span>, <span class="cell">LAURA_EMAIL</span>,
+            <span class="cell">JASON_EMAIL</span>, <span class="cell">MATT_EMAIL</span></li>
+        <li>Test keys cleared: see the red box in <a href="#step-1">Step 1</a></li>
+      </ul>
+
+      <h3>3 · Seed the noReceipt tab</h3>
+      <p>
+        The tab starts empty, and without it most of the card reads Missing receipt (226 of 246 charges
+        on the first statement). An 81-row seed sits at
+        <span class="val">P12_CC_Billing/seed/noreceipt_seed.tsv</span>. It cut 226 to 99 and was checked
+        not to hide any charge a real receipt matched. Skip it and Step 6 emails every cardholder about
+        their lunches and gas.
+      </p>
+
+      <h3>4 · Seed the Merchant Map</h3>
+      <p>
+        From <span class="val">seed/merchant_map_seed.tsv</span>: twelve pairings automatic matching
+        can't reach on its own, such as <span class="val">RYLEE'S ACE HARDWARE</span> ↔
+        <span class="val">Great Lakes Ace Hardware</span>.
+      </p>
+
+      <h3>5 · Run statements oldest first</h3>
+      <p>
+        A receipt can only match a charge on the statement that charge appears on. Skipping a statement
+        strands every receipt belonging to it, and each then has to be billed by hand and set to
+        <span class="chip c-prior">Prior Period</span>. Running an older statement is safe for the newer
+        one: receipts dated past its window are left untouched. For a backfill of a period that closed
+        weeks ago, skip Step 6. Chasing months-old purchases trains everyone to ignore the sender.
+      </p>
+      <div class="note">
+        <span class="cl-label">One cosmetic side effect of a backfill run</span>
+        Kickoff renames the <span class="val">Current Statement</span> Drive folder to the period being
+        billed, which sweeps in receipts that belong to the next statement too. Billing isn't affected,
+        and the archive sweep re-files each receipt by its own date afterwards.
+      </div>
+
+      <h3>6 · Install the billing watchdog</h3>
+      <p>
+        Matt's job, from the Apps Script editor (<span class="val">installBillingWatchdogTrigger</span>).
+        Without it a cycle that dies halfway stops silently. Health Check reports whether it's installed.
+      </p>
+    </section>
+
+    <p id="noresults">No matches in this runbook. Try a shorter phrase. Cell references like
+       <span class="cell">col K</span> and status names both work.</p>
+
+  </main>
+</div>
+</div>
+
+<script>
+(function () {
+  var input   = document.getElementById('search');
+  var noRes   = document.getElementById('noresults');
+  var shell   = document.querySelector('.shell');
+
+  // Blocks that get shown/hidden as units. Sections are containers, so the
+  // granular units inside them (steps, exception cards) are matched on their
+  // own — otherwise one hit lights up an entire section.
+  var units = Array.prototype.slice.call(
+    document.querySelectorAll('.step, .exc, .main > section')
+  );
+
+  // A section is only hidden when it has no visible granular child AND no
+  // text hit of its own.
+  function granularChildren(el) {
+    return Array.prototype.slice.call(el.querySelectorAll('.step, .exc'));
+  }
+
+  var originals = new WeakMap();
+  function stash(el) {
+    if (!originals.has(el)) originals.set(el, el.innerHTML);
+    return originals.get(el);
+  }
+
+  function clearMarks() {
+    units.forEach(function (u) {
+      if (originals.has(u)) u.innerHTML = originals.get(u);
+    });
+  }
+
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // Walk text nodes only, so tags and attributes are never corrupted.
+  function highlight(root, term) {
+    var re = new RegExp(escapeRe(term), 'gi');
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (node) {
+        if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        var p = node.parentNode;
+        if (p && (p.tagName === 'SCRIPT' || p.tagName === 'STYLE' || p.tagName === 'MARK')) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return re.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var targets = [];
+    while (walker.nextNode()) targets.push(walker.currentNode);
+
+    targets.forEach(function (node) {
+      var frag = document.createDocumentFragment();
+      var text = node.nodeValue;
+      var last = 0, m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var mark = document.createElement('mark');
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        last = m.index + m[0].length;
+        if (m[0].length === 0) re.lastIndex++;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function reset() {
+    clearMarks();
+    units.forEach(function (u) { u.classList.remove('hidden-by-search'); });
+    noRes.classList.remove('on');
+    shell.classList.remove('searching');
+  }
+
+  function run(term) {
+    if (!term || term.length < 2) { reset(); return; }
+
+    clearMarks();
+    shell.classList.add('searching');
+    var lower = term.toLowerCase();
+    var anyHit = false;
+
+    // Pass 1 — granular units.
+    var granular = document.querySelectorAll('.step, .exc');
+    Array.prototype.forEach.call(granular, function (el) {
+      stash(el);
+      var hit = el.textContent.toLowerCase().indexOf(lower) !== -1;
+      el.classList.toggle('hidden-by-search', !hit);
+      if (hit) { anyHit = true; highlight(el, term); }
+    });
+
+    // Pass 2 — sections, judged on their own text or a surviving child.
+    Array.prototype.forEach.call(document.querySelectorAll('.main > section'), function (sec) {
+      var kids = granularChildren(sec);
+      var childVisible = kids.some(function (k) { return !k.classList.contains('hidden-by-search'); });
+      var ownHit = false;
+
+      if (kids.length === 0) {
+        stash(sec);
+        ownHit = sec.textContent.toLowerCase().indexOf(lower) !== -1;
+        if (ownHit) highlight(sec, term);
+      } else {
+        // Highlight the section's own chrome (headings, intros) without
+        // disturbing the granular children already handled above.
+        Array.prototype.forEach.call(sec.children, function (child) {
+          if (child.classList.contains('step') || child.classList.contains('exc')) return;
+          if (child.textContent.toLowerCase().indexOf(lower) !== -1) {
+            ownHit = true;
+            stash(child);
+            highlight(child, term);
+          }
+        });
+      }
+
+      var show = childVisible || ownHit;
+      sec.classList.toggle('hidden-by-search', !show);
+      if (show) anyHit = true;
+    });
+
+    noRes.classList.toggle('on', !anyHit);
+  }
+
+  var timer;
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    var v = input.value.trim();
+    timer = setTimeout(function () { run(v); }, 130);
+  });
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { input.value = ''; reset(); input.blur(); }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== input) {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+
+  // A jump link into a hidden section should clear the filter first.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a) return;
+    if (input.value) {
+      input.value = '';
+      reset();
+      var id = a.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    }
+  });
+})();
+</script>
+
+</body></html>
