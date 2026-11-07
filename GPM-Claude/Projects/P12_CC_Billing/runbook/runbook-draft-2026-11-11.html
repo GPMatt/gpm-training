@@ -1566,7 +1566,6 @@ html { scroll-behavior: smooth; }
         <p>
           If the charge is <em>more</em> than the receipt (often an unprinted tip), the fix is the same:
           Override Amount to the exact charge, so the owner is billed what the card paid.
-          <span class="tbc">confirm tip case with Matt</span>
         </p>
 
         <h4>Same amount, date outside the window</h4>
@@ -1764,24 +1763,25 @@ html { scroll-behavior: smooth; }
 
       <div class="exc" id="x-no-charge">
         <h3>A receipt you must bill with no statement charge at all</h3>
-        <p class="symptom">Rare. Ask Matt before doing anything.</p>
+        <p class="symptom">Rare, and always a deliberate decision</p>
         <p>
           The old escape hatch (typing <span class="val">Ready</span> by hand) is gone. A hand-typed
           Ready with no matched charge is an <a class="jump" href="#x-orphan">orphan →</a> and goes back
           to Pending on the next Re-run. <span class="pkg">pkg 4</span>
         </p>
         <div class="stop">
-          <span class="cl-label">Proposed path, pending Matt's answer</span>
-          <ul>
-            <li><strong>The charge is on an older statement that's already billed</strong>: bill it by
-                hand in QuickBooks, then set the row to <span class="chip c-prior">Prior Period</span>
-                (<a class="jump" href="#x-prior">how →</a>).</li>
-            <li><strong>The charge hasn't posted yet</strong>: leave it Pending. It matches when it
-                posts.</li>
-            <li><strong>It was never paid on the company card</strong> (cash, personal card): it isn't a
-                card bill-back. Set it <span class="chip c-non-billable">Non-Billable</span> and handle
-                the reimbursement outside this system.</li>
-          </ul>
+          <span class="cl-label">The one path: bill it by hand, then Prior Period</span>
+          <ol>
+            <li>Bill it by hand in QuickBooks.</li>
+            <li>Set the row to <span class="chip c-prior">Prior Period</span> with
+                <span class="menu">Set Status for Row(s)…</span>
+                (<a class="jump" href="#x-prior">how →</a>). That takes it out of billing and lets it
+                archive.</li>
+          </ol>
+          <p>
+            Not this case: a receipt whose charge simply hasn't posted yet. Leave that one Pending. It
+            matches when the charge lands (<a class="jump" href="#x-unmatched">see here →</a>).
+          </p>
         </div>
       </div>
 
