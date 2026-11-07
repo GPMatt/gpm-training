@@ -1158,8 +1158,8 @@ html { scroll-behavior: smooth; }
               </tr>
               <tr>
                 <td>Several receipts could add up to this charge (a split)</td>
-                <td>A split only matches when it's exact. Fix the missing detail, for example a blank
-                    store in <span class="cell">col T</span>. <a class="jump" href="#x-needs-a-look">Detail →</a></td>
+                <td>A split only matches when it's exact. Fix the detail that's off: a row's amount,
+                    date, or a wrong store. <a class="jump" href="#x-needs-a-look">Detail →</a></td>
               </tr>
               <tr>
                 <td>Look-alike receipts (same person, amount, date, store)</td>
@@ -1580,12 +1580,14 @@ html { scroll-behavior: smooth; }
         <p>
           One card charge, several receipt rows (one form per property) that add up to it. It matches
           automatically only when <strong>all</strong> of these hold: same person, the rows add up to
-          the cent, every date in the window, same store, and no other combination of that person's
-          receipts also adds up. The same rule covers one Amazon order charged in pieces.
+          the cent, every date in the window, the store names don't disagree (they agree, one is blank,
+          or the Merchant Map links them), and no other combination of that person's receipts also adds
+          up. The same rule covers one Amazon order charged in pieces.
         </p>
         <p>
-          If it didn't match, the note names the rows that nearly add up. Fix the detail that's off,
-          most often a blank store in <span class="cell">col T</span> or one row's amount or date.
+          If it didn't match, the note names the rows that nearly add up. Fix the detail that's off:
+          one row's amount or date, or a store in <span class="cell">col T</span> that names the wrong
+          shop.
         </p>
 
         <h4>Look-alikes (two receipts, one charge)</h4>
@@ -2323,7 +2325,8 @@ html { scroll-behavior: smooth; }
         </li>
         <li>
           <strong>Splits, exact only.</strong> 2–4 of one person's receipts that add up to the cent,
-          all dated in the window, same store, and no other combination also adds up → Matched.
+          all dated in the window, store names that don't disagree (a blank store is fine), and no
+          other combination also adds up → Matched.
           Anything less → Needs a look with the rows named. Same for one order charged in pieces.
         </li>
         <li>
