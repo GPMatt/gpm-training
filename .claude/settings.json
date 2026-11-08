@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pbcopy*)",
+      "Bash(open *)",
+      "Bash(curl *)",
+      "Bash(python3 -m http.server *)",
+      "Bash(gh repo list *)",
+      "Bash(clasp deployments*)",
+      "Bash(gcloud projects list *)",
+      "Bash(clasp login --status)",
+      "Bash(clasp run --help)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(clasp push*)",
+      "Bash(clasp deploy*)",
+      "Bash(mkdir *)",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "mcp__claude_ai_Gmail__search_threads",
+      "mcp__claude_ai_Google_Drive__search_files",
+      "mcp__claude_ai_Jotform__fetch",
+      "mcp__claude_ai_Google_Drive__get_file_metadata",
+      "mcp__claude_ai_Gmail__get_thread",
+      "mcp__claude_ai_Google_Drive__download_file_content",
+      "mcp__claude_ai_Google_Drive__get_file_permissions",
+      "mcp__claude_ai_Gmail__get_message",
+      "mcp__claude_ai_Gmail__list_drafts",
+      "mcp__claude_ai_Gmail__get_draft"
+    ]
+  }
+}
