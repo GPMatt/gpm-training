@@ -113,13 +113,30 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:520px){h1{font-size:2.1rem}.steps div{font-size:.56rem}}
 </style>
 
+<style>
+.prog{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.prog b{display:block;height:100%;background:var(--accent)}
+.rr{font-family:var(--mono);font-size:.75rem;padding:1px 7px;border-radius:4px}
+.rr.ok{color:var(--st-done);background:var(--who-team-bg)}
+.rr.bad{color:var(--flag);background:var(--flag-bg)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--mono);font-size:.68rem;padding:1px 6px;border-radius:4px;border:1.5px solid currentColor;white-space:nowrap}
+.c-open{color:var(--st-unc);border-style:dashed}
+.c-conf{color:var(--st-sch)}
+.c-done{color:var(--surface);background:var(--st-done);border-color:var(--st-done)}
+.c-skip{color:var(--st-skip);border-style:dotted}
+.later{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.later .email{border-style:dashed}
+.forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+</style>
+
 <div class="wrap">
 <header>
-  <div class="eyebrow">P03 · to-do #17 · updated after the 11/4 team meeting</div>
+  <div class="eyebrow">P03 · to-do #17 · updated 11/9 for the MVP (live since 11/6)</div>
   <h1>GPM Turn Flow</h1>
-  <p class="lede">From a confirmed move-out to rent ready. Who does what, what Spencer records in AppFolio so the system can follow along, which emails go out, and the status of all eleven steps. Dashed yellow boxes are still open.</p>
+  <p class="lede">From a confirmed move-out to rent ready. The MVP is a scheduling assistant for Spencer: he fills the PMI Scope form, the app lays out the best schedule, and Spencer books each vendor himself and checks off progress. Nothing is sent to vendors automatically yet. Dashed yellow boxes are still open.</p>
   <div class="legend">
-    <span class="who w-team">Spencer + Jason</span>
+    <span class="who w-team">Spencer / Jason / Riley</span>
     <span class="who w-pm">Property manager</span>
     <span class="who w-vendor">Vendor</span>
   </div>
@@ -129,128 +146,129 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <h2>The flow</h2>
   <ol class="spine">
     <li class="phase"><div class="num"><b>1</b><i></i></div><div class="pbody">
-      <h3>Confirmed move-out lands in the tenant tickler</h3>
-      <div class="meta">Daily AppFolio pull · confirmed dates only</div>
+      <h3>Confirmed move-out</h3>
+      <div class="meta">AppFolio tenant tickler, now emailed daily · confirmed dates only</div>
       <ul>
-        <li>A confirmed move-out date creates the turn. Unconfirmed notices never enter the system.</li>
-        <li>Properties owned by Kyle Visser or James Debenham are skipped entirely (they use their own vendors).</li>
-        <li>The system tags the turn <b>cookie cutter</b> or <b>Riley walk</b> from the property list below.</li>
-        <li>Until Spencer books it, the turn sits at the top of the daily brief as <b>PMI not booked</b>.</li>
+        <li>Spencer sees the confirmed move-out and starts the turn. In the MVP nothing is created automatically; the turn starts when Spencer submits the PMI Scope form (step 3).</li>
+        <li>PMI is due within 5 business days of the notice.</li>
       </ul>
-      <div class="mail">
-        <div><span class="who w-pm">PM</span> Rent-ready estimate: move-out + 15 business days, until the PMI sets the real date. <span class="tag">email A</span></div>
-        <div><span class="who w-team">Jason</span> Heads-up when the property is project-eligible. <span class="tag">email B</span></div>
-      </div>
-      <div class="open"><strong>Open</strong>Jason's list of project-eligible properties (Matt is collecting it).</div>
     </div></li>
 
     <li class="phase"><div class="num"><b>2</b><i></i></div><div class="pbody">
       <h3>Spencer books the PMI (visit 1)</h3>
-      <div class="meta">Spencer builds his own schedule · Riley walks on Mondays · cookie cutter any day</div>
+      <div class="meta">Riley walks on Mondays · cookie cutter any day</div>
       <div class="howto">
         <h3>What Spencer does, every time</h3>
         <ol>
-          <li><b>Email the tenant from AppFolio</b> to set the PMI date and time. The email stays on the tenant's record.</li>
-          <li><b>Create the Unit Turn work order in AppFolio</b> for that unit. Pick the property and unit from AppFolio's dropdown; never type the address. This is the one turn WO that holds every note and photo through rent ready.</li>
-          <li><b>Mark it as a Unit Turn</b> so the system can tell it apart from service WOs.</li>
-          <li><b>Set the WO's scheduled date and time to the PMI.</b> That date is how the system knows the PMI is booked.</li>
-          <li><b>If it's not a cookie-cutter property, book it on a Monday</b> and assign or note Riley on the WO, so Jason knows Riley walks with Spencer.</li>
+          <li><b>Email the tenant from AppFolio</b> to set the PMI date and time. That email is also the entry notice.</li>
+          <li><b>Create the one Unit Turn work order</b>, picking property and unit from AppFolio's dropdown. It holds every note and photo through rent ready (billing needs them there).</li>
+          <li><b>Not cookie cutter? Book a Monday</b> and note Riley on the WO.</li>
         </ol>
-        <div class="sys">
-          <div><b>What the system then knows:</b> a turn WO exists for this unit with a PMI date → the turn leaves "PMI not booked".</div>
-          <div><b>Whether Riley is needed:</b> worked out from the property itself. Not on the cookie-cutter list = Riley walk. Spencer doesn't have to decide it.</div>
-          <div><b>The brief flags:</b> confirmed move-outs with no PMI, and Riley-walk PMIs booked on a day other than Monday.</div>
-        </div>
       </div>
       <ul>
-        <li>Cookie cutter: Spencer walks alone, 30–45 min.</li>
-        <li>Everything else (single-family, duplex, quad): Riley or a tech walks with Spencer, up to 1.5 hours.</li>
+        <li>Cookie cutter (7 properties, list below): Spencer walks alone, 30–45 min.</li>
+        <li>Everything else: Riley walks with Spencer, up to 1.5 hours.</li>
       </ul>
-      <div class="open"><strong>Open</strong>How the system reads the WO back out of AppFolio (likely a daily scheduled work order report). Matt is checking what the checklist looks like inside AppFolio. Until then, the exact fields Spencer fills may change.</div>
-      <div class="open"><strong>Open</strong>Whether Spencer's AppFolio email to the tenant also counts as the entry notice.</div>
     </div></li>
 
     <li class="phase"><div class="num"><b>3</b><i></i></div><div class="pbody">
-      <h3>PMI walk</h3>
-      <div class="meta">Spencer (+ Riley when it's a Riley walk) · checklist and photos go on the turn WO</div>
-      <ul>
-        <li><b>Scope checklist</b> (Spencer): which of the 11 steps are needed and how big, and who pays for each damage (tenant or owner).</li>
-        <li><b>Tech task list</b> (Riley, or Spencer alone at cookie cutter): what the tech physically does when it's their turn.</li>
-        <li>Paint is assumed <b>full</b> unless the checklist says otherwise.</li>
-      </ul>
-      <div class="open"><strong>Open</strong>Both checklists are being designed separately.</div>
-      <div class="mail">
-        <div><span class="who w-pm">PM</span> Updated rent-ready date, now computed from the scope. <span class="tag">email A</span></div>
-        <div><span class="who w-team">Jason</span> Supplies to order (Ace or HD Supply): property, unit, items. <span class="tag">email C</span></div>
+      <h3>PMI walk: two forms in the app</h3>
+      <div class="meta">Submitting the Scope form starts the turn and builds the schedule</div>
+      <div class="forms">
+        <div class="email"><span class="who w-team">Spencer</span><h3>PMI Scope</h3><p>Which steps are needed and how big, appliances (make + model), tenant damages tagged "charge tenant", pests, project idea, other-vendor items.</p></div>
+        <div class="email"><span class="who w-team">Riley</span><h3>PMI Tech Prep</h3><p>Jason's room-by-room checklist (OK / Fix / Not checked / N/A), parts to order, keys left, hours needed. Spencer fills it at cookie cutter.</p></div>
       </div>
+      <ul>
+        <li>Full paint is the default unless Spencer picks another size.</li>
+        <li>Photos stay on the AppFolio WO. The forms only have a "photos are on the WO" checkbox.</li>
+      </ul>
+      <div class="open"><strong>Open</strong>Checklist line items: draft sent to Spencer + Jason 11/6. Spencer: "looking forward to testing this out". The paper checklist from the 11/9 PMI (2361 #4) showed gaps; a suggested version is in the checklist mock.</div>
     </div></li>
 
     <li class="phase"><div class="num"><b>4</b><i></i></div><div class="pbody">
-      <h3>Project estimates + vendors booked</h3>
-      <div class="meta">Order of operations · business days · first step the next business day after move-out</div>
+      <h3>The app lays out the schedule; Spencer adjusts it</h3>
+      <div class="meta">Locked order · business days (no weekends, no bank holidays) · first build step the next business day after move-out</div>
       <ul>
-        <li>Project-eligible properties: Jason does the project estimate (step 2).</li>
-        <li>Each needed step gets a date from the durations table. Skipped steps pull the next ones forward. Only Appliances and Tech share a day.</li>
-        <li>Under 30 days out will need its own booking process (not designed yet).</li>
+        <li>Every needed step gets a recommended date from the durations table. Skipped steps pull the rest forward. Only Appliances and Tech can share a day.</li>
+        <li>Spencer can change days, start times (10-minute picks), lengths and order. The rent-ready date stays on screen the whole time, even while he tries a "what if".</li>
+        <li>Rent ready = the last day of work. Green when it's at least 1 business day before move-in, red otherwise. No alerts.</li>
+        <li>Calendar view is colored by trade, with the unit name on every block and a unit filter.</li>
       </ul>
-      <div class="open"><strong>Open</strong>Vendor booking process is still being designed. Collecting each crew's calendar first.</div>
-      <div class="mail">
-        <div><span class="who w-vendor">Vendor</span> Calendar invite: date, arrival window, address and unit, scope, access notes. Eastpointe also gets its order form. <span class="tag">invite D</span></div>
-      </div>
     </div></li>
 
     <li class="phase"><div class="num"><b>5</b><i></i></div><div class="pbody">
-      <h3>Move-out day (visit 2)</h3>
-      <div class="meta">Spencer · on the confirmed move-out date · keys + security deposit</div>
+      <h3>Spencer books each vendor himself</h3>
+      <div class="meta">Phone, text or email · nothing is sent by the app</div>
       <ul>
-        <li><b>Schedule:</b> the vendors and work we planned are still right.</li>
-        <li><b>Rent ready:</b> the scope matches the PMI and the timeline still fits the rent-ready date.</li>
-        <li><b>Deposit:</b> tenant damages recorded for the security deposit.</li>
-        <li>New scope? Spencer books that vendor ASAP. Later steps shift and those vendors get updated invites.</li>
+        <li>Each step has a ready-made message (trade, address, unit, date, start time, length, scope, access). Spencer copies it and sends it himself.</li>
+        <li>When the vendor says yes, he clicks the bar and marks it <b>Confirmed</b>. The same view shows that vendor's other jobs that day across all turns.</li>
       </ul>
     </div></li>
 
     <li class="phase"><div class="num"><b>6</b><i></i></div><div class="pbody">
-      <h3>Build days + quality check (visit 3)</h3>
-      <div class="meta">Spencer marks steps Complete and rent ready (for now)</div>
+      <h3>Move-out day (visit 2): Move-out / Deposit Check</h3>
+      <div class="meta">Spencer alone · keys + security deposit · exceptions only</div>
       <ul>
-        <li>Visit 3 is a checkpoint, not a step: Spencer checks the tech's work before the cleaners so the unit will show well once cleaned. Nothing waits on it.</li>
+        <li>The app shows the PMI scope, the schedule and the rent-ready date for a quick look. Spencer records only what's wrong or missing.</li>
+        <li>Anything Riley couldn't check at the PMI (blocked while occupied) shows up here.</li>
+        <li>New small fixes go onto the tech's list. Final tenant damages for the deposit, with whole-unit photos on the WO.</li>
+        <li>New scope? Spencer books that vendor ASAP and moves the later steps in the schedule.</li>
       </ul>
-      <div class="open"><strong>Open</strong>How Spencer knows a vendor finished.</div>
     </div></li>
 
     <li class="phase"><div class="num"><b>7</b><i></i></div><div class="pbody">
-      <h3>Daily brief + Monday meeting</h3>
-      <div class="meta">Weekdays only · no brief on weekends or GPM office holidays · Monday meeting: Spencer + Matt</div>
-      <div class="mail">
-        <div><span class="who w-team">Spencer + Jason</span> Top section: confirmed move-outs with no PMI booked. Then upcoming and active turns with all eleven step statuses, and links to the calendar. <span class="tag">email E</span></div>
-      </div>
-      <div class="open"><strong>Open</strong>GPM office holiday list.</div>
+      <h3>Build days, quality check, rent ready</h3>
+      <div class="meta">Spencer checks off each step · progress bar per turn</div>
+      <ul>
+        <li>Visit 3 is a quality check on the tech's last day, before the cleaners. It's a checkpoint, not a step; nothing waits on it.</li>
+        <li>Spencer marks each step Done and the turn rent ready.</li>
+        <li>Mondays: 30 minutes, Spencer + Matt. Wednesdays: 30 minutes in person with Jason.</li>
+      </ul>
     </div></li>
   </ol>
 </section>
 
 <section>
-  <h2>The eleven steps</h2>
-  <div class="statuses">Each step in the brief is one of
-    <span class="st s-skip">Skipped</span><span class="st s-unc">Unconfirmed</span><span class="st s-sch">Scheduled</span><span class="st s-done">Complete</span>
+  <h2>The steps</h2>
+  <div class="statuses">Each step on the board is one of
+    <span class="st s-skip">Not needed</span><span class="st s-unc">Not booked</span><span class="st s-sch">Confirmed</span><span class="st s-done">Done</span>
   </div>
   <div class="tbl"><table>
-    <thead><tr><th>#</th><th>Step</th><th>Who</th><th>Duration (business days)</th><th>Rule</th></tr></thead>
+    <thead><tr><th>#</th><th>Step</th><th>Who</th><th>Length (business days)</th><th>Rule</th></tr></thead>
     <tbody>
-      <tr><td class="n">1</td><td>Walk / PMI</td><td>Spencer (+ Riley if not cookie cutter)</td><td>30–45 min cookie cutter · up to 1.5h otherwise</td><td>Always happens. The only step that's never skipped.</td></tr>
-      <tr><td class="n">2</td><td>Project estimates</td><td>Jason</td><td>–</td><td>Project-eligible properties only.</td></tr>
-      <tr><td class="n">3</td><td>Tub repair / replace</td><td>Surface Tech (repair) · Grand River (replace)</td><td>Resurface 1 + 24h no entry · Replace 1</td><td>Grand River measures ≥2 weeks before.</td></tr>
-      <tr><td class="n">4</td><td>Flooring</td><td>Eastpointe Interiors (Tom)</td><td>1 · hardwood 3–8</td><td>New tub means new floor. Order form to the order desk; same-day cancellations cost a trip charge.</td></tr>
-      <tr><td class="n">5</td><td>Drywall / plaster</td><td>Matt Luschas</td><td>2–3</td><td>All drywall goes after flooring, tub-related included.</td></tr>
-      <tr><td class="n">6</td><td>Appliances</td><td>Vendor <span class="sub">(TBD)</span></td><td>1 (8h window)</td><td>Same day as Tech is allowed.</td></tr>
-      <tr><td class="n">7</td><td>Tech</td><td>Riley (Jason assigns)</td><td>Quick 4h · basic 1 · first-time 2–3</td><td>Fully finished before paint.</td></tr>
-      <tr><td class="n">8</td><td>Paint</td><td>Trevor</td><td>Full 1 · touch-up 4h · color 2 · new home 2–3</td><td>Full paint unless the checklist says otherwise.</td></tr>
-      <tr><td class="n">9</td><td>Clean</td><td>GR Cleaning Co or Up &amp; Up</td><td>1 · heavy 2</td><td>Grease or smoke units get a pre-clean on day 1 as well.</td></tr>
-      <tr><td class="n">10</td><td>Stainless + stovetop</td><td>Surface Experts</td><td><span class="sub">TBD</span></td><td>After the cleaners, before carpet cleaning.</td></tr>
+      <tr><td class="n">1</td><td>Walk / PMI</td><td>Spencer (+ Riley if not cookie cutter)</td><td>30–45 min · up to 1.5h</td><td>Always happens. Starts the turn.</td></tr>
+      <tr><td class="n">2</td><td>Project estimates</td><td>Jason</td><td>–</td><td>Only when Spencer flags a possible project.</td></tr>
+      <tr><td class="n">–</td><td>Trash-out <span class="sub">(provisional)</span></td><td>Dumpster Divers</td><td>1 (depends on volume)</td><td>First build day, when needed.</td></tr>
+      <tr><td class="n">–</td><td>Pre-clean</td><td>GR Cleaning Co / Up &amp; Up</td><td>1</td><td>Grease or smoke units only, before the tub. Step 9 cleans again.</td></tr>
+      <tr><td class="n">3</td><td>Tub repair / replace</td><td>Surface Tech (resurface) · Grand River Plumbing (replace)</td><td>Resurface 1 + 24h no entry · replace 1</td><td>Grand River measures 2+ weeks before.</td></tr>
+      <tr><td class="n">4</td><td>Flooring</td><td>Eastpointe Interiors</td><td>1 · hardwood 3 per room</td><td>New tub means new floor. Eastpointe needs its order form.</td></tr>
+      <tr><td class="n">5</td><td>Drywall / plaster</td><td>Matt Luschas</td><td>2–3</td><td>All drywall after flooring, tub-related included.</td></tr>
+      <tr><td class="n">6</td><td>Appliances</td><td>Vendor <span class="sub">(TBD)</span></td><td>1</td><td>Can share a day with Tech.</td></tr>
+      <tr><td class="n">7</td><td>Tech</td><td>Riley (Jason assigns)</td><td>Quick 4h · basic 1 · first-time 3</td><td>Fully done before paint. Length comes from the tech's hours estimate.</td></tr>
+      <tr><td class="n">8</td><td>Paint</td><td>Trevor</td><td>Full 1 · touch-up 4h · color 2 · new home 3</td><td>Full paint unless Spencer picks otherwise.</td></tr>
+      <tr><td class="n">9</td><td>Clean</td><td>GR Cleaning Co or Up &amp; Up</td><td>1 · heavy 2</td><td></td></tr>
+      <tr><td class="n">10</td><td>Stainless + stovetop</td><td>Surface Experts</td><td>about 1 hour</td><td>After the cleaners, before carpet cleaning.</td></tr>
       <tr><td class="n">11</td><td>Carpet cleaning</td><td>Vendor <span class="sub">(TBD)</span></td><td>1</td><td>Always last.</td></tr>
     </tbody>
   </table></div>
+  <div class="open"><strong>Open</strong>Where Trash-out sits for good (likely right after the PMI). Appliance and carpet-cleaning vendors.</div>
+</section>
+
+<section>
+  <h2>Turn board, sketched</h2>
+  <div class="brief">
+    <div class="hd"><h3>Open turns</h3><span><span class="example">example units</span></span></div>
+    <div class="unit">
+      <div class="top"><b>900 Leonard St NW #210</b><span>move-out 12/1 · move-in 12/15 · rent ready 12/10</span><span class="rr ok">ready 3 days early</span></div>
+      <div class="prog"><b style="width:25%"></b></div>
+      <div class="chips"><span class="chip c-done">PMI</span><span class="chip c-skip">Tub</span><span class="chip c-conf">Flooring</span><span class="chip c-conf">Tech</span><span class="chip c-open">Paint</span><span class="chip c-open">Clean</span><span class="chip c-open">Stainless</span><span class="chip c-open">Carpet</span></div>
+    </div>
+    <div class="unit">
+      <div class="top"><b>1350 Example Ave NE</b><span>moved out 11/2 · move-in 11/16 · rent ready 11/16</span><span class="rr bad">no buffer day</span></div>
+      <div class="prog"><b style="width:70%"></b></div>
+      <div class="chips"><span class="chip c-done">PMI</span><span class="chip c-done">Drywall</span><span class="chip c-done">Tech</span><span class="chip c-done">Paint</span><span class="chip c-conf">Clean</span><span class="chip c-open">Carpet</span></div>
+    </div>
+  </div>
 </section>
 
 <section>
@@ -259,61 +277,34 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="list"><h3>Cookie cutter · Spencer walks alone</h3>
       <ul>
         <li>900 Leonard St NW, Grand Rapids</li>
-        <li>2935 Oak Valley Ave SW, Wyoming</li>
-        <li>547 Cherry St SE, Grand Rapids</li>
-        <li>2340 Michael Ave SW, Wyoming</li>
-        <li>6611 Prairie Winds Dr, Zeeland</li>
-        <li>90 Wealthy St SE, Grand Rapids</li>
-        <li>5943 8th Ave, Grandville</li>
-        <li>1960 Burton St SE, Grand Rapids</li>
-        <li>2700 Clyde Park Ave SW, Wyoming</li>
-        <li>100 Commerce Ave SW, Grand Rapids</li>
         <li>730 Leonard St NW, Grand Rapids</li>
+        <li>90 Wealthy St SE, Grand Rapids</li>
+        <li>100 Commerce Ave SW, Grand Rapids</li>
+        <li>1960 Burton St SE, Grand Rapids</li>
+        <li>445 Knapp St NE, Grand Rapids</li>
+        <li>5943 8th Ave, Grandville</li>
       </ul>
-      <div class="note">Everything else is a Riley walk on a Monday.</div>
+      <div class="note">Updated 11/6. Everything else is a Riley walk on a Monday.</div>
     </div>
-    <div class="list"><h3>Left out · owner's own vendors</h3>
+    <div class="list"><h3>Owner's own vendors · on hold</h3>
       <ul>
         <li><b>Kyle Visser:</b> 956 Innes St NE · 1114 E Fulton · 228 Baynton Ave NE · 7620 Fase St SE (Ada) · 1460 Milton St SE · 901 Sarasota Ave SE</li>
         <li><b>James Debenham:</b> 62 Caroline Pl NE · 44 Stormzand Pl NE · 1110 Broadway Ave NW · 800 Clancy Ave NE · 726 Eastern Ave NE · 720 Kellogg St SE · 1317 Lafayette Ave NE · 348 Quimby St NE</li>
       </ul>
-      <div class="open"><strong>Open</strong>Asked Jody whether other owners or properties use specific vendors.</div>
+      <div class="open"><strong>On hold</strong>GPM may move every unit to one vendor per trade (asked Laura 11/5). Vendors stay swappable in the app's settings.</div>
     </div>
   </div>
 </section>
 
 <section>
-  <h2>Daily brief, sketched</h2>
-  <div class="brief">
-    <div class="hd"><h3>Turns brief · Thu Nov 5</h3><span>to Spencer, Jason · <span class="example">example units</span></span></div>
-    <div class="hd links"><a href="#" onclick="return false">GPM Turns calendar</a></div>
-    <div class="sec flagged">PMI not booked (2)</div>
-    <div class="unit"><div class="top"><b>1350 Example Ave NE</b><span>move-out confirmed 12/31 · Riley walk · book a Monday</span></div></div>
-    <div class="unit"><div class="top"><b>900 Leonard St NW #210</b><span>move-out confirmed 12/15 · cookie cutter · any day</span></div></div>
-    <div class="sec">Upcoming and active turns</div>
-    <div class="unit">
-      <div class="top"><b>2935 Oak Valley Ave SW #301</b><span>move-out 11/30 · PMI Tue 11/10 · cookie cutter</span></div>
-      <div class="steps">
-        <div><i class="i-sch"></i>1</div><div><i class="i-unc"></i>2</div><div><i class="i-unc"></i>3</div><div><i class="i-unc"></i>4</div><div><i class="i-unc"></i>5</div><div><i class="i-unc"></i>6</div><div><i class="i-unc"></i>7</div><div><i class="i-unc"></i>8</div><div><i class="i-unc"></i>9</div><div><i class="i-unc"></i>10</div><div><i class="i-unc"></i>11</div>
-      </div>
-    </div>
-    <div class="unit">
-      <div class="top"><b>900 Leonard St NW #314</b><span>moved out 11/2 · rent ready 11/9</span></div>
-      <div class="steps">
-        <div><i class="i-done"></i>1</div><div><i class="i-skip"></i>2</div><div><i class="i-skip"></i>3</div><div><i class="i-skip"></i>4</div><div><i class="i-skip"></i>5</div><div><i class="i-sch"></i>6</div><div><i class="i-sch"></i>7</div><div><i class="i-sch"></i>8</div><div><i class="i-sch"></i>9</div><div><i class="i-sch"></i>10</div><div><i class="i-sch"></i>11</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <h2>Every email, separately</h2>
-  <div class="emails">
-    <div class="email"><span class="who w-pm">PM</span><h3>A · Rent-ready date</h3><div class="when">On a confirmed move-out, then again after the PMI</div><p>Before the PMI: move-out + 15 business days. After it: the date computed from the scope.</p></div>
-    <div class="email"><span class="who w-team">Jason</span><h3>B · Project heads-up</h3><div class="when">On a confirmed move-out at a project-eligible property</div><p>Property, unit, move-out date, so he can plan the project before the PMI.</p></div>
-    <div class="email"><span class="who w-team">Jason</span><h3>C · Supplies to order</h3><div class="when">After the PMI</div><p>Property, unit and items, for an Ace or HD Supply order.</p></div>
-    <div class="email"><span class="who w-vendor">Vendor</span><h3>D · Calendar invite</h3><div class="when">When the step is booked or shifted</div><p>Date, window, address, scope and access. Updates in place when the date moves.</p></div>
-    <div class="email"><span class="who w-team">Spencer + Jason</span><h3>E · Daily brief</h3><div class="when">Weekday mornings, not on GPM holidays</div><p>PMIs not booked first, then upcoming and active turns with eleven step statuses.</p></div>
+  <h2>Later, not in the MVP</h2>
+  <div class="later">
+    <div class="email"><span class="who w-vendor">Vendor</span><h3>Automatic vendor texts</h3><div class="when">RingCentral SMS · end-to-end test passed 11/5</div><p>Booking text, reply 1 to confirm, DONE + photo when finished. Waits until the order of operations has run cleanly by hand.</p></div>
+    <div class="email"><span class="who w-team">Spencer + Jason</span><h3>Daily brief</h3><div class="when">Dropped for the MVP</div><p>The app's turn board replaces it for now.</p></div>
+    <div class="email"><span class="who w-pm">PM</span><h3>Rent-ready email</h3><div class="when">After the PMI</div><p>Rent-ready date computed from the scope.</p></div>
+    <div class="email"><span class="who w-team">Jason</span><h3>Supplies + project emails</h3><div class="when">After the PMI</div><p>Parts to order from the Tech Prep list (Ace / HD Supply), and a heads-up on flagged projects.</p></div>
+    <div class="email"><span class="who w-team">System</span><h3>AppFolio read-back</h3><div class="when">Decided 11/5</div><p>Spencer shares the turn WO by email after each visit; a 5pm reminder if a visit was due and no share arrived.</p></div>
+    <div class="email"><span class="who w-team">System</span><h3>Turns from the tickler</h3><div class="when">Daily pull</div><p>Confirmed move-outs create the turn automatically and flag "PMI not booked".</p></div>
   </div>
 </section>
 </div>

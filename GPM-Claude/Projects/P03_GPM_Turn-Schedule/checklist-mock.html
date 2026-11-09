@@ -1,0 +1,369 @@
+<title>GPM Turn Checklists</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-width form on the left (what Spencer/Riley hold in the unit), "what changed" notes on the right; stacks on phones. Matches the app: cream + dark green. */
+:root{
+  --bg:#efeadc; --surface:#fbf8f0; --fg:#1f2a22; --muted:#626b5f; --line:#d9d1bd;
+  --accent:#1f4d36; --accent-fg:#fbf8f0; --accent-soft:#dfe8dc;
+  --ok:#2d6a45; --ok-bg:#dcebdf; --fix:#a4461f; --fix-bg:#f6e2d6;
+  --nc:#8a6a12; --nc-bg:#f4ebcd; --na:#7b7f76; --na-bg:#e6e3da;
+  --new:#245c8f; --new-bg:#dfe9f4; --charge:#8f2b3b; --charge-bg:#f4dde1;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151b17; --surface:#1d2520; --fg:#e7ebe3; --muted:#9ca695; --line:#334036;
+  --accent:#8fcca4; --accent-fg:#13201a; --accent-soft:#223429;
+  --ok:#8fcca4; --ok-bg:#1f3527; --fix:#f0a37f; --fix-bg:#3d2519;
+  --nc:#e5c56b; --nc-bg:#352d16; --na:#a3a89c; --na-bg:#2a2f2a;
+  --new:#94bfe8; --new-bg:#1c2b3b; --charge:#f2a0ae; --charge-bg:#3b1e24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151b17; --surface:#1d2520; --fg:#e7ebe3; --muted:#9ca695; --line:#334036;
+  --accent:#8fcca4; --accent-fg:#13201a; --accent-soft:#223429;
+  --ok:#8fcca4; --ok-bg:#1f3527; --fix:#f0a37f; --fix-bg:#3d2519;
+  --nc:#e5c56b; --nc-bg:#352d16; --na:#a3a89c; --na-bg:#2a2f2a;
+  --new:#94bfe8; --new-bg:#1c2b3b; --charge:#f2a0ae; --charge-bg:#3b1e24; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1040px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:2.4rem;line-height:1.05}
+h2{font-size:1.15rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0;max-width:65ch}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{color:var(--muted)}
+header{display:grid;gap:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:.85rem;color:var(--muted);align-items:center}
+.badge{font-family:var(--mono);font-size:.64rem;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:4px;white-space:nowrap;vertical-align:middle}
+.b-new{color:var(--new);background:var(--new-bg)}
+.b-chg{color:var(--nc);background:var(--nc-bg)}
+.b-ex{color:var(--muted);border:1px dashed var(--line)}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);overflow-x:auto}
+.tabs button{font:600 1rem var(--body);background:none;border:0;color:var(--muted);padding:10px 14px;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs button small{display:block;font:400 .74rem var(--mono);color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.phone{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;min-width:0}
+.phead{background:var(--accent);color:var(--accent-fg);padding:14px 16px;display:grid;gap:2px}
+.phead b{font-family:var(--display);font-size:1.35rem;font-weight:600}
+.phead span{font-size:.85rem;opacity:.85}
+.prog{height:6px;background:color-mix(in srgb,var(--accent-fg) 25%,transparent);border-radius:99px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--accent-fg)}
+.sec{border-top:1px solid var(--line)}
+.sec>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:8px;font-family:var(--display);font-size:1.1rem;font-weight:600}
+.sec>summary::-webkit-details-marker{display:none}
+.sec>summary::after{content:"+";margin-left:auto;font-family:var(--mono);color:var(--muted)}
+.sec[open]>summary::after{content:"–"}
+.sec>summary .cnt{font:400 .75rem var(--mono);color:var(--muted)}
+.body{padding:0 16px 14px;display:grid;gap:10px}
+.help{font-size:.82rem;color:var(--muted)}
+.has{display:flex;align-items:center;gap:8px;font-size:.9rem;background:var(--bg);padding:8px 10px;border-radius:8px}
+.item{display:grid;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.item:last-child{border-bottom:0}
+.irow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.iname{flex:1 1 140px;font-size:.95rem;min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:600 .74rem var(--mono);border:0;background:var(--surface);color:var(--muted);padding:6px 8px;cursor:pointer;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button.on[data-v="ok"]{background:var(--ok-bg);color:var(--ok)}
+.seg button.on[data-v="fix"]{background:var(--fix-bg);color:var(--fix)}
+.seg button.on[data-v="nc"]{background:var(--nc-bg);color:var(--nc)}
+.seg button.on[data-v="na"]{background:var(--na-bg);color:var(--na)}
+.pen{border:0;background:none;color:var(--muted);cursor:pointer;font-size:.95rem;padding:4px}
+.pen.on{color:var(--accent)}
+.sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-left:2px}
+input[type=text],input[type=number],input[type=date],select,textarea{font:inherit;font-size:.92rem;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+input[type=text]{flex:1 1 160px}
+input[type=number]{width:72px}
+textarea{width:100%;min-height:56px;resize:vertical}
+label.f{display:grid;gap:3px;font-size:.84rem;color:var(--muted);min-width:0}
+label.f>*:not(span){color:var(--fg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tog{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer;padding:4px 9px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.tog.on{background:var(--charge-bg);color:var(--charge);border-color:var(--charge)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:600 .8rem var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 10px;border-radius:99px;cursor:pointer}
+.chip.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.chip.off.on{background:var(--na-bg);color:var(--na);border-color:var(--line)}
+.trade{display:grid;gap:6px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.trade:last-child{border-bottom:0}
+.trade b{font-size:.95rem}
+.trade .v{font:400 .74rem var(--mono);color:var(--muted)}
+.pulled{background:var(--charge-bg);color:var(--charge);border-radius:8px;padding:8px 10px;font-size:.88rem;display:grid;gap:3px}
+.pulled small{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em}
+.card{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:.88rem;display:grid;gap:4px}
+.card .k{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{font:600 .85rem var(--body);border:1px dashed var(--accent);color:var(--accent);background:none;border-radius:8px;padding:6px 10px;cursor:pointer;justify-self:start}
+.submit{margin:14px 16px 18px;font:700 1rem var(--body);background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:12px;width:calc(100% - 32px);cursor:pointer}
+.toast{font-size:.85rem;color:var(--ok);text-align:center;padding:0 16px 14px}
+.notes{display:grid;gap:16px;min-width:0}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:8px}
+.note ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:.92rem}
+.note li b{font-weight:700}
+.q{border-style:dashed}
+button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.seg button,.chip,.tog{transition:background .12s,color .12s}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">P03 turn schedule · mock for Spencer + Jason · 11/9</div>
+  <h1>GPM Turn Checklists</h1>
+  <p class="lede">The three forms Spencer and Riley fill in the app, rebuilt from Jason's paper checklist. Every paper line is kept. Tap through: answers carry across the tabs (a "Charge tenant" tag on Tech Prep shows up on Scope and at move-out).</p>
+  <div class="legend"><span class="badge b-new">new</span> not on paper or in the app today <span class="badge b-chg">changed</span> works differently than the app today <span class="badge b-ex">example</span> filled with the 2361 #4 PMI from 11/9 (only what Spencer clearly wrote)</div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button role="tab" id="t-scope" aria-selected="false" data-tab="scope">PMI Scope<small>Spencer · starts the turn</small></button>
+  <button role="tab" id="t-tech" aria-selected="true" data-tab="tech">PMI Tech Prep<small>Riley · Spencer at cookie cutter</small></button>
+  <button role="tab" id="t-out" aria-selected="false" data-tab="out">Move-out / Deposit<small>Spencer · move-out day</small></button>
+</div>
+
+<div class="grid">
+  <div class="phone" id="phone"></div>
+  <div class="notes" id="notes"></div>
+</div>
+</div>
+
+<script>
+(function(){
+'use strict';
+// ---------- checklist definition (paper items kept; n = suggested addition, kind = special input) ----------
+var ROOMS=[
+ {id:'ext',label:'Exterior / garage',optional:true,items:[
+  {t:'Garage opener'},{t:'Remotes, 1 per door',kind:'count',key:'remotes'},{t:'Garage service door'},
+  {t:'Garage / storage room clear of items left behind'},{t:'Exterior / porch light',n:1}]},
+ {id:'entry',label:'Entry',items:[
+  {t:'Entry lock',kind:'lock'},{t:'GPM entry keys left (2 min)',kind:'count',key:'keys'},{t:'Mailbox keys left',kind:'count',key:'mail'},
+  {t:'Door latches'},{t:'Deadbolt + door closes and seals',n:1},{t:'Hallway light'},{t:'Closet door / shelves'},{t:'Hallway smoke detector',n:1}]},
+ {id:'living',label:'Living room',items:[
+  {t:'Window panes'},{t:'Window screens'},{t:'Window locks'},{t:'Window blinds',kind:'blinds'},{t:'Outlets have power'},
+  {t:'Outlet / switch covers'},{t:'Light fixture'},{t:'HVAC vents (replace / paint)'},{t:'Thermostat (heat + A/C)'},{t:'Smoke / CO, outside bedroom'}]},
+ {id:'kitchen',label:'Kitchen',items:[
+  {t:'Light above sink'},{t:'Run dishwasher'},{t:'Disposal'},{t:'Faucet'},{t:'Drains under sink'},{t:'Sink caulk / backsplash',n:1},
+  {t:'Stove / oven'},{t:'Drip pans'},{t:'Hood filter + hood light / fan',n:1},{t:'Microwave'},{t:'Fridge / freezer'},
+  {t:'Countertops'},{t:'Cabinets / drawers (doors stay shut, hinges)',n:1},{t:'GFCI protecting'},{t:'Outlet / switch covers'}]},
+ {id:'laundry',label:'Laundry',optional:true,n:1,items:[{t:'Washer'},{t:'Dryer'},{t:'Dryer vent',n:1},{t:'Utility sink'}]},
+ {id:'base',label:'Basement / utility',optional:true,items:[
+  {t:'Smoke detector'},{t:'Furnace filter',kind:'filter'},{t:'Lights'},{t:'Water heater: leaks / age (flag only)',n:1}]},
+ {id:'bath',label:'Bathroom',repeat:'baths',items:[
+  {t:'Light / vent fan'},{t:'Tub faucet'},{t:'Tub drain'},{t:'Tub stopper'},{t:'Shower caulk'},{t:'Shower curtain'},{t:'Shower bar'},
+  {t:'Toilet drain / fill'},{t:'Bolt caps on toilet'},{t:'Toilet seat / hinges'},{t:'Vanity faucet'},{t:'Vanity drain'},
+  {t:'Vanity countertop',n:1},{t:'Sink caulk',n:1},{t:'Mirror / medicine cabinet',n:1},{t:'Toilet paper bar'},{t:'Towel bar'},
+  {t:'GFCI protecting'},{t:'Outlet / switch covers'}]},
+ {id:'bed',label:'Bedroom',repeat:'beds',items:[
+  {t:'Door latches'},{t:'Window panes'},{t:'Window screens'},{t:'Window locks'},{t:'Window blinds',kind:'blinds'},
+  {t:'Outlets have power'},{t:'Outlet / switch covers'},{t:'Light fixture'},{t:'Smoke detector'},{t:'Closet door latches'},{t:'Closet hardware'}]}
+];
+var TRADES=[
+ {k:'trash',l:'Trash-out',v:'Dumpster Divers',s:['Needed']},
+ {k:'preclean',l:'Pre-clean (grease / smoke)',v:'GR Cleaning Co / Up & Up',s:['Needed']},
+ {k:'tub',l:'Tub',v:'Surface Tech / Grand River',s:['Resurface','Replace']},
+ {k:'floor',l:'Flooring',v:'Eastpointe',s:['LVP','Carpet','LVP + carpet','Hardwood refinish']},
+ {k:'drywall',l:'Drywall / plaster',v:'Matt Luschas',s:['Small (2d)','Large (3d)']},
+ {k:'appl',l:'Appliances',v:'TBD',s:['Repair','Replace']},
+ {k:'tech',l:'Tech',v:'Riley',s:['From Tech Prep hours']},
+ {k:'paint',l:'Paint',v:'Trevor',s:['Full','Touch-up','Color change','New home']},
+ {k:'clean',l:'Clean',v:'GR Cleaning Co / Up & Up',s:['Standard','Heavy (2d)']},
+ {k:'surface',l:'Stainless + stovetop',v:'Surface Experts',s:['Needed']},
+ {k:'carpet',l:'Carpet cleaning',v:'TBD',s:['Needed']}
+];
+
+// ---------- example state: only what Spencer clearly wrote on the 2361 #4 sheet ----------
+var S={tab:'tech',has:{ext:false,laundry:false,base:false},beds:2,baths:1,ans:{},counts:{mail:1},lock:'',
+  hours:'',filter:'',left:'',jason:'',parts:[{item:'',qty:'',store:'Ace'}],
+  trades:{tech:'From Tech Prep hours',paint:'Touch-up',clean:'Standard'},
+  appl:[{which:'',action:'',model:''}],project:false,projectNote:'',pests:'None',other:[],dmg:[],photos:false,
+  out:{keys:false,keysBack:'',rr:'Yes',rrWhy:'',exc:[],confirm:{},ncFix:{},photos:false},sent:''};
+function A(id){return S.ans[id]||(S.ans[id]={s:'',note:'',charge:false,pen:false,count:''});}
+A('kitchen:0:12').s='fix';A('kitchen:0:12').note='Cabinets stay open';
+A('bed:1:4').s='fix';A('bed:1:4').charge=true;A('bed:1:4').note='Replace blinds';
+A('bed:2:4').s='fix';A('bed:2:4').charge=true;A('bed:2:4').note='Replace blinds';
+A('bath:1:12').s='fix';A('bath:1:12').note='Bathroom countertop';
+A('bath:1:13').s='fix';A('bath:1:13').note='Re-caulk sink';
+
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function instances(r){var n=r.repeat?(r.repeat==='beds'?S.beds:S.baths):1,out=[];for(var i=1;i<=n;i++)out.push({id:r.id+':'+(r.repeat?i:0),label:r.repeat?r.label+' '+i:r.label});return out;}
+function allLines(){var L=[];ROOMS.forEach(function(r){if(r.optional&&S.has[r.id]===false)return;instances(r).forEach(function(inst){r.items.forEach(function(it,ii){L.push({id:inst.id+':'+ii,room:inst.label,it:it});});});});return L;}
+function charged(){return allLines().filter(function(l){var a=S.ans[l.id];return a&&a.s==='fix'&&a.charge;});}
+function notChecked(){return allLines().filter(function(l){var a=S.ans[l.id];return a&&a.s==='nc';});}
+function fixes(){return allLines().filter(function(l){var a=S.ans[l.id];return a&&a.s==='fix';});}
+
+// ---------- Tech Prep ----------
+function seg(id,cur){return '<span class="seg" role="group" aria-label="Answer">'+[['ok','OK'],['fix','Fix'],['nc','Not chk'],['na','N/A']].map(function(o){return '<button type="button" data-ans="'+id+'" data-v="'+o[0]+'" class="'+(cur===o[0]?'on':'')+'" aria-pressed="'+(cur===o[0])+'">'+o[1]+'</button>';}).join('')+'</span>';}
+function itemHtml(id,it){
+  var a=A(id),h='<div class="item"><div class="irow"><span class="iname">'+esc(it.t)+(it.n?' <span class="badge b-new">new</span>':'')+'</span>';
+  if(it.kind==='count'){h+='<input type="number" min="0" id="c-'+id+'" data-count="'+it.key+'" value="'+esc(S.counts[it.key]==null?'':S.counts[it.key])+'" aria-label="Count left in unit"> <span class="badge b-chg">count</span></div></div>';return h;}
+  if(it.kind==='lock'){h+='<select id="lock" data-lock="1">'+['','OK as is','Re-key','Replace'].map(function(o){return '<option'+(S.lock===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div></div>';return h;}
+  h+=seg(id,a.s)+'<button type="button" class="pen'+(a.pen||a.note?' on':'')+'" data-pen="'+id+'" aria-label="Add a note">✎</button></div>';
+  if(a.s==='fix'||a.s==='nc'||a.pen){
+    h+='<div class="sub"><input type="text" id="n-'+id+'" data-note="'+id+'" placeholder="'+(a.s==='fix'?'What to fix / part needed':a.s==='nc'?'Why not checked':'Note')+'" value="'+esc(a.note)+'">';
+    if(a.s==='fix'){h+='<button type="button" class="tog'+(a.charge?' on':'')+'" data-charge="'+id+'" aria-pressed="'+a.charge+'">Charge tenant <span class="badge b-new">new</span></button>';
+      if(it.kind==='blinds')h+='<input type="text" id="bs-'+id+'" placeholder="Count + size, e.g. 2 × 35x64" style="flex-basis:100%">';
+    }
+    if(it.kind==='filter')h+='<input type="text" id="fs" data-filter="1" placeholder="Filter size, e.g. 16x25x1" value="'+esc(S.filter)+'">';
+    h+='</div>';
+  } else if(it.kind==='filter'){h+='<div class="sub"><input type="text" id="fs" data-filter="1" placeholder="Filter size, e.g. 16x25x1" value="'+esc(S.filter)+'"></div>';}
+  return h+'</div>';
+}
+function techForm(){
+  var L=allLines(),done=L.filter(function(l){return S.ans[l.id]&&S.ans[l.id].s;}).length+(S.lock?1:0);
+  var tot=L.filter(function(l){return !l.it.kind||l.it.kind==='blinds'||l.it.kind==='filter';}).length;
+  var h='<div class="phead"><b>PMI Tech Prep</b><span>2361 #4 · Spencer · 11/09/26 <span class="badge b-ex" style="color:inherit;border-color:currentColor">example</span></span><span>'+Math.min(done,tot)+' of '+tot+' lines answered</span><div class="prog"><i style="width:'+Math.round(100*Math.min(done,tot)/Math.max(tot,1))+'%"></i></div></div>';
+  h+='<details class="sec" open><summary>Unit</summary><div class="body"><div class="two">'+
+    '<label class="f"><span>Bedrooms</span><select id="beds" data-beds="1">'+[0,1,2,3,4,5].map(function(n){return '<option'+(S.beds===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select></label>'+
+    '<label class="f"><span>Bathrooms</span><select id="baths" data-baths="1">'+[1,2,3].map(function(n){return '<option'+(S.baths===n?' selected':'')+'>'+n+'</option>';}).join('')+'</select></label></div>'+
+    '<div class="help">Sets how many bedroom and bathroom blocks appear. No more blank Bath 2 / Bed 3-4 pages.</div></div></details>';
+  ROOMS.forEach(function(r){
+    var off=r.optional&&S.has[r.id]===false;
+    instances(r).forEach(function(inst){
+      var cnt=r.items.filter(function(it,ii){var a=S.ans[inst.id+':'+ii];return a&&a.s==='fix';}).length;
+      h+='<details class="sec"'+(cnt?' open':'')+'><summary>'+esc(inst.label)+(r.n?' <span class="badge b-new">new</span>':'')+'<span class="cnt">'+(off?'not in this unit':cnt?cnt+' to fix':'')+'</span></summary><div class="body">';
+      if(r.optional)h+='<label class="has"><input type="checkbox" id="has-'+r.id+'" data-has="'+r.id+'"'+(off?'':' checked')+'> Unit has this <span class="badge b-new">new</span><span class="help" style="margin-left:auto">replaces crossing it out</span></label>';
+      if(!off)r.items.forEach(function(it,ii){h+=itemHtml(inst.id+':'+ii,it);});
+      h+='</div></details>';
+    });
+  });
+  h+='<details class="sec" open><summary>For Jason</summary><div class="body">'+
+    '<label class="f"><span>How many hours will the tech work take?</span><input type="number" id="hours" data-f="hours" min="0.5" step="0.5" value="'+esc(S.hours)+'"></label>'+
+    '<div class="help">Parts to order (Ace / HD Supply). Fix lines with a part note are listed here for him too.</div>'+
+    S.parts.map(function(p,i){return '<div class="row"><input type="text" id="pi-'+i+'" data-part="'+i+'" data-pf="item" placeholder="Part" value="'+esc(p.item)+'"><input type="number" id="pq-'+i+'" data-part="'+i+'" data-pf="qty" placeholder="Qty" value="'+esc(p.qty)+'"><select id="ps-'+i+'" data-part="'+i+'" data-pf="store">'+['Ace','HD Supply','Other'].map(function(o){return '<option'+(p.store===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>';}).join('')+
+    '<button type="button" class="btn" data-add="part">+ Add part</button>'+
+    '<label class="f"><span>Items left behind</span><input type="text" id="left" data-f="left" value="'+esc(S.left)+'"></label>'+
+    '<label class="f"><span>Notes for Jason</span><textarea id="jason" data-f="jason">'+esc(S.jason)+'</textarea></label>'+
+    '<label class="has"><input type="checkbox" id="tp-photos"> Parts-to-match photos are on the Unit Turn WO</label></div></details>';
+  return h+'<button type="button" class="submit" data-submit="Tech Prep">Submit Tech Prep</button>'+(S.sent==='Tech Prep'?'<div class="toast">Mock only. Nothing was saved.</div>':'');
+}
+
+// ---------- Scope ----------
+function scopeForm(){
+  var ch=charged(),h='<div class="phead"><b>PMI Scope</b><span>2361 #4 · PMI 11/09/26 <span class="badge b-ex" style="color:inherit;border-color:currentColor">example</span></span><span>Submitting builds the recommended schedule</span></div>';
+  h+='<details class="sec" open><summary>Unit</summary><div class="body">'+
+    '<div class="card"><span class="k">Walk type <span class="badge b-chg">changed</span></span>Riley walk (not on the cookie-cutter list). Set from the property, so Spencer doesn\'t pick it.</div>'+
+    '<div class="two"><label class="f"><span>Unit Turn WO #</span><input type="text" id="wo" placeholder="e.g. 18171-1"></label>'+
+    '<label class="f"><span>Move-out date</span><input type="date" id="mo"></label>'+
+    '<label class="f"><span>Move-in date (if known)</span><input type="date" id="mi"></label>'+
+    '<label class="f"><span>PMI time</span><input type="text" id="pt" placeholder="10:00 AM"></label></div>'+
+    '<label class="f"><span>Access for vendors</span><input type="text" id="acc" placeholder="Lockbox code, key location, parking"></label></div></details>';
+  h+='<details class="sec" open><summary>Trades<span class="cnt">pick a size or Not needed</span></summary><div class="body"><div class="help">Full paint is the default. Today\'s paper note "touch up paint" belongs here, not on the tech sheet.</div>';
+  TRADES.forEach(function(t){var cur=S.trades[t.k]||'';h+='<div class="trade"><div><b>'+esc(t.l)+'</b> <span class="v">'+esc(t.v)+'</span></div><div class="chips">'+
+    '<button type="button" class="chip off'+(!cur?' on':'')+'" data-trade="'+t.k+'" data-size="">Not needed</button>'+
+    t.s.map(function(s){return '<button type="button" class="chip'+(cur===s?' on':'')+'" data-trade="'+t.k+'" data-size="'+esc(s)+'">'+esc(s)+'</button>';}).join('')+'</div>';
+    if(t.k==='appl'&&cur){h+='<div class="help">Which appliance, make + model <span class="badge b-new">new</span> (photo the tag)</div>'+S.appl.map(function(a,i){return '<div class="row"><select id="aw-'+i+'"><option>Fridge</option><option>Range</option><option>Dishwasher</option><option>Microwave</option><option>Washer</option><option>Dryer</option></select><input type="text" id="am-'+i+'" placeholder="Make + model"></div>';}).join('');}
+    h+='</div>';});
+  h+='</div></details>';
+  h+='<details class="sec" open><summary>Tenant damages<span class="cnt">'+ch.length+' from Tech Prep</span></summary><div class="body">';
+  if(ch.length)h+='<div class="pulled"><small>Tagged on Tech Prep <span class="badge b-new">new</span></small>'+ch.map(function(l){return '<div>'+esc(l.room)+': '+esc(l.it.t)+(S.ans[l.id].note?' · '+esc(S.ans[l.id].note):'')+'</div>';}).join('')+'</div>';
+  else h+='<div class="help">Nothing tagged on Tech Prep yet.</div>';
+  h+=S.dmg.map(function(d,i){return '<div class="row"><input type="text" id="dm-'+i+'" placeholder="Damage + room"><button type="button" class="tog on">Charge tenant</button></div>';}).join('')+
+    '<button type="button" class="btn" data-add="dmg">+ Add damage</button><div class="help">Untagged items are the owner\'s.</div></div></details>';
+  h+='<details class="sec"><summary>Project, pests, other vendors</summary><div class="body">'+
+    '<label class="has"><input type="checkbox" id="proj"> Possible value-add project (Jason prices it)</label>'+
+    '<label class="f"><span>Pests seen</span><select id="pest"><option>None</option><option>Roaches</option><option>Bed bugs</option><option>Mice / rodents</option><option>Other</option></select></label>'+
+    '<label class="f"><span>Other vendor (HVAC, water heater, plumbing, electrical, glass, roof). Jason books these.</span><input type="text" id="ov" placeholder="What is needed"></label></div></details>';
+  h+='<details class="sec"><summary>Photos + notes</summary><div class="body"><label class="has"><input type="checkbox" id="sc-ph"> Damage, trade and appliance-tag photos are on the Unit Turn WO</label><textarea id="sc-notes" placeholder="Notes"></textarea></div></details>';
+  return h+'<button type="button" class="submit" data-submit="Scope">Submit scope + build schedule</button>'+(S.sent==='Scope'?'<div class="toast">Mock only. Nothing was saved.</div>':'');
+}
+
+// ---------- Move-out ----------
+function outForm(){
+  var ch=charged(),nc=notChecked(),O=S.out;
+  var tr=TRADES.filter(function(t){return S.trades[t.k];}).map(function(t){return t.l+' ('+S.trades[t.k]+')';});
+  var h='<div class="phead"><b>Move-out / Deposit Check</b><span>2361 #4 · exceptions only</span></div>';
+  h+='<details class="sec" open><summary>Plan check</summary><div class="body"><div class="card"><span class="k">PMI scope</span>'+esc(tr.join(' · ')||'No trades picked')+'<span class="k">Rent ready</span>Shown from the schedule; green when 1+ business day before move-in</div>'+
+    '<div class="help">Look it over. Only record what is wrong or missing.</div>'+
+    '<div class="row"><label class="has" style="flex:1"><input type="checkbox" id="keys"'+(O.keys?' checked':'')+' data-ok="keys"> Keys received</label>'+
+    '<label class="f"><span>Keys returned <span class="badge b-new">new</span></span><input type="number" id="kb" min="0"></label></div>'+
+    '<div class="help">Compared with the PMI count: '+(S.counts.keys!=null&&S.counts.keys!==''?S.counts.keys:'?')+' entry, '+(S.counts.mail!=null?S.counts.mail:'?')+' mailbox. Missing keys can be charged.</div></div></details>';
+  h+='<details class="sec" open><summary>Riley couldn\'t check these<span class="cnt">'+nc.length+'</span></summary><div class="body">';
+  h+=nc.length?nc.map(function(l){var v=O.ncFix[l.id]||'';return '<div class="item"><div class="irow"><span class="iname">'+esc(l.room)+': '+esc(l.it.t)+'</span><select id="nc-'+l.id+'" data-ncfix="'+l.id+'">'+['','OK now','Add to tech list','Charge tenant'].map(function(o){return '<option'+(v===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div></div>';}).join('')+'<div class="help"><span class="badge b-chg">changed</span> each one gets a quick answer here.</div>'
+    :'<div class="help">None. Mark a line "Not chk" on Tech Prep to see it land here.</div>';
+  h+='</div></details>';
+  h+='<details class="sec" open><summary>Final tenant damages</summary><div class="body">';
+  if(ch.length)h+='<div class="help">From the PMI <span class="badge b-new">new</span>. Confirm or drop each one; no retyping.</div>'+ch.map(function(l){var c=O.confirm[l.id]!==false;return '<div class="item"><div class="irow"><span class="iname">'+esc(l.room)+': '+esc(l.it.t)+(S.ans[l.id].note?' · '+esc(S.ans[l.id].note):'')+'</span><button type="button" class="tog'+(c?' on':'')+'" data-confirm="'+l.id+'" aria-pressed="'+c+'">'+(c?'Charge tenant':'Dropped')+'</button></div></div>';}).join('');
+  h+=O.exc.map(function(e,i){return '<div class="row"><input type="text" id="fd-'+i+'" placeholder="New damage + room"><button type="button" class="tog on">Charge tenant</button></div>';}).join('')+
+    '<button type="button" class="btn" data-add="exc">+ Add damage found today</button>'+
+    '<label class="has"><input type="checkbox" id="mo-ph"> Whole empty unit photographed (on the WO)</label></div></details>';
+  h+='<details class="sec"><summary>Scope changes + new tech items</summary><div class="body"><div class="row"><select id="ex-t"><option>Scope correction</option><option>Missed item</option><option>New tech item</option></select><input type="text" id="ex-n" placeholder="What"></div><div class="help">New tech items go onto Riley\'s list. Change dates on the Schedule tab.</div></div></details>';
+  h+='<details class="sec" open><summary>Rent ready</summary><div class="body"><label class="f"><span>Does the rent-ready date still hold?</span><select id="rr" data-rr="1"><option'+(O.rr==='Yes'?' selected':'')+'>Yes</option><option'+(O.rr==='No'?' selected':'')+'>No</option></select></label>'+(O.rr==='No'?'<label class="f"><span>Why not (then update the schedule)</span><input type="text" id="rrw"></label>':'')+'</div></details>';
+  return h+'<button type="button" class="submit" data-submit="Move-out">Submit move-out check</button>'+(S.sent==='Move-out'?'<div class="toast">Mock only. Nothing was saved.</div>':'');
+}
+
+// ---------- notes panel ----------
+var NOTES={
+ tech:['<div class="note"><h2>Versus the paper sheet</h2><ul>'+
+   '<li><b>Every paper line is kept</b>, in the same rooms and order.</li>'+
+   '<li><b>One answer scale:</b> OK / Fix / Not checked / N/A. The paper asks "Repair needed YES/NO" next to lines like "Outlets have power", so a circled YES can mean either. On the 2361 #4 sheet it\'s used both ways.</li>'+
+   '<li><b>Charge tenant on any Fix line.</b> Spencer wrote it beside the bedroom blinds twice. It now carries to Scope damages and the move-out deposit list.</li>'+
+   '<li><b>A note on any line</b> (✎), e.g. "cabinets stay open".</li>'+
+   '<li><b>"Unit has this"</b> switch on Exterior, Laundry and Basement replaces crossing a room out.</li>'+
+   '<li><b>Rooms repeat by count</b> (up to 5 bed, 3 bath; paper stops at 4 and 2).</li>'+
+   '<li><b>Counts are number fields:</b> entry keys, mailbox keys, remotes. Blinds take count + size right on the Fix line.</li></ul></div>',
+  '<div class="note"><h2>Suggested additions</h2><ul>'+
+   '<li><b>Bath:</b> vanity countertop, sink caulk (both written in by hand today), mirror / medicine cabinet.</li>'+
+   '<li><b>Kitchen:</b> sink caulk / backsplash, hood light + fan, cabinet doors stay shut.</li>'+
+   '<li><b>Entry:</b> deadbolt + door seals, hallway smoke detector. <b>Exterior:</b> porch light.</li>'+
+   '<li><b>Laundry</b> as its own block (apartments have closets, not basements) + dryer vent.</li>'+
+   '<li><b>Water heater</b> leaks / age, flag only. Replacing it is an "other vendor" item on Scope.</li></ul></div>',
+  '<div class="note q"><h2>Questions for Spencer + Jason</h2><ul>'+
+   '<li>Anything you check by habit that still isn\'t here?</li>'+
+   '<li>Can Riley tag "Charge tenant", or only Spencer? Suggestion: anyone tags, Spencer confirms at move-out.</li>'+
+   '<li>CO detector in every unit, or only units with gas appliances?</li></ul></div>'],
+ scope:['<div class="note"><h2>What changes on Scope</h2><ul>'+
+   '<li><b>Walk type is automatic</b> from the cookie-cutter list. The app asks Spencer today.</li>'+
+   '<li><b>Appliance make + model</b> per appliance when Appliances is needed. Agreed 11/5 but not in the app yet.</li>'+
+   '<li><b>Damages tagged on Tech Prep show up here</b> automatically. Spencer adds anything else.</li>'+
+   '<li><b>Paint size lives here.</b> "Touch up paint" was written on the tech sheet today; this is where it drives the schedule (touch-up = 4h instead of a full day).</li>'+
+   '<li>Unchanged: Trades with sizes (full paint default), project flag, pests, other vendors, photos-on-WO checkbox.</li></ul></div>',
+  '<div class="note q"><h2>Try it</h2><ul><li>Pick sizes, then open Move-out to see them in the plan check.</li><li>Tag another Fix line "Charge tenant" on Tech Prep and come back.</li></ul></div>'],
+ out:['<div class="note"><h2>What changes at move-out</h2><ul>'+
+   '<li><b>PMI damages carry over.</b> Spencer confirms or drops each one instead of retyping the list.</li>'+
+   '<li><b>Keys returned count</b>, checked against the PMI count, so missing keys can be charged.</li>'+
+   '<li><b>Each "not checked" item gets an answer:</b> OK now, add to tech list, or charge tenant.</li>'+
+   '<li>Unchanged: exceptions only, no line-by-line re-check; rent-ready "No" asks for a reason; whole-unit photos stay on the WO.</li></ul></div>']
+};
+
+// ---------- render + events ----------
+var phone=document.getElementById('phone'),notes=document.getElementById('notes');
+function openSet(){var o={};phone.querySelectorAll('details').forEach(function(d,i){o[i]=d.open;});return o;}
+function render(keepOpen){
+  var o=keepOpen?openSet():null,y=window.scrollY;
+  document.querySelectorAll('.tabs button').forEach(function(b){b.setAttribute('aria-selected',String(b.dataset.tab===S.tab));});
+  phone.innerHTML=S.tab==='tech'?techForm():S.tab==='scope'?scopeForm():outForm();
+  notes.innerHTML=NOTES[S.tab].join('');
+  if(o)phone.querySelectorAll('details').forEach(function(d,i){if(i in o)d.open=o[i];});
+  if(keepOpen)window.scrollTo(0,y);
+}
+document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;S.tab=b.dataset.tab;S.sent='';render(false);});
+phone.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;var d=b.dataset;
+  if(d.ans){var a=A(d.ans);a.s=a.s===d.v?'':d.v;if(a.s!=='fix')a.charge=false;}
+  else if(d.pen){A(d.pen).pen=!A(d.pen).pen;}
+  else if(d.charge){A(d.charge).charge=!A(d.charge).charge;}
+  else if(d.trade){S.trades[d.trade]=d.size;}
+  else if(d.add==='part')S.parts.push({item:'',qty:'',store:'Ace'});
+  else if(d.add==='dmg')S.dmg.push({});
+  else if(d.add==='exc')S.out.exc.push({});
+  else if(d.confirm){S.out.confirm[d.confirm]=S.out.confirm[d.confirm]===false;}
+  else if(d.submit){S.sent=d.submit;}
+  else return;
+  render(true);
+});
+phone.addEventListener('input',function(e){var t=e.target,d=t.dataset;
+  if(d.note)A(d.note).note=t.value;else if(d.count)S.counts[d.count]=t.value;else if(d.filter)S.filter=t.value;
+  else if(d.f)S[d.f]=t.value;else if(d.part)S.parts[+d.part][d.pf]=t.value;});
+phone.addEventListener('change',function(e){var t=e.target,d=t.dataset;
+  if(d.has){S.has[d.has]=t.checked;render(true);}
+  else if(d.beds){S.beds=+t.value;render(true);}else if(d.baths){S.baths=+t.value;render(true);}
+  else if(d.lock){S.lock=t.value;render(true);}
+  else if(d.rr){S.out.rr=t.value;render(true);}
+  else if(d.ncfix){S.out.ncFix[d.ncfix]=t.value;}
+  else if(d.ok==='keys'){S.out.keys=t.checked;}});
+render(false);
+})();
+</script>

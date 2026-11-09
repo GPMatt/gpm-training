@@ -34,6 +34,9 @@ Artifact source is kept in this folder as `turn-flow.html` (republish with the A
   entry lock / 2 key min, furnace filter size, key + remote counts left in unit.
 - Draft email "Turn checklists: three forms to review" to Spencer + Jason (r-2496726761636172035,
   UNSENT): all three forms itemized, replies by Monday, Jason in person Wednesday.
+- 11/9: paper checklist on file (PAPER_CHECKLIST.md, 2361 #4 photos). Turn-flow artifact v8 = MVP.
+  Checklist mock (all 3 forms, suggested changes marked): https://claude.ai/artifact/Vk9gzah4zEJ253xNkEGjJ7
+  (source checklist-mock.html, private until Matt shares it).
 - MVP choices (change if wrong): rent ready = last day of work; "ready 1+ business day before
   move-in" shown green, else red (no alerts). Dumpster Divers = "Trash-out", first build step
   (provisional). Quality check (visit 3) shown on calendar on the tech's last day. Move-out form
