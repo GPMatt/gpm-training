@@ -117,6 +117,8 @@ old "PMI scheduled" email to PM, old "scope brief so PM creates the WO" email.
 - Spencer: books PMIs with tenants (AppFolio email), creates the turn WO, all 3 visits, scope checklist,
   marks steps Complete + rent ready, Monday meeting with Matt.
 - Riley / tech: walks non-cookie-cutter PMIs (Mondays), tech task list, step 7 work.
+- Bill (maintenance tech, Matt 11/9): does ALL work at Pinery Woods, Oak Valley, Woods Edge (spelling
+  unconfirmed), Taft and Havana. OPEN: is Bill (not Riley) the tech for step 7 and the PMI walk there?
 - Jason: minimal work + oversight, assigns the tech, orders supplies, project estimates.
 - PM: receives rent-ready dates.
 
