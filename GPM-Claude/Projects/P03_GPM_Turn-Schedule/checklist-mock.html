@@ -106,6 +106,27 @@ label.f>*:not(span){color:var(--fg)}
 .note ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:.92rem}
 .note li b{font-weight:700}
 .q{border-style:dashed}
+.conflict{background:var(--charge-bg);color:var(--fg);border-bottom:3px solid var(--charge);padding:14px 16px;display:grid;gap:10px}
+.conflict>b{color:var(--charge);font-family:var(--display);font-size:1.2rem}
+.conflict>span{font-size:.88rem}
+.rc{background:var(--surface);border-radius:10px;padding:10px;display:grid;gap:6px}
+.rc code{font-family:var(--mono);font-size:.8rem;word-break:break-all}
+.crit{background:color-mix(in srgb,var(--nc-bg) 45%,var(--surface))}
+.q2{font-weight:700}
+.req{font:600 .62rem var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--charge)}
+.chg{border:1px solid var(--line);border-radius:10px;padding:8px;display:grid;gap:6px;background:var(--surface)}
+.impact{border:2px solid var(--accent);border-radius:10px;padding:10px;display:grid;gap:6px;background:var(--surface)}
+.impact .k{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tbl2{overflow-x:auto}
+.tbl2 table{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
+.tbl2 th,.tbl2 td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+.tbl2 th{font:500 .66rem var(--mono);text-transform:uppercase;color:var(--muted)}
+.tbl2 tr.mv td:last-child{color:var(--fix);font-weight:700}
+.rrline{font-size:.95rem}
+.okline{color:var(--ok);font-size:.88rem}
+.badline{color:var(--charge);font-size:.88rem;font-weight:600}
+.toast.bad{color:var(--charge)}
+.submit[aria-disabled="true"]{opacity:.5}
 button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (prefers-reduced-motion:no-preference){.seg button,.chip,.tog{transition:background .12s,color .12s}}
 </style>
@@ -114,13 +135,13 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 <header>
   <div class="eyebrow">P03 turn schedule · mock for Spencer + Jason · 11/9</div>
   <h1>GPM Turn Checklists</h1>
-  <p class="lede">The three forms Spencer and Riley fill in the app, rebuilt from Jason's paper checklist. Every paper line is kept. Tap through: answers carry across the tabs (a "Charge tenant" tag on Tech Prep shows up on Scope and at move-out).</p>
+  <p class="lede">The three forms Spencer and the tech fill in the app, rebuilt from Jason's paper checklist. Every paper line is kept. Tap through: answers carry across the tabs (a "Charge tenant" tag on Tech Prep shows up on Scope and at move-out).</p>
   <div class="legend"><span class="badge b-new">new</span> not on paper or in the app today <span class="badge b-chg">changed</span> works differently than the app today <span class="badge b-ex">example</span> filled with the 2361 #4 PMI from 11/9 (only what Spencer clearly wrote)</div>
 </header>
 
 <div class="tabs" role="tablist">
   <button role="tab" id="t-scope" aria-selected="false" data-tab="scope">PMI Scope<small>Spencer · starts the turn</small></button>
-  <button role="tab" id="t-tech" aria-selected="true" data-tab="tech">PMI Tech Prep<small>Riley · Spencer at cookie cutter</small></button>
+  <button role="tab" id="t-tech" aria-selected="true" data-tab="tech">PMI Tech Prep<small>Riley · Spencer when he walks alone</small></button>
   <button role="tab" id="t-out" aria-selected="false" data-tab="out">Move-out / Deposit<small>Spencer · move-out day</small></button>
 </div>
 
@@ -179,7 +200,7 @@ var S={tab:'tech',has:{ext:false,laundry:false,base:false},beds:2,baths:1,ans:{}
   hours:'',filter:'',left:'',jason:'',parts:[{item:'',qty:'',store:'Ace'}],
   trades:{tech:'From Tech Prep hours',paint:'Touch-up',clean:'Standard'},
   appl:[{which:'',action:'',model:''}],project:false,projectNote:'',pests:'None',other:[],dmg:[],photos:false,
-  out:{keys:false,keysBack:'',rr:'Yes',rrWhy:'',exc:[],confirm:{},ncFix:{},photos:false},sent:''};
+  out:{keys:false,match:'',changes:[{type:'add',trade:'drywall',size:'Large (3d)'}],applied:null,reconf:{},exc:[],confirm:{},ncFix:{},photos:false},sent:''};
 function A(id){return S.ans[id]||(S.ans[id]={s:'',note:'',charge:false,pen:false,count:''});}
 A('kitchen:0:12').s='fix';A('kitchen:0:12').note='Cabinets stay open';
 A('bed:1:4').s='fix';A('bed:1:4').charge=true;A('bed:1:4').note='Replace blinds';
@@ -244,7 +265,7 @@ function techForm(){
 function scopeForm(){
   var ch=charged(),h='<div class="phead"><b>PMI Scope</b><span>2361 #4 · PMI 11/09/26 <span class="badge b-ex" style="color:inherit;border-color:currentColor">example</span></span><span>Submitting builds the recommended schedule</span></div>';
   h+='<details class="sec" open><summary>Unit</summary><div class="body">'+
-    '<div class="card"><span class="k">Walk type <span class="badge b-chg">changed</span></span>Riley walk (not on the cookie-cutter list). Set from the property, so Spencer doesn\'t pick it.</div>'+
+    '<div class="card"><span class="k">Walk type <span class="badge b-chg">changed</span></span>Riley walk (not cookie cutter, not Bill\'s property). Set from the property, so Spencer doesn\'t pick it. At Bill\'s five properties Spencer walks alone and Bill does the tech work.</div>'+
     '<div class="two"><label class="f"><span>Unit Turn WO #</span><input type="text" id="wo" placeholder="e.g. 18171-1"></label>'+
     '<label class="f"><span>Move-out date</span><input type="date" id="mo"></label>'+
     '<label class="f"><span>Move-in date (if known)</span><input type="date" id="mi"></label>'+
@@ -270,28 +291,98 @@ function scopeForm(){
   return h+'<button type="button" class="submit" data-submit="Scope">Submit scope + build schedule</button>'+(S.sent==='Scope'?'<div class="toast">Mock only. Nothing was saved.</div>':'');
 }
 
-// ---------- Move-out ----------
+// ---------- Move-out: example schedule + impact preview ----------
+var MOVE_OUT='2026-11-30',MOVE_IN='2026-12-08',CONFIRMED={tech:1,paint:1,clean:1};
+var CONTACTS={Riley:['','riley@greenpropertymgt.com'],Bill:['','bill@greenpropertymgt.com'],Trevor:['',''],
+ 'GR Cleaning Co / Up & Up':['',''],'Matt Luschas':['','mattjluschas@gmail.com'],Eastpointe:['616-272-7120','apartmentorders@eastpointeinteriors.com'],
+ 'Surface Tech / Grand River':['','surfacetechs1@hotmail.com · emails.grp@gmail.com'],'Surface Experts':['',''],'Dumpster Divers':['',''],TBD:['','']};
+var DUR={tub:{Resurface:1,Replace:1},floor:{'Hardwood refinish':3},drywall:{'Small (2d)':2,'Large (3d)':3},paint:{'Color change':2,'New home':3},clean:{'Heavy (2d)':2}};
+function dd(s){var p=s.split('-');return new Date(Date.UTC(+p[0],+p[1]-1,+p[2]));}
+function ds(d){return d.toISOString().slice(0,10);}
+function biz(s){var w=dd(s).getUTCDay();return w!==0&&w!==6;}
+function nb(s){var d=dd(s);do{d.setUTCDate(d.getUTCDate()+1);}while(!biz(ds(d)));return ds(d);}
+function addb(s,n){for(var i=0;i<n;i++)s=nb(s);return s;}
+function bdiff(a,b){var n=0,s=a;if(a===b)return 0;if(a<b){while(s<b){s=nb(s);n++;}return n;}while(b<s){b=nb(b);n--;}return n;}
+function fmt(s){var d=dd(s);return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getUTCDay()]+' '+(d.getUTCMonth()+1)+'/'+d.getUTCDate();}
+function build(trades,extraH){
+  var cur=nb(MOVE_OUT),prev=null,out=[];
+  TRADES.forEach(function(t){var sz=trades[t.k];if(!sz)return;
+    var days=(DUR[t.k]&&DUR[t.k][sz])||1;if(t.k==='tech'&&extraH)days+=Math.ceil(extraH/8);
+    var start=(t.k==='tech'&&prev&&prev.k==='appl')?prev.start:cur;
+    var vendor=t.k==='tech'?'Riley':t.v;
+    var st={k:t.k,l:t.l,v:vendor,size:sz,start:start,end:addb(start,days-1)};out.push(st);prev=st;
+    cur=nb(st.end);if(t.k==='tub'&&sz==='Resurface')cur=nb(cur);});
+  return out;}
+function after(){var tr={},x=0;Object.keys(S.trades).forEach(function(k){if(S.trades[k])tr[k]=S.trades[k];});
+  S.out.changes.forEach(function(c){if((c.type==='add'||c.type==='resize')&&c.trade&&c.size)tr[c.trade]=c.size;
+    if(c.type==='remove'&&c.trade)delete tr[c.trade];if(c.type==='tech'){x+=+c.hours||0;if(!tr.tech)tr.tech='From Tech Prep hours';}});
+  return build(tr,x);}
+function rr(steps){return steps.length?steps[steps.length-1].end:MOVE_OUT;}
+function impact(){var b=build(S.trades,0),a=after(),bm={},rows=[],moved=[];b.forEach(function(s){bm[s.k]=s;});
+  a.forEach(function(s){var o=bm[s.k];rows.push({l:s.l,before:o?o.start:'',after:s.start,v:s.v,k:s.k});if(o&&o.start!==s.start&&CONFIRMED[s.k])moved.push({k:s.k,l:s.l,v:s.v,before:o.start,after:s.start});delete bm[s.k];});
+  Object.keys(bm).forEach(function(k){rows.push({l:bm[k].l,before:bm[k].start,after:'',v:bm[k].v,k:k});});
+  return {rows:rows,moved:moved,rb:rr(b),ra:rr(a)};}
+function bufferOk(r){return bdiff(r,MOVE_IN)>=1;}
+function contactHtml(v){var c=CONTACTS[v]||['',''];var bits=[];
+  if(c[0])bits.push('<span class="row"><code>'+esc(c[0])+'</code><button type="button" class="pen" data-copy="'+esc(c[0])+'">Copy</button></span>');
+  if(c[1])bits.push('<span class="row"><code>'+esc(c[1])+'</code><button type="button" class="pen" data-copy="'+esc(c[1])+'">Copy</button></span>');
+  return bits.length?bits.join(''):'<span class="help">No contact saved. Add it in Settings.</span>';}
+function changeRow(c,i){
+  var inScope=TRADES.filter(function(t){return S.trades[t.k];}),notIn=TRADES.filter(function(t){return !S.trades[t.k]&&t.k!=='tech';});
+  var h='<div class="chg"><div class="row"><select id="cg-t-'+i+'" data-chg="'+i+'" data-cf="type">'+[['','Pick a change'],['add','Add a trade'],['resize','Change a size'],['remove','Remove a trade'],['tech','New tech item'],['vendor','Other vendor item']].map(function(o){return '<option value="'+o[0]+'"'+(c.type===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
+    '<button type="button" class="pen" data-delchg="'+i+'" aria-label="Remove this change">✕</button></div>';
+  if(c.type==='add'||c.type==='resize'||c.type==='remove'){var list=c.type==='add'?notIn:inScope;
+    h+='<div class="row"><select id="cg-tr-'+i+'" data-chg="'+i+'" data-cf="trade"><option value="">Trade</option>'+list.map(function(t){return '<option value="'+t.k+'"'+(c.trade===t.k?' selected':'')+'>'+esc(t.l)+(S.trades[t.k]?' (now '+esc(S.trades[t.k])+')':'')+'</option>';}).join('')+'</select>';
+    if(c.type!=='remove'&&c.trade){var t=TRADES.filter(function(x){return x.k===c.trade;})[0];h+='<select id="cg-sz-'+i+'" data-chg="'+i+'" data-cf="size"><option value="">Size</option>'+t.s.filter(function(s){return s!==S.trades[t.k];}).map(function(s){return '<option'+(c.size===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>';}
+    h+='</div>';}
+  if(c.type==='tech')h+='<div class="row"><input type="text" id="cg-n-'+i+'" data-chg="'+i+'" data-cf="note" placeholder="What the tech needs to fix" value="'+esc(c.note||'')+'"><label class="f"><span>Extra hours</span><input type="number" id="cg-h-'+i+'" min="0" step="0.5" data-chg="'+i+'" data-cf="hours" value="'+esc(c.hours||'')+'"></label></div><div class="help">Goes onto the tech\'s list (Riley here; Bill at his properties).</div>';
+  if(c.type==='vendor')h+='<input type="text" id="cg-n-'+i+'" data-chg="'+i+'" data-cf="note" placeholder="HVAC, water heater, glass… (Jason books it)" value="'+esc(c.note||'')+'"><div class="help">No effect on the schedule.</div>';
+  return h+'</div>';}
 function outForm(){
-  var ch=charged(),nc=notChecked(),O=S.out;
+  var ch=charged(),nc=notChecked(),O=S.out,miss=[];
   var tr=TRADES.filter(function(t){return S.trades[t.k];}).map(function(t){return t.l+' ('+S.trades[t.k]+')';});
-  var h='<div class="phead"><b>Move-out / Deposit Check</b><span>2361 #4 · exceptions only</span></div>';
-  h+='<details class="sec" open><summary>Plan check</summary><div class="body"><div class="card"><span class="k">PMI scope</span>'+esc(tr.join(' · ')||'No trades picked')+'<span class="k">Rent ready</span>Shown from the schedule; green when 1+ business day before move-in</div>'+
-    '<div class="help">Look it over. Only record what is wrong or missing.</div>'+
-    '<div class="row"><label class="has" style="flex:1"><input type="checkbox" id="keys"'+(O.keys?' checked':'')+' data-ok="keys"> Keys received</label>'+
-    '<label class="f"><span>Keys returned <span class="badge b-new">new</span></span><input type="number" id="kb" min="0"></label></div>'+
-    '<div class="help">Compared with the PMI count: '+(S.counts.keys!=null&&S.counts.keys!==''?S.counts.keys:'?')+' entry, '+(S.counts.mail!=null?S.counts.mail:'?')+' mailbox. Missing keys can be charged.</div></div></details>';
-  h+='<details class="sec" open><summary>Riley couldn\'t check these<span class="cnt">'+nc.length+'</span></summary><div class="body">';
-  h+=nc.length?nc.map(function(l){var v=O.ncFix[l.id]||'';return '<div class="item"><div class="irow"><span class="iname">'+esc(l.room)+': '+esc(l.it.t)+'</span><select id="nc-'+l.id+'" data-ncfix="'+l.id+'">'+['','OK now','Add to tech list','Charge tenant'].map(function(o){return '<option'+(v===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div></div>';}).join('')+'<div class="help"><span class="badge b-chg">changed</span> each one gets a quick answer here.</div>'
+  var who='Spencer';
+  var h='<div class="phead"><b>Move-out / Deposit Check</b><span>2361 #4 · move-out '+fmt(MOVE_OUT)+' · build starts '+fmt(nb(MOVE_OUT))+'</span></div>';
+  if(O.applied&&O.applied.moved.some(function(m){return !O.reconf[m.k];})){
+    var left=O.applied.moved.filter(function(m){return !O.reconf[m.k];});
+    h+='<div class="conflict" role="alert"><b>Schedule conflicted: '+left.length+' vendor'+(left.length>1?'s':'')+' to re-contact</b><span>These were confirmed for dates that just moved. Call or text each one, then mark them confirmed.</span>'+
+      left.map(function(m){return '<div class="rc"><div class="row"><b>'+esc(m.v)+'</b><span class="help">'+esc(m.l)+': '+fmt(m.before)+' → <b>'+fmt(m.after)+'</b></span></div>'+contactHtml(m.v)+'<div class="row"><button type="button" class="btn" data-copy="'+esc('Hi '+m.v+', this is Spencer with Green Property Management. The '+m.l.toLowerCase()+' at 2361 #4 has to move from '+fmt(m.before)+' to '+fmt(m.after)+'. Does that work? Thanks! Spencer')+'">Copy new message</button><button type="button" class="btn" data-reconf="'+m.k+'">Mark confirmed</button></div></div>';}).join('')+'</div>';}
+  h+='<details class="sec" open><summary>Plan check</summary><div class="body"><div class="card"><span class="k">PMI scope</span>'+esc(tr.join(' · ')||'No trades picked')+'<span class="k">Rent ready</span>'+fmt(rr(build(S.trades,0)))+' · move-in '+fmt(MOVE_IN)+'</div>'+
+    '<div class="row"><label class="has" style="flex:1"><input type="checkbox" id="keys"'+(O.keys?' checked':'')+' data-ok="keys"> Keys received <span class="req">required</span></label>'+
+    '<label class="f"><span>Keys returned <span class="badge b-new">new</span></span><input type="number" id="kb" min="0"></label></div></div></details>';
+  h+='<details class="sec" open><summary>Not checked at the PMI<span class="cnt">'+nc.length+' · Tech Prep by '+esc(who)+'</span></summary><div class="body">';
+  h+=nc.length?nc.map(function(l){var v=O.ncFix[l.id]||'';if(!v)miss.push('answer every not-checked item');return '<div class="item"><div class="irow"><span class="iname">'+esc(l.room)+': '+esc(l.it.t)+'</span><select id="nc-'+l.id+'" data-ncfix="'+l.id+'">'+['','Fine now','Add to tech list','Needs vendor','Charge tenant'].map(function(o){return '<option'+(v===o?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div></div>';}).join('')+'<div class="help"><span class="req">required</span> each one needs an answer.</div>'
     :'<div class="help">None. Mark a line "Not chk" on Tech Prep to see it land here.</div>';
   h+='</div></details>';
+  // scope check (required, structured)
+  h+='<details class="sec crit" open><summary>Scope check <span class="badge b-new">new</span><span class="cnt">build starts '+fmt(nb(MOVE_OUT))+'</span></summary><div class="body">'+
+    '<div class="q2">Does the scope still match the PMI? <span class="req">required</span></div><div class="chips">'+
+    ['Yes','No'].map(function(o){return '<button type="button" class="chip'+(O.match===o?' on':'')+'" data-match="'+o+'">'+(o==='Yes'?'Yes, matches':'No, it changed')+'</button>';}).join('')+'</div>';
+  if(O.match==='No'){
+    h+=O.changes.map(changeRow).join('')+'<button type="button" class="btn" data-add="chg">+ Add a change</button>';
+    var real=O.changes.filter(function(c){return c.type&&(c.type==='vendor'||c.type==='tech'?c.note:c.trade&&(c.type==='remove'||c.size));});
+    if(!real.length)miss.push('add at least one scope change');
+    if(real.length){var im=impact(),d=bdiff(im.rb,im.ra);
+      h+='<div class="impact"><div class="k">Impact on the schedule</div><div class="tbl2"><table><thead><tr><th>Step</th><th>Was</th><th>Now</th></tr></thead><tbody>'+
+        im.rows.map(function(r){var mv=r.before!==r.after;return '<tr class="'+(mv?'mv':'')+'"><td>'+esc(r.l)+(CONFIRMED[r.k]?' <span class="badge b-chg">confirmed</span>':'')+'</td><td>'+(r.before?fmt(r.before):'<span class="help">new</span>')+'</td><td>'+(r.after?fmt(r.after):'<span class="help">removed</span>')+'</td></tr>';}).join('')+'</tbody></table></div>'+
+        '<div class="rrline">Rent ready '+fmt(im.rb)+' → <b>'+fmt(im.ra)+'</b> ('+(d>0?'+':'')+d+' business day'+(Math.abs(d)===1?'':'s')+')</div>'+
+        '<div class="'+(bufferOk(im.ra)?'okline':'badline')+'">Move-in '+fmt(MOVE_IN)+': '+(bufferOk(im.ra)?'still has the 1-day buffer':'NO buffer day left')+'</div>'+
+        (im.moved.length?'<div class="badline">'+im.moved.length+' confirmed vendor'+(im.moved.length>1?'s':'')+' would need a new date: '+im.moved.map(function(m){return esc(m.v);}).join(', ')+'</div>':'<div class="okline">No confirmed vendor moves.</div>')+
+        '<button type="button" class="submit" style="margin:4px 0 0;width:100%" data-apply="1">'+(O.applied?'Re-apply to schedule':'Apply to schedule')+'</button>'+
+        (O.applied?'<div class="toast">Applied. Email to Spencer, Riley, cc Jason (mock: nothing sent).</div>':'')+'</div>';}
+  } else if(!O.match)miss.push('answer "Does the scope still match?"');
+  h+='</div></details>';
+  if(!O.keys)miss.push('tick Keys received');
   h+='<details class="sec" open><summary>Final tenant damages</summary><div class="body">';
   if(ch.length)h+='<div class="help">From the PMI <span class="badge b-new">new</span>. Confirm or drop each one; no retyping.</div>'+ch.map(function(l){var c=O.confirm[l.id]!==false;return '<div class="item"><div class="irow"><span class="iname">'+esc(l.room)+': '+esc(l.it.t)+(S.ans[l.id].note?' · '+esc(S.ans[l.id].note):'')+'</span><button type="button" class="tog'+(c?' on':'')+'" data-confirm="'+l.id+'" aria-pressed="'+c+'">'+(c?'Charge tenant':'Dropped')+'</button></div></div>';}).join('');
   h+=O.exc.map(function(e,i){return '<div class="row"><input type="text" id="fd-'+i+'" placeholder="New damage + room"><button type="button" class="tog on">Charge tenant</button></div>';}).join('')+
     '<button type="button" class="btn" data-add="exc">+ Add damage found today</button>'+
     '<label class="has"><input type="checkbox" id="mo-ph"> Whole empty unit photographed (on the WO)</label></div></details>';
-  h+='<details class="sec"><summary>Scope changes + new tech items</summary><div class="body"><div class="row"><select id="ex-t"><option>Scope correction</option><option>Missed item</option><option>New tech item</option></select><input type="text" id="ex-n" placeholder="What"></div><div class="help">New tech items go onto Riley\'s list. Change dates on the Schedule tab.</div></div></details>';
-  h+='<details class="sec" open><summary>Rent ready</summary><div class="body"><label class="f"><span>Does the rent-ready date still hold?</span><select id="rr" data-rr="1"><option'+(O.rr==='Yes'?' selected':'')+'>Yes</option><option'+(O.rr==='No'?' selected':'')+'>No</option></select></label>'+(O.rr==='No'?'<label class="f"><span>Why not (then update the schedule)</span><input type="text" id="rrw"></label>':'')+'</div></details>';
-  return h+'<button type="button" class="submit" data-submit="Move-out">Submit move-out check</button>'+(S.sent==='Move-out'?'<div class="toast">Mock only. Nothing was saved.</div>':'');
+  var uniq=miss.filter(function(m,i){return miss.indexOf(m)===i;});
+  h+='<button type="button" class="submit" data-submit="Move-out"'+(uniq.length?' aria-disabled="true"':'')+'>Submit move-out check</button>';
+  if(uniq.length)h+='<div class="toast bad">Before you can submit: '+esc(uniq.join('; '))+'.</div>';
+  else if(S.sent==='Move-out')h+='<div class="toast">Mock only. Nothing was saved.</div>';
+  return h;
 }
 
 // ---------- notes panel ----------
@@ -321,11 +412,17 @@ var NOTES={
    '<li><b>Paint size lives here.</b> "Touch up paint" was written on the tech sheet today; this is where it drives the schedule (touch-up = 4h instead of a full day).</li>'+
    '<li>Unchanged: Trades with sizes (full paint default), project flag, pests, other vendors, photos-on-WO checkbox.</li></ul></div>',
   '<div class="note q"><h2>Try it</h2><ul><li>Pick sizes, then open Move-out to see them in the plan check.</li><li>Tag another Fix line "Charge tenant" on Tech Prep and come back.</li></ul></div>'],
- out:['<div class="note"><h2>What changes at move-out</h2><ul>'+
-   '<li><b>PMI damages carry over.</b> Spencer confirms or drops each one instead of retyping the list.</li>'+
-   '<li><b>Keys returned count</b>, checked against the PMI count, so missing keys can be charged.</li>'+
-   '<li><b>Each "not checked" item gets an answer:</b> OK now, add to tech list, or charge tenant.</li>'+
-   '<li>Unchanged: exceptions only, no line-by-line re-check; rent-ready "No" asks for a reason; whole-unit photos stay on the WO.</li></ul></div>']
+ out:['<div class="note"><h2>Move-out day: why it\'s strict</h2><ul>'+
+   '<li><b>The build starts the next business day.</b> A missed scope change here costs vendor days, so the scope question is required.</li>'+
+   '<li><b>Required to submit:</b> "Does the scope still match?", an answer for every not-checked item, and Keys received.</li>'+
+   '<li><b>Structured changes:</b> add a trade, change a size, remove a trade, new tech item (+ hours), other vendor item. Each knows its effect on the schedule.</li>'+
+   '<li><b>Impact preview:</b> was/now dates, rent ready old → new, move-in buffer, and which CONFIRMED vendors would move. Nothing changes until Apply.</li>'+
+   '<li><b>After Apply the schedule is marked conflicted</b> until every moved vendor is re-confirmed, with their phone/email and a ready message. Spencer, the tech and Jason get an email of the changes.</li></ul></div>',
+  '<div class="note"><h2>Also new here</h2><ul>'+
+   '<li><b>PMI damages carry over.</b> Confirm or drop each one instead of retyping.</li>'+
+   '<li><b>Keys returned count</b>, checked against the PMI count.</li>'+
+   '<li><b>Not checked at the PMI</b> names who filled Tech Prep, never assumes Riley.</li></ul></div>',
+  '<div class="note q"><h2>Try it</h2><ul><li>Example: move-out Mon 11/30, move-in Tue 12/8, Tech, Paint and Clean already confirmed. Answer "No, it changed": a Large drywall job is pre-filled. Watch rent ready and the buffer, then Apply.</li></ul></div>']
 };
 
 // ---------- render + events ----------
@@ -349,6 +446,12 @@ phone.addEventListener('click',function(e){
   else if(d.add==='part')S.parts.push({item:'',qty:'',store:'Ace'});
   else if(d.add==='dmg')S.dmg.push({});
   else if(d.add==='exc')S.out.exc.push({});
+  else if(d.add==='chg')S.out.changes.push({type:''});
+  else if(d.delchg){S.out.changes.splice(+d.delchg,1);}
+  else if(d.match){S.out.match=d.match;}
+  else if(d.apply){var im=impact();S.out.applied={moved:im.moved};S.out.reconf={};}
+  else if(d.reconf){S.out.reconf[d.reconf]=1;}
+  else if(d.copy){try{navigator.clipboard.writeText(d.copy).then(function(){b.textContent='Copied';},function(){});}catch(err){}return;}
   else if(d.confirm){S.out.confirm[d.confirm]=S.out.confirm[d.confirm]===false;}
   else if(d.submit){S.sent=d.submit;}
   else return;
@@ -356,14 +459,15 @@ phone.addEventListener('click',function(e){
 });
 phone.addEventListener('input',function(e){var t=e.target,d=t.dataset;
   if(d.note)A(d.note).note=t.value;else if(d.count)S.counts[d.count]=t.value;else if(d.filter)S.filter=t.value;
-  else if(d.f)S[d.f]=t.value;else if(d.part)S.parts[+d.part][d.pf]=t.value;});
+  else if(d.f)S[d.f]=t.value;else if(d.chg&&d.cf==='note')S.out.changes[+d.chg].note=t.value;else if(d.part)S.parts[+d.part][d.pf]=t.value;});
 phone.addEventListener('change',function(e){var t=e.target,d=t.dataset;
   if(d.has){S.has[d.has]=t.checked;render(true);}
   else if(d.beds){S.beds=+t.value;render(true);}else if(d.baths){S.baths=+t.value;render(true);}
   else if(d.lock){S.lock=t.value;render(true);}
   else if(d.rr){S.out.rr=t.value;render(true);}
-  else if(d.ncfix){S.out.ncFix[d.ncfix]=t.value;}
-  else if(d.ok==='keys'){S.out.keys=t.checked;}});
+  else if(d.ncfix){S.out.ncFix[d.ncfix]=t.value;render(true);}
+  else if(d.ok==='keys'){S.out.keys=t.checked;render(true);}
+  else if(d.chg){var c=S.out.changes[+d.chg];c[d.cf]=t.value;if(d.cf==='type'){c.trade='';c.size='';}if(d.cf==='trade')c.size='';render(true);}});
 render(false);
 })();
 </script>
