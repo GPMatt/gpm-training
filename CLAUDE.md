@@ -17,10 +17,13 @@ priority order (set by Matt), not numeric order.
      Follow-ups: move $153 gas + $191.50 towing to Laura's folder (per
      Spencer), Jody's flagged wrong/duplicate receipts, Mike's wallet
      receipts, check Blake's Amazon credits for Victory.
-   - Receipt packet (concerns #22): after every Invoice & Send, check Alaina's
-     packet for parts that say "too large to attach" and send those as zips by
-     hand. Ask Alaina to confirm she got part 5 (Eaglebrook) of Aug 15 - Sep 14.
-     Fix not built yet.
+   - Packages 1-4 + new matcher LIVE 2026-11-09 (tag matcher-on-live).
+     Re-run shows 0 Needs a look. Thu 2026-11-12: Invoice & Send (popup shows
+     per-owner totals), then check Alaina's packet arrives as zips with no
+     "too large to attach"; if so, drop this line. Ask Alaina to confirm she
+     got part 5 (Eaglebrook) of Aug 15 - Sep 14. Rule: always Invoice & Send
+     before parsing the next statement. Next: Billing Console (claude-access
+     Part 2) after the cycle.
    - Duplicate "Laura-C" and "Laura C" cardholder folders in Drive
      "CC Receipts — By Cardholder": investigate read-only, change nothing in
      gpm-cc-billing without Matt's sign-off.
