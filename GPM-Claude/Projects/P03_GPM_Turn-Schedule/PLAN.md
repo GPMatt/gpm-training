@@ -36,6 +36,22 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
    Total hours show on the turn. If the phone closes mid-walk, the running timer survives a reload.
 7. **Test switch.** Script Property `EMAIL_TEST_TO`: when set, every email goes ONLY to that address
    (subject prefixed `[TEST]`). The switch stays set until Matt approves real sending.
+9. **Never name Riley for someone else's work.** "Not checked at the PMI" (shows who filled Tech Prep);
+   new tech items go to "the tech's list" (Riley or Bill by property). App, email and mock.
+10. **Move-out scope check is required and structured (P4).** Submit is blocked until: "Does the scope
+   still match the PMI?" Yes/No is answered (No = at least one change row), every not-checked item has
+   an answer, and Keys received is ticked. Change rows: Add a trade (trade + size), Change a size,
+   Remove a trade, New tech item (+ extra hours), Other vendor item (Jason).
+11. **Impact preview, then Apply.** Change rows show a live before/after: each step's old and new date,
+   rent ready old -> new (business days), move-in buffer OK or not, and which CONFIRMED vendors moved.
+   "Apply to schedule" rebuilds the dates from the first build day (next business day after move-out).
+12. **Conflicted schedule.** After Apply, every confirmed step whose date moved becomes "Reschedule"
+   (red), the turn shows a red "Schedule conflicted: N vendors to re-contact" banner on the board and
+   turn page, and a re-contact list shows each vendor's phone/email (from Settings contacts, with known
+   defaults) and a fresh copy-ready message. Marking a step Confirmed again clears it; the banner
+   clears when none are left.
+13. **Change email.** Apply sends one email (same recipients + test switch as AC 1/7): the changes, the
+   dates that moved, and old -> new rent ready.
 8. Existing behaviour is unchanged: engine tests pass, the schedule builds the same, old turns open.
 
 ## Live surface (impactful)
@@ -58,6 +74,11 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
 - Data contract both workers follow: `tech_prep.checklist[roomId][i] = {s, note, charge}` (keep the
   existing key shape, add `charge`); `tech_prep.keys_charge` (bool); `scope.pmi_timer` or
   `tech_prep.pmi_timer` = `{start, end}` ISO; settings `billProperties: [addresses]`.
+- **P4 · worker A then B**: A does the move-out UI + engine (App.html, Config.html, Engine.html),
+  B adds `apiSendMoveOutEmail(turnId)` (Code.js, Describe.js). Contract: `move_out_check.scope_matches`
+  'Yes'|'No'; `move_out_check.changes = [{type:'add'|'resize'|'remove'|'tech'|'vendor', trade, size,
+  note, hours}]`; `move_out_check.impact = {applied_at, rr_before, rr_after, moved:[{key, label, vendor,
+  before, after, was_confirmed}]}`; step status `'resched'` = confirmed but moved.
 - **P3 · worker C (tester)**, after P1 + P2 merge: push to a NEW test deployment (not @3), set
   EMAIL_TEST_TO = matt@, run every criterion with a TEST turn at a Riley property and at a Bill
   property, report pass/fail with evidence. Archive the test turns.
@@ -82,6 +103,10 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
   and new tech items are labelled by who filled Tech Prep / whose property it is (Riley or Bill).
 - 2026-11-09 Move-out "Scope changes" becomes REQUIRED and structured to show its impact on the schedule
   that starts the next business day (moved into scope; design pending Matt's answers, P4).
+
+- 2026-11-09 Move-out: preview then Apply; conflicted schedule made obvious with re-contact list +
+  vendor contact info; required = scope Yes/No, every not-checked answered, keys received (photos not
+  required); all 4 change types; change email to Spencer + tech + Jason cc (Matt).
 
 ## Noticed (not done)
 - 2340 Michael, 2935 Oak Valley, 2700 Clyde Park were taken off the cookie-cutter list on 11/6
