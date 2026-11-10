@@ -88,6 +88,7 @@ function apiArchivedTurns() {
 }
 
 function apiSaveSettings(value) {
+  CacheService.getScriptCache().remove('settings_v1');
   return sb_('post', 'p03_turn_settings?on_conflict=id',
     [{ id: 'config', value: value, updated_by: userEmail_(), updated_at: new Date().toISOString() }],
     'resolution=merge-duplicates,return=representation')[0].value;
@@ -248,11 +249,20 @@ function syncTurnCalendar_(turn, settings, force) {
   }
 }
 
+/** Settings for the calendar sync, cached 5 minutes (apiSaveSettings clears it). */
+function cachedSettings_() {
+  var cache = CacheService.getScriptCache(), hit = cache.get('settings_v1');
+  if (hit) return JSON.parse(hit);
+  var s = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var value = s.length ? s[0].value : {};
+  try { cache.put('settings_v1', JSON.stringify(value), 300); } catch (e) { /* too big for cache: fine */ }
+  return value;
+}
+
 /** Calendar sync that never fails a save: returns '' or the error message (also logged). */
 function syncCalendarSafe_(turn) {
   try {
-    var s = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
-    syncTurnCalendar_(turn, s.length ? s[0].value : {}, false);
+    syncTurnCalendar_(turn, cachedSettings_(), false);
     return '';
   } catch (e) {
     console.error('Calendar sync failed for turn ' + (turn && turn.id) + ': ' + e.message);
@@ -283,4 +293,10 @@ function checkSetup() {
   var s = sb_('get', 'p03_turn_settings?select=id&limit=1');
   var p = sb_('get', 'dim_property?select=property_id&limit=1');
   Logger.log('OK: p03_turns rows=%s, settings rows=%s, dim_property reachable=%s', t.length, s.length, p.length > 0);
+  // Touches every scope so running this from the editor forces consent for all of them, and proves them.
+  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var cal = calendar_(settingsRows.length ? settingsRows[0].value : {});
+  Logger.log('Calendar: OK %s', cal.getName());
+  Logger.log('Mail quota: %s', MailApp.getRemainingDailyQuota());
+  Logger.log('EMAIL_TEST_TO: %s', emailTestTo_() || '(off: real recipients)');
 }

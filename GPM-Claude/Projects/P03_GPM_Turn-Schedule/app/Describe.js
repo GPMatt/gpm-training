@@ -125,6 +125,38 @@ function textToHtml_(text) {
   }).join('\n');
 }
 
+var FILLER_WORDS_ = { the: 1, a: 1, an: 1, on: 1, in: 1, of: 1, per: 1, to: 1, for: 1, and: 1, or: 1, at: 1, with: 1, is: 1, are: 1, min: 1 };
+
+/** Main words of a checklist item, lowercased, plural 's' dropped ("Window blinds" -> window, blind). */
+function itemWords_(item) {
+  return String(item || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (w) {
+    return w && !FILLER_WORDS_[w] && !/^\d+$/.test(w);
+  }).map(function (w) { return w.length > 3 ? w.replace(/s$/, '') : w; });
+}
+
+/**
+ * One Fix line: the note alone when it already names the item (shares a main word), else "<Item> - <note>".
+ * No note = the item name. Always a sentence ("Faucet - new one.").
+ */
+function fixText_(item, note) {
+  if (!hasVal_(note)) return sentence_(item);
+  note = String(note).trim();
+  var noteWords = itemWords_(note);
+  var named = itemWords_(item).some(function (w) { return noteWords.indexOf(w) >= 0; });
+  if (named) return sentence_(note);
+  var first = note.split(/\s+/)[0];
+  if (first !== first.toUpperCase()) note = note.charAt(0).toLowerCase() + note.slice(1); // keep "GFCI ..." as is
+  return sentence_(item + ' - ' + note);
+}
+
+/** tech_prep.rooms_off: room instance ids left out of the walk (array, or {id: true}). */
+function roomsOff_(tp) {
+  var off = {}, v = tp.rooms_off;
+  if (Array.isArray(v)) v.forEach(function (id) { off[id] = true; });
+  else if (v && typeof v === 'object') Object.keys(v).forEach(function (id) { if (v[id]) off[id] = true; });
+  return off;
+}
+
 /** turn = p03_turns row, rooms = room definitions (CHECK_ROOMS_SERVER, expanded per bedrooms/bathrooms), settings = p03_turn_settings value. */
 function describeTechPrep(turn, rooms, settings) {
   var tp = turn.tech_prep || {};
@@ -133,12 +165,14 @@ function describeTechPrep(turn, rooms, settings) {
 
   // Top block: ready to paste into the AppFolio Unit Turn WO.
   var top = [], notChecked = [];
+  var off = roomsOff_(tp);
   instances.forEach(function (r) {
+    if (off[r.id]) return;
     var st = cl[r.id] || {}, fixes = [];
     r.items.forEach(function (item, ii) {
       var e = st[ii];
       if (!e) return;
-      if (e.s === 'fix') fixes.push(sentence_(hasVal_(e.note) ? e.note : item) + (e.charge ? ' (Charge Tenant)' : ''));
+      if (e.s === 'fix') fixes.push(fixText_(item, e.note) + (e.charge ? ' (Charge Tenant)' : ''));
       if (e.s === 'nc') notChecked.push('- ' + r.label + ': ' + item + (hasVal_(e.note) ? ' (' + String(e.note).trim() + ')' : ''));
     });
     if (fixes.length) top.push(r.label + ': ' + fixes.join(' '));
@@ -374,9 +408,10 @@ function addDaysIso_(s, n) { return isoUtc_(new Date(parseUtc_(s).getTime() + n 
  */
 function calendarEvents(turn, appUrl) {
   var place = placeOf_(turn), out = [], used = {};
-  var info = function (status) {
+  // Rent ready only on the Rent ready event, so a rent-ready change doesn't rewrite every step event.
+  var info = function (status, rr) {
     return [status ? 'Status: ' + status : '', hasVal_(turn.af_wo_number) ? 'WO: ' + turn.af_wo_number : '',
-      hasVal_(turn.rent_ready_date) ? 'Rent ready: ' + fmtDay_(turn.rent_ready_date) : '', appUrl ? 'GPM Turns: ' + appUrl : ''].filter(Boolean).join('\n');
+      rr ? 'Rent ready: ' + fmtDay_(turn.rent_ready_date) : '', appUrl ? 'GPM Turns: ' + appUrl : ''].filter(Boolean).join('\n');
   };
   (turn.steps || []).forEach(function (s) {
     if (!hasVal_(s.start)) return;
@@ -399,7 +434,7 @@ function calendarEvents(turn, appUrl) {
     out.push(ev);
   });
   if (hasVal_(turn.rent_ready_date)) {
-    out.push({ key: '_rentready', title: 'Rent ready · ' + place, description: info(''), allDay: true,
+    out.push({ key: '_rentready', title: 'Rent ready · ' + place, description: info('', true), allDay: true,
       start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
   }
   return out;

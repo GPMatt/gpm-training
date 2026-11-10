@@ -441,14 +441,86 @@ t('(R4.6) calendarEvents: titles, all-day vs timed, rent ready, duplicate keys',
     ['clean#2', 'Clean · Up & Up · 2361 Example St SW #4', true, '2026-11-30', '2026-12-01'],
     ['_rentready', 'Rent ready · 2361 Example St SW #4', true, '2026-11-30', '2026-12-01']
   ]);
-  assert.equal(ev[1].description, 'Status: Confirmed\nWO: 18171-1\nRent ready: Mon Nov 30\nGPM Turns: https://script.google.com/a/macros/x/exec');
+  // Rent ready only on the Rent ready event (R5.4)
+  assert.equal(ev[1].description, 'Status: Confirmed\nWO: 18171-1\nGPM Turns: https://script.google.com/a/macros/x/exec');
   assert.equal(ev[5].description, 'WO: 18171-1\nRent ready: Mon Nov 30\nGPM Turns: https://script.google.com/a/macros/x/exec');
   ev.forEach(e => console.log('  ' + e.title));
   // hash: stable, changes when the event changes
-  assert.equal(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, 'https://script.google.com/a/macros/x/exec'))[0]));
+  const url = 'https://script.google.com/a/macros/x/exec';
+  assert.equal(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, url))[0]));
+  // a rent-ready change rewrites only the Rent ready event
+  const moved = Object.assign({}, turn, { rent_ready_date: '2026-12-01' });
+  const ev2 = plain(D.calendarEvents(moved, url));
+  assert.deepEqual(ev2.slice(0, 5).map(D.eventHash), ev.slice(0, 5).map(D.eventHash));
+  assert.notEqual(D.eventHash(ev2[5]), D.eventHash(ev[5]));
   turn.steps[0].status = 'booked';
-  assert.notEqual(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, 'https://script.google.com/a/macros/x/exec'))[0]));
+  assert.notEqual(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, url))[0]));
   assert.deepEqual(plain(D.calendarEvents({ steps: [] }, '')), []);
+});
+
+// ---------- Round 5: Fix line wording + rooms_off ----------
+t('(R5.1) fix line: note alone when it names the item, else "<Item> - <note>"', () => {
+  assert.equal(D.fixText_('Faucet', 'New one'), 'Faucet - new one.');
+  assert.equal(D.fixText_('Countertops', 'Stain'), 'Countertops - stain.');
+  assert.equal(D.fixText_('Window blinds', 'Missing blinds on one window'), 'Missing blinds on one window.'); // Spencer's sample
+  assert.equal(D.fixText_('Window blinds', 'replace blind'), 'Replace blind.');                               // plural-insensitive
+  assert.equal(D.fixText_('Cabinets / drawers', 'Cabinets stay open'), 'Cabinets stay open.');
+  assert.equal(D.fixText_('Tub faucet', 'Crack in tile around tub faucet'), 'Crack in tile around tub faucet.');
+  assert.equal(D.fixText_('GFCI protecting', 'GFCI trips'), 'GFCI trips.');
+  assert.equal(D.fixText_('Outlet / switch covers', 'GFCI missing'), 'Outlet / switch covers - GFCI missing.'); // keeps caps
+  assert.equal(D.fixText_('2 key min', 'only one key'), 'Only one key.');
+  assert.equal(D.fixText_('Disposal', ''), 'Disposal.');
+  assert.equal(D.fixText_('Faucet', 'leaks!'), 'Faucet - leaks!');
+});
+
+// Approximates Matt's 151 Sweet test email ("Kitchen: New one. Stain.").
+function sweet151() {
+  return {
+    id: 's', property_label: '151 Sweet St NE', unit_label: 'Unit 1', af_wo_number: '18300-1',
+    tech_prep: {
+      done_by: 'Spencer', bedrooms: '1', bathrooms: '1', rekey: 'OK as is', keys_entry: 1, keys_charge: true,
+      rooms_off: ['basement'],
+      checklist: {
+        exterior: { 0: { s: 'fix', note: 'Button broken' } },
+        living: { 3: { s: 'fix', note: 'Missing blinds on one window', charge: true } },
+        kitchen: { 3: { s: 'fix', note: 'New one' }, 10: { s: 'fix', note: 'Stain' }, 11: { s: 'fix', note: 'Cabinets stay open' } },
+        basement: { 1: { s: 'fix', note: 'No filter' }, 2: { s: 'nc', note: 'tenant boxes' } },     // room off: skipped
+        bath1: { 9: { s: 'fix', note: 'Loose toilet seat' }, 15: { s: 'fix', note: 'missing 2' }, 4: { s: 'fix' } },
+        bed1: { 1: { s: 'nc', note: 'tenant asleep' } }
+      }
+    }
+  };
+}
+
+const EXPECTED_151 = [
+  'Exterior: Garage opener - button broken.',
+  '',
+  'Living room: Missing blinds on one window. (Charge Tenant)',
+  '',
+  'Kitchen: Faucet - new one. Countertops - stain. Cabinets stay open.',
+  '',
+  'Bathroom: Shower caulk. Loose toilet seat. Outlet / switch covers - missing 2.',
+  '',
+  'Keys: 1 entry key left (2 required). (Charge Tenant)',
+  '',
+  '---- Not for the work order ----',
+  '',
+  'Not checked at the PMI:',
+  '- Bedroom: Window panes (tenant asleep)',
+  '',
+  'Filled by: Spencer'
+].join('\n');
+
+t('(R5.1+2) 151 Sweet re-rendered; rooms_off skips fix + not-checked lines', () => {
+  const d = D.describeTechPrep(sweet151(), D.CHECK_ROOMS_SERVER, {});
+  assert.equal(d.text, EXPECTED_151);
+  console.log('\n' + d.text + '\n');
+  const on = sweet151(); delete on.tech_prep.rooms_off;
+  const t2 = D.describeTechPrep(on, D.CHECK_ROOMS_SERVER, {}).text;
+  assert.ok(t2.includes('Basement: No filter.'));
+  assert.ok(t2.includes('- Basement: Washer (tenant boxes)'));
+  on.tech_prep.rooms_off = { basement: true, bath1: false }; // object form works too
+  assert.equal(D.describeTechPrep(on, D.CHECK_ROOMS_SERVER, {}).text, EXPECTED_151);
 });
 
 console.log(n + ' tests passed');
