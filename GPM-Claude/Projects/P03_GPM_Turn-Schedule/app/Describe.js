@@ -155,3 +155,88 @@ function buildTechPrepMail(turn, settings, testTo) {
   var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
 }
+
+// ---------- Move-out scope change email (apiSendMoveOutEmail in Code.js) ----------
+
+// Business days = weekdays minus Fed bank holidays. Copy of holidays()/isBiz()/bizDiff() in Engine.html;
+// describe.test.js compares bizDiffServer_ with Engine.bizDiff over two years so they can't drift.
+function isoUtc_(d) { return d.toISOString().slice(0, 10); }
+function parseUtc_(s) { var p = String(s).slice(0, 10).split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); }
+function holidaysServer_(y) {
+  var nth = function (m, wd, n) {
+    if (n > 0) { var f = new Date(Date.UTC(y, m, 1)).getUTCDay(); return new Date(Date.UTC(y, m, 1 + ((wd - f + 7) % 7) + 7 * (n - 1))); }
+    var l = new Date(Date.UTC(y, m + 1, 0)); return new Date(Date.UTC(y, m, l.getUTCDate() - ((l.getUTCDay() - wd + 7) % 7)));
+  };
+  var fixed = function (m, day) { var d = new Date(Date.UTC(y, m, day)); return d.getUTCDay() === 0 ? new Date(Date.UTC(y, m, day + 1)) : d; };
+  var set = {};
+  [fixed(0, 1), nth(0, 1, 3), nth(1, 1, 3), nth(4, 1, -1), fixed(5, 19), fixed(6, 4), nth(8, 1, 1), nth(9, 1, 2), fixed(10, 11), nth(10, 4, 4), fixed(11, 25)]
+    .forEach(function (d) { if (d.getUTCDay() !== 6) set[isoUtc_(d)] = true; });
+  return set;
+}
+function isBizServer_(s) { var d = parseUtc_(s), w = d.getUTCDay(); return w !== 0 && w !== 6 && !holidaysServer_(d.getUTCFullYear())[s]; }
+function bizDiffServer_(a, b) {
+  var sign = a < b ? 1 : -1, n = 0, s = a;
+  while (s !== b) { s = isoUtc_(new Date(parseUtc_(s).getTime() + sign * 86400000)); if (isBizServer_(s)) n++; }
+  return n * sign;
+}
+// Same output as Engine.fmt: "Mon Nov 9".
+function fmtDay_(s) {
+  if (!hasVal_(s)) return 'not scheduled';
+  var d = parseUtc_(s);
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getUTCDay()] + ' ' +
+    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getUTCMonth()] + ' ' + d.getUTCDate();
+}
+
+function rentReadyLine_(a, b) {
+  if (!hasVal_(a) || !hasVal_(b)) return 'Scope changed at move-out. Rent ready is now ' + fmtDay_(b) + '.';
+  if (a === b) return 'Scope changed at move-out. Rent ready stays ' + fmtDay_(a) + '.';
+  var n = bizDiffServer_(a, b);
+  return 'Scope changed at move-out. Rent ready moves ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
+    ' (' + (n < 0 ? '-' : '+') + plural_(Math.abs(n), 'business day', 'business days') + ').';
+}
+
+function changeLine_(c, catalog) {
+  var cat = catalog.filter(function (x) { return x.key === c.trade; })[0];
+  var trade = cat ? cat.label : String(c.trade || '');
+  var sz = cat && (cat.sizes || []).filter(function (x) { return x.id === c.size; })[0];
+  var size = sz ? sz.label : String(c.size || '');
+  var note = hasVal_(c.note) ? String(c.note).trim() : '';
+  if (c.type === 'tech') return '- New tech item: ' + note + (hasVal_(c.hours) ? ' (+' + c.hours + ' h)' : '');
+  if (c.type === 'vendor') return '- Other vendor item: ' + note;
+  var line = c.type === 'add' ? 'Add ' + trade + (size ? ' (' + size + ')' : '')
+    : c.type === 'resize' ? trade + ': size now ' + size
+    : c.type === 'remove' ? 'Remove ' + trade : String(c.type || '') + ' ' + trade;
+  return '- ' + line + (note ? ' - ' + note : '');
+}
+
+function movedLine_(m) {
+  // The Tech step's vendor is a person: never name them in the body.
+  var vendor = m.key === 'tech' || /riley/i.test(m.vendor || '') ? '' : String(m.vendor || '').trim();
+  return '- ' + m.label + (vendor ? ' - ' + vendor : '') + ': ' + fmtDay_(m.before) + ' -> ' + fmtDay_(m.after);
+}
+
+/** turn = p03_turns row with move_out_check.impact; settings = p03_turn_settings value (catalog gives trade/size labels). */
+function describeMoveOut(turn, settings) {
+  var mo = turn.move_out_check || {}, imp = mo.impact || {};
+  var catalog = (settings && settings.catalog) || [];
+  var moved = imp.moved || [];
+  var confirmed = moved.filter(function (m) { return m.was_confirmed; }).map(movedLine_);
+  var other = moved.filter(function (m) { return !m.was_confirmed; }).map(movedLine_);
+  var blocks = [rentReadyLine_(imp.rr_before, imp.rr_after)];
+  var changes = (mo.changes || []).map(function (c) { return changeLine_(c, catalog); });
+  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
+  blocks.push('Vendors to re-contact (were confirmed):\n' + (confirmed.length ? confirmed.join('\n') : 'No confirmed vendors moved.'));
+  if (other.length) blocks.push('Other dates that moved:\n' + other.join('\n'));
+  var text = blocks.join('\n\n');
+  var subject = 'Turn schedule changed: ' + [turn.property_label, turn.unit_label].filter(hasVal_).join(' ') +
+    (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
+  return { subject: subject, text: text, html: textToHtml_(text) };
+}
+
+/** Everything apiSendMoveOutEmail sends; same recipients + test switch as the Tech Prep email. */
+function buildMoveOutMail(turn, settings, testTo) {
+  var d = describeMoveOut(turn, settings);
+  var r = techPrepRecipients(turn, settings, testTo);
+  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
+  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+}

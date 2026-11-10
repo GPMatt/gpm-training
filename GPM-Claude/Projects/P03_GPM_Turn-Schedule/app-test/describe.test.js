@@ -153,4 +153,103 @@ t('PMI time in EST (winter) and DST boundary', () => {
   assert.equal(line({ start: '2026-11-01T05:30:00Z', end: '2026-11-01T06:30:00Z' }), 'PMI time: Sun Nov 1, 2026 1:30 AM to 1:30 AM (1 h)'); // fall back
 });
 
+// ---------- Move-out scope change email ----------
+const eng = {};
+new Function('ctx', (read('Config.html') + read('Engine.html')).replace(/<\/?script>/g, '') + ';ctx.E=Engine;ctx.S=DEFAULT_SETTINGS;')(eng);
+
+function moveOutTurn() {
+  return {
+    id: 'x', property_label: '2361 Example St SW', unit_label: '#4', af_wo_number: '18171-1',
+    move_out_check: {
+      scope_matches: 'No',
+      changes: [
+        { type: 'add', trade: 'flooring', size: 'lvp', note: 'Kitchen + bath' },
+        { type: 'resize', trade: 'paint', size: 'color' },
+        { type: 'remove', trade: 'carpetclean' },
+        { type: 'tech', note: 'Replace closet door', hours: 2 },
+        { type: 'vendor', note: 'Glass company for cracked window' }
+      ],
+      impact: {
+        applied_at: '2026-11-19T20:00:00Z', rr_before: '2026-11-24', rr_after: '2026-11-30',
+        moved: [
+          { key: 'tech', label: 'Tech', vendor: 'Riley', before: '2026-11-20', after: '2026-11-23', was_confirmed: true },
+          { key: 'paint', label: 'Paint', vendor: 'Trevor', before: '2026-11-23', after: '2026-11-25', was_confirmed: true },
+          { key: 'clean', label: 'Clean', vendor: 'GR Cleaning Co / Up & Up', before: '2026-11-24', after: '2026-11-30', was_confirmed: false }
+        ]
+      }
+    }
+  };
+}
+
+const EXPECTED_MOVEOUT = [
+  'Scope changed at move-out. Rent ready moves from Tue Nov 24 to Mon Nov 30 (+3 business days).', // skips Thanksgiving
+  '',
+  'Changes:',
+  '- Add Flooring (LVP / vinyl) - Kitchen + bath',
+  '- Paint: size now Color change (2 days)',
+  '- Remove Carpet cleaning',
+  '- New tech item: Replace closet door (+2 h)',
+  '- Other vendor item: Glass company for cracked window',
+  '',
+  'Vendors to re-contact (were confirmed):',
+  '- Tech: Fri Nov 20 -> Mon Nov 23',
+  '- Paint - Trevor: Mon Nov 23 -> Wed Nov 25',
+  '',
+  'Other dates that moved:',
+  '- Clean - GR Cleaning Co / Up & Up: Tue Nov 24 -> Mon Nov 30'
+].join('\n');
+
+t('(m1) move-out: confirmed vendors moved, exact text + subject, no Riley', () => {
+  const d = D.describeMoveOut(moveOutTurn(), eng.S);
+  assert.equal(d.text, EXPECTED_MOVEOUT);
+  assert.equal(d.subject, 'Turn schedule changed: 2361 Example St SW #4 (WO 18171-1)');
+  assert.ok(!/riley/i.test(d.text + d.subject + d.html));
+  assert.ok(d.html.includes('<p>Changes:<br>- Add Flooring (LVP / vinyl) - Kitchen + bath<br>'));
+  console.log('\n' + d.text + '\n');
+});
+
+t('(m2) move-out: no confirmed vendor moved, rent ready stays / earlier', () => {
+  const turn = { property_label: '547 Cherry St SE', move_out_check: { scope_matches: 'No',
+    changes: [{ type: 'tech', note: 'Tighten railing' }],
+    impact: { rr_before: '2026-12-04', rr_after: '2026-12-04', moved: [] } } };
+  assert.equal(D.describeMoveOut(turn, eng.S).text, [
+    'Scope changed at move-out. Rent ready stays Fri Dec 4.',
+    '',
+    'Changes:',
+    '- New tech item: Tighten railing',
+    '',
+    'Vendors to re-contact (were confirmed):',
+    'No confirmed vendors moved.'
+  ].join('\n'));
+  assert.equal(D.describeMoveOut(turn, eng.S).subject, 'Turn schedule changed: 547 Cherry St SE');
+  turn.move_out_check.impact = { rr_before: '2026-12-07', rr_after: '2026-12-04', moved: [] };
+  assert.equal(D.describeMoveOut(turn, eng.S).text.split('\n')[0],
+    'Scope changed at move-out. Rent ready moves earlier, from Mon Dec 7 to Fri Dec 4 (-1 business day).');
+  // No catalog in settings: raw keys, still no crash.
+  assert.ok(D.describeMoveOut(moveOutTurn(), {}).text.includes('- Add flooring (lvp) - Kitchen + bath'));
+});
+
+t('(m3) move-out: test switch + Bill routing', () => {
+  const m = plain(D.buildMoveOutMail(moveOutTurn(), eng.S, 'matt@greenpropertymgt.com'));
+  assert.deepEqual(m.to, ['matt@greenpropertymgt.com']);
+  assert.deepEqual(m.cc, []);
+  assert.equal(m.subject, '[TEST] Turn schedule changed: 2361 Example St SW #4 (WO 18171-1)');
+  assert.equal(m.text, 'TEST: real recipients would be To: spencer@greenpropertymgt.com, riley@greenpropertymgt.com; Cc: jason@greenpropertymgt.com\n\n' + EXPECTED_MOVEOUT);
+  const bill = moveOutTurn(); bill.property_label = '3608 Havana Ave SW';
+  const real = plain(D.buildMoveOutMail(bill, eng.S, ''));
+  assert.deepEqual(real.to, ['spencer@greenpropertymgt.com', 'bill@greenpropertymgt.com']);
+  assert.deepEqual(real.cc, ['jason@greenpropertymgt.com']);
+  assert.ok(!real.subject.includes('[TEST]'));
+});
+
+t('(m4) bizDiffServer_ + fmtDay_ match Engine over 2026-2027', () => {
+  for (let a = '2026-01-01'; a < '2027-12-31'; a = eng.E.addDays(a, 5)) {
+    for (const k of [-9, -1, 1, 3, 12]) {
+      const b = eng.E.addDays(a, k);
+      assert.equal(D.bizDiffServer_(a, b), eng.E.bizDiff(a, b), a + ' -> ' + b);
+    }
+    assert.equal(D.fmtDay_(a), eng.E.fmt(a));
+  }
+});
+
 console.log(n + ' tests passed');
