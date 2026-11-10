@@ -179,6 +179,8 @@ Excluded entirely (owner uses own vendors):
 - Launch: migrate open turns from Jason's "Apartment Turn Schedule" sheet.
 
 ## Open items
+- [ ] REAL RELEASE (Matt 2026-11-10): vendor directory with grades for quality, availability and cost/pricing;
+      high-availability vendors fill schedule holes when the scope grows after a move-out check.
 - [ ] REAL RELEASE (Matt 2026-11-09): when a move-out scope change moves confirmed vendors, consider
       swapping or rearranging (same vendor, different day or a different unit's slot) before cancelling,
       since one vendor does most trades. Aim: avoid cancellation fees. Needs a cross-turn vendor-day view.

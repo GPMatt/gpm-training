@@ -115,11 +115,33 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
   "Scope changed, not applied to schedule" banner until Apply. Round 2 also: new-turn gantt fix, full
   Undo after Apply, "Edit changes" (re-apply from the pre-Apply snapshot) (Matt).
 
+## Round 4 (Matt, 2026-11-10, after his first test on the test deploy)
+- R4.1 Cookie cutter adds 2340 Michael Ave SW (Pinery Woods), 2935 Oak Valley Ave SW, 2700 Clyde Park Ave SW.
+- R4.2 Tech by property: settings.techProperties = [{tech:'Bill', email:'bill@greenpropertymgt.com',
+  walks:false, addresses:[5 Bill addresses]}, {tech:'Wesley', email:'wesley@greenpropertymgt.com', walks:true,
+  addresses:['547 Cherry St SE']}]. Wesley walks WITH Spencer (not cookie cutter): walk type "Wesley walk",
+  Tech vendor Wesley, Wesley fills Tech Prep, emails go to Spencer + Wesley. Old billProperties still honoured.
+- R4.3 Carpet cleaning is a default trade on new turns, like Paint and Clean.
+- R4.4 Tenant damages: the move-out check is the source of truth. Scope damages, Tech Prep charge-tenant
+  lines and missing keys all carry into the move-out "Final tenant damages" list; Spencer marks each
+  Charge / Don't charge (required) and can add new ones.
+- R4.5 Conflict review email to matt@ whenever a move-out scope change moves confirmed vendors (on Apply
+  and on the not-applied alert): changes, moved vendors, and the same vendors' bookings on other open
+  turns, so Matt can look for swaps.
+- R4.6 Google Calendar: every turn step (and rent ready) syncs to automation@'s calendar (settings.calendarId,
+  default 'primary'). Updates on every save, removed on archive. Needs the calendar scope (Matt re-authorizes).
+- R4.7 Bugs: OK on a checklist line collapses the room (stays open now); lowering the bedroom/bathroom count
+  never drops answers silently (confirm in the form: remove those answers or keep the count).
+- R4.8 Blinds = rows: + Add blind -> room (dropdown of the unit's rooms), window, size. Replaces the free-text
+  sizes box (old values still shown).
+
 ## For the real release (Matt, 2026-11-09)
 - When a scope change moves confirmed vendors, consider SWAPPING or rearranging instead of
   rescheduling: offer the same vendor a different day or a different unit (another turn's slot), since
   one vendor does most trades. Goal: avoid cancellation fees. Needs a cross-turn view of each vendor's
   booked days.
+- (2026-11-10) Track every vendor we use with a grade for quality of work, availability and cost.
+  Vendors with good availability fill holes in the schedule when the scope grows at the move-out check.
 
 ## Noticed (not done)
 - 2340 Michael, 2935 Oak Valley, 2700 Clyde Park were taken off the cookie-cutter list on 11/6
