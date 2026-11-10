@@ -1,3 +1,52 @@
+<style>
+/* 2026-11-09 additions (timer, per-line charge/note, move-out changes, conflicted schedule) */
+.muted{color:var(--muted);font-size:13px}
+.form-foot{flex-wrap:wrap}
+.timer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin-bottom:12px}
+.timer.run{border-color:var(--green-3);background:var(--green-soft)}
+.timer.run b{font-size:20px;font-variant-numeric:tabular-nums}
+.timer input{min-width:0}
+.ci-ctl{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.ci-pen,.ci-chg{border:1px solid var(--line-2);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted)}
+.ci-pen.on{color:var(--green);border-color:var(--green-3)}
+.ci-chg.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.gate{background:var(--red-soft);border:1px solid #E7BFB2;color:#6E2A1C;border-radius:10px;padding:10px 14px;margin-top:10px;font-size:13px}
+.nc-t tr.todo td:first-child{border-left:3px solid var(--gold);padding-left:8px}
+.mc{position:relative;display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-left:4px solid var(--green-3);border-radius:10px;padding:10px 44px 10px 12px;margin-bottom:8px;background:#fff}
+.mc.todo{border-left-color:var(--gold)}
+.mc .mc-del{position:absolute;top:8px;right:8px}
+.mc .f input,.mc .f select{width:100%}
+.mc-done{font-weight:600;color:var(--green);margin-bottom:6px}
+.imp{margin-top:10px;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;background:var(--cream)}
+.imp-h{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin-bottom:6px}
+.imp-rr{margin-bottom:4px}
+.imp .ok{color:var(--ok);font-weight:600}.imp .bad{color:var(--red);font-weight:700}
+.imp-row{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.imp-row .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.imp-row em{font-style:normal;font-size:11px;font-weight:700;text-transform:uppercase;padding:1px 6px;border-radius:99px;background:var(--cream-2)}
+.imp-row em.mv{background:#F6E7C8;color:#80591A}.imp-row em.new{background:var(--green-soft);color:var(--green)}.imp-row em.gone{background:var(--red-soft);color:var(--red)}
+.imp-d{flex-basis:100%;padding-left:18px;font-size:13px}
+.imp-row.conf{background:var(--red-soft);margin:0 -12px;padding:6px 12px}
+.imp-c{flex-basis:100%;padding-left:18px;color:var(--red);font-weight:700;font-size:12px}
+.imp-warn{margin-top:8px;color:var(--red);font-weight:700}
+.imp-ok{margin-top:8px;color:var(--ok);font-weight:600}
+.conflict{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--red);color:#fff;font-weight:700;border-radius:10px;padding:9px 12px;margin-top:10px}
+.conflict .btn{color:var(--red)}
+.card .conflict{margin-top:0}
+.rc-list{border-color:var(--red);border-width:2px}
+.rc{border-top:1px solid var(--line);padding:10px 0;display:flex;flex-direction:column;gap:5px}
+.rc-h{display:flex;flex-direction:column}
+.rc-h span{color:var(--red);font-weight:600;font-size:13px}
+.rc-c{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.rc-c a{word-break:break-all}
+.rc .row{display:flex;gap:8px;flex-wrap:wrap}
+.g-bar.resched{background:var(--red)!important;color:#fff;box-shadow:0 0 0 2px var(--red-soft)}
+.g-legend i.resched{background:var(--red)}
+.step.resched{border-left-color:var(--red);background:var(--red-soft)}
+.seg button.on.resched{background:var(--red);color:#fff}
+.prog-seg.resched{background:var(--red)}
+.ev.resched{background:var(--red)!important;color:#fff}
+</style>
 <script>
 (function () {
   'use strict';
@@ -7,7 +56,8 @@
     view: 'turns', turnId: null, tab: 'schedule',
     calMonth: null, calUnit: '',
     form: null, formKey: null, formDirty: false,
-    undo: [], saveTimer: null, saving: 0, saveMsg: '', saveErr: false
+    undo: [], saveTimer: null, saving: 0, saveMsg: '', saveErr: false,
+    noteOpen: {}, gate: null
   };
 
   // ---------- utils ----------
@@ -21,6 +71,21 @@
   function turnById(id) { for (var i = 0; i < S.turns.length; i++) if (S.turns[i].id === id) return S.turns[i]; return null; }
   function cur() { return turnById(S.turnId); }
   function nowTime() { var d = new Date(); return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); }
+  // localStorage can throw (private mode, blocked storage): the app must work without it.
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+  var STATUS_LABEL = { open: 'Not booked', booked: 'Confirmed', done: 'Done', resched: 'Reschedule' };
+  var WALK = FORMS.scope.sections[0].fields[2].options; // [cookie cutter, Bill's property, Riley walk]
+  function spencerAlone(walkType) { return /Spencer alone/.test(walkType || ''); }
+  function techName(t) {
+    var tech = (t.steps || []).filter(function (s) { return s.key === 'tech'; })[0];
+    return (tech && tech.vendor) || (isBillProperty(t.property_label) ? 'Bill' : 'Riley');
+  }
+  /** Settings contact, with DEFAULT_SETTINGS.contacts filling any blank field. */
+  function contactOf(v) {
+    var c = (S.settings.contacts || {})[v] || {}, d = DEFAULT_SETTINGS.contacts[v] || {};
+    return { phone: c.phone || d.phone || '', email: c.email || d.email || '' };
+  }
 
   function call(fn) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -166,7 +231,7 @@
   function progressHtml(t, big) {
     var p = E.progress(t.steps);
     var segs = t.steps.length ? t.steps.map(function (s) {
-      return '<div class="prog-seg ' + s.status + '" style="--c:' + color(s.key) + '" title="' + esc(s.label + ': ' + ({ open: 'not booked', booked: 'confirmed', done: 'done' })[s.status]) + '"></div>';
+      return '<div class="prog-seg ' + s.status + '" style="--c:' + color(s.key) + '" title="' + esc(s.label + ': ' + STATUS_LABEL[s.status].toLowerCase()) + '"></div>';
     }).join('') : '<div class="prog-seg"></div>';
     return '<div class="prog' + (big ? ' big' : '') + '"><div class="prog-bar">' + segs + '</div>' +
       '<div class="prog-txt"><span>' + p.done + ' of ' + p.total + ' done · ' + p.booked + ' confirmed</span><b>' + p.pct + '%</b></div></div>';
@@ -180,6 +245,8 @@
 
   function nextAction(t) {
     if (t.stage === 'ready') return 'Rent ready';
+    var rc = recontacts(t).length;
+    if (rc) return 'Re-contact ' + rc + ' vendor' + (rc === 1 ? '' : 's') + ' (schedule changed at move-out)';
     for (var i = 0; i < t.steps.length; i++) if (t.steps[i].status === 'open') return 'Book ' + t.steps[i].label + (t.steps[i].vendor ? ' (' + t.steps[i].vendor + ')' : '') + ' for ' + E.fmt(t.steps[i].start);
     var td = today();
     for (var j = 0; j < t.steps.length; j++) if (t.steps[j].status !== 'done' && t.steps[j].end >= td) return 'Next on site: ' + t.steps[j].label + ', ' + E.fmt(t.steps[j].start);
@@ -239,6 +306,7 @@
     return '<div class="card" data-open="' + t.id + '">' +
       '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(unitTitle(t)) + '</div>' +
       '<div class="card-prop">' + esc(shortProp(t)) + '</div></div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
+      conflictBanner(t, false) +
       '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
       '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
       progressHtml(t) +
@@ -256,13 +324,14 @@
     var head = '<div class="turn-head"><div class="th-row">' +
       '<button class="btn sm ghost" data-nav="turns">← Turns</button>' +
       '<div><h1 class="th-unit">' + esc(unitTitle(t)) + ' <span class="pill ' + t.stage + '" style="vertical-align:middle">' + STAGE_LABEL[t.stage] + '</span></h1>' +
-      '<div class="th-prop">' + esc(t.property_label) + (t.af_wo_number ? ' · WO ' + esc(t.af_wo_number) : '') + (t.scope.walk_type ? ' · ' + esc(t.scope.walk_type.split(' (')[0]) : '') + '</div></div>' +
+      '<div class="th-prop">' + esc(t.property_label) + (t.af_wo_number ? ' · WO ' + esc(t.af_wo_number) : '') + (t.scope.walk_type ? ' · ' + esc(t.scope.walk_type.split(' (')[0]) : '') +
+      (techHours(t) ? ' · Tech ' + techHours(t) + ' h' : '') + (pmiTimeText(t) ? ' · PMI ' + esc(pmiTimeText(t)) : '') + '</div></div>' +
       '<div class="th-dates">' +
       '<div class="kv"><span>Move-out</span><b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></div>' +
       '<div class="rrbox" id="rrbox"><span>Rent ready</span><b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'em') + '</div>' +
       '<div class="kv"><span>Move-in</span><b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
       '</div></div>' +
-      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' +
+      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' + conflictBanner(t, true) +
       '<div class="tabs">' + tabs.map(function (x) {
         return '<button data-tab="' + x[0] + '" class="' + (S.tab === x[0] ? 'on' : '') + '">' + x[1] + (x[2] ? '<span class="tick">✓</span>' : '') + '</button>';
       }).join('') + '</div></div>';
@@ -284,6 +353,7 @@
         : '<button class="btn sm" data-act="mark-ready">Mark rent ready</button>') +
       '<button class="btn sm ghost danger" data-act="archive" data-id="' + t.id + '">Archive</button>' +
       '<span class="savestate" id="savestate"></span></div>';
+    h += recontactHtml(t);
     if (t._warnings && t._warnings.length) h += '<div class="warns">' + t._warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>';
 
     // before move-out
@@ -291,6 +361,7 @@
     h += '<div class="panel"><h3>Before move-out</h3><div class="pre-row">' +
       '<span>PMI: <b>' + (sc.pmi_date ? E.fmt(sc.pmi_date) + (sc.pmi_time ? ', ' + E.fmtTime(sc.pmi_time) : '') : 'not set') + '</b></span>' +
       '<span>Tech prep: <b>' + (t.tech_prep && t.tech_prep.submitted_at ? 'done (' + techHours(t) + ' h estimate)' : 'not done yet') + '</b></span>' +
+      (pmiTimeText(t) ? '<span>PMI time: <b>' + esc(pmiTimeText(t)) + '</b></span>' : '') +
       (sc.project ? '<span>Project estimate (Jason): <span class="seg">' + ['open', 'done'].map(function (s) {
         return '<button class="' + ((sc.project_status || 'open') === s ? 'on ' + (s === 'done' ? 'done' : 'open') : '') + '" data-act="project-status" data-v="' + s + '">' + (s === 'done' ? 'Done' : 'Open') + '</button>';
       }).join('') + '</span></span>' : '') +
@@ -336,7 +407,7 @@
       var a = idx[s.start], b = idx[s.end];
       if (a == null && b == null) return;
       a = a == null ? 0 : a; b = b == null ? days.length - 1 : b;
-      var mark = s.status === 'done' ? '✓✓ ' : s.status === 'booked' ? '✓ ' : '';
+      var mark = s.status === 'done' ? '✓✓ ' : s.status === 'booked' ? '✓ ' : s.status === 'resched' ? '⚠ ' : '';
       h += '<button class="g-bar ' + s.status + '" data-act="bar" data-i="' + r + '" style="--c:' + color(s.key) + ';background:' + color(s.key) + ';grid-row:' + row + ';grid-column:' + (a + 2) + '/' + (b + 3) + '" title="Click for details">' +
         '<span class="g-v">' + mark + esc(s.vendor || s.label) + '</span><span class="g-t">' + esc((E.fmtTime(s.time) || 'no time') + (s.days > 1 ? ' · ' + s.days + ' days' : '')) + '</span></button>';
       if (s.cure) {
@@ -344,19 +415,20 @@
         if (idx[cureDay] != null) h += '<div class="g-cure" style="grid-row:' + row + ';grid-column:' + (idx[cureDay] + 2) + '/' + (idx[cureDay] + 3) + '">cure</div>';
       }
     });
-    h += '</div><div class="g-legend"><span><i class="open"></i>Not booked</span><span><i class="booked"></i>✓ Confirmed</span><span><i class="done"></i>✓✓ Done</span><span>Click a bar for details</span></div>';
+    h += '</div><div class="g-legend"><span><i class="open"></i>Not booked</span><span><i class="booked"></i>✓ Confirmed</span><span><i class="done"></i>✓✓ Done</span>' +
+      (t.steps.some(function (s) { return s.status === 'resched'; }) ? '<span><i class="resched"></i>⚠ Reschedule</span>' : '') + '<span>Click a bar for details</span></div>';
     return h + '</div>';
   }
 
   function stepRow(t, s, i) {
     var c = catBy(s.key) || { sizes: [] };
-    var contact = S.settings.contacts[s.vendor] || {};
+    var contact = contactOf(s.vendor);
     var when = s.start ? E.fmt(s.start) + (s.days > 1 ? ' → ' + E.fmt(s.end) : '') + (s.time ? ' · ' + E.fmtTime(s.time) : '') : '';
     return '<div class="step ' + s.status + '" style="--c:' + color(s.key) + '" data-i="' + i + '">' +
       '<div class="step-title"><span class="n">' + (i + 1) + '</span><b>' + esc(s.label) + '</b><span class="when">' + when + '</span>' +
       (s.pinned ? '<button class="pin" data-act="unpin" data-i="' + i + '" title="You set this date. Click to let the system place it again.">📌 set by you · auto</button>' : '') +
       (s.fromTechPrep ? '<span class="chip">' + s.hours + ' h from tech prep</span>' : '') + '</div>' +
-      '<div class="step-side"><div class="seg" title="Status">' + [['open', 'Not booked'], ['booked', 'Confirmed'], ['done', 'Done']].map(function (x) {
+      '<div class="step-side"><div class="seg" title="Status">' + (s.status === 'resched' ? [['resched', '⚠ Reschedule']] : []).concat([['open', 'Not booked'], ['booked', 'Confirmed'], ['done', 'Done']]).map(function (x) {
         return '<button class="' + (s.status === x[0] ? 'on ' + x[0] : '') + '" data-act="status" data-v="' + x[0] + '" data-i="' + i + '">' + x[1] + '</button>';
       }).join('') + '</div>' +
       '<button class="iconbtn" data-act="up" data-i="' + i + '" title="Move earlier"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
@@ -391,14 +463,14 @@
       'Move-out: ' + E.fmt(t.move_out_date) + ' · Rent ready: ' + E.fmt(t.rent_ready_date) + (t.move_in_date ? ' · Move-in: ' + E.fmt(t.move_in_date) : ''), ''];
     t.steps.forEach(function (s, i) {
       lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
-        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + ({ open: 'not booked', booked: 'confirmed', done: 'done' })[s.status] + ']');
+        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']');
     });
     return lines.join('\n');
   }
 
   function openMessage(t, i) {
     var s = t.steps[i];
-    var contact = S.settings.contacts[s.vendor] || {};
+    var contact = contactOf(s.vendor);
     var msg = messageFor(t, s);
     var ov = $('#overlay');
     ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal">' +
@@ -408,7 +480,7 @@
       '<div class="row"><button class="btn primary" data-act="copy-msg">Copy message</button>' +
       (contact.phone ? '<a class="btn" id="smslink" href="sms:' + esc(contact.phone) + '">Text ' + esc(contact.phone) + '</a>' : '') +
       (contact.email ? '<a class="btn" id="maillink" href="mailto:' + esc(contact.email) + '">Email</a>' : '') +
-      (s.status === 'open' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Vendor confirmed</button>' : '') +
+      (s.status === 'open' || s.status === 'resched' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Vendor confirmed</button>' : '') +
       '<div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
     var ta = $('#msgtext');
     function links() {
@@ -441,7 +513,7 @@
   function openBar(t, i) {
     var s = t.steps[i];
     var others = vendorDay(t, s);
-    var st = ({ open: 'Not booked', booked: 'Confirmed', done: 'Done' })[s.status];
+    var st = STATUS_LABEL[s.status];
     var rows = [
       ['Unit', shortProp(t) + (t.unit_label ? ' · ' + t.unit_label : '')],
       ['Size', s.sizeLabel || ''],
@@ -458,7 +530,7 @@
       '<table class="summary-t">' + rows.map(function (r) { return '<tr><td style="width:80px;color:var(--muted)">' + r[0] + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join('') + '</table>' +
       '<div class="bm-sec">' + esc(s.vendor || 'This vendor') + ' that day</div>' +
       (others.length ? others.map(function (o) {
-        var os = ({ open: 'not booked', booked: 'confirmed', done: 'done' })[o.step.status];
+        var os = STATUS_LABEL[o.step.status].toLowerCase();
         return '<div class="bm-other" data-open="' + o.turn.id + '"><b>' + E.fmt(o.day) + (o.step.time ? ' · ' + E.fmtTime(o.step.time) : '') + '</b> ' +
           esc(calLabel(o.turn) + ' · ' + o.step.label) + ' <span class="chip">' + os + '</span></div>';
       }).join('') : '<div style="color:var(--muted);font-size:13px">No other jobs booked for them on ' + (s.days > 1 ? 'those days' : 'that day') + '.</div>') +
@@ -492,6 +564,7 @@
         s.size = z.id; s.sizeLabel = z.label; s.days = z.days || 1; s.hours = z.hours || 8 * (z.days || 1); s.cure = z.cure || 0;
         if (!s.vendorEdited) s.vendor = z.vendor || catBy(s.key).vendor || '';
         s.fromTechPrep = false;
+        billTech(t);
       }
       syncTrade(t, s);
     }
@@ -556,6 +629,7 @@
       S.formKey = 'scope-new';
       S.form = { trades: {}, walk_type: '', pests: 'None' };
       Object.keys(S.settings.defaults || {}).forEach(function (k) { S.form.trades[k] = { size: S.settings.defaults[k], note: '' }; });
+      restoreTimer('scope', S.form, null);
     }
     return '<div class="page-head"><button class="btn sm ghost" data-nav="turns">← Turns</button></div>' + formHtml('scope', S.form, null, true);
   }
@@ -571,11 +645,105 @@
         S.form.af_wo = S.form.af_wo || t.af_wo_number; S.form.move_out_date = t.move_out_date; S.form.move_in_date = t.move_in_date;
       }
       if (key !== 'scope' && !S.form.done_date) S.form.done_date = today();
-      if (key === 'techprep') { S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'OK as is'; }
+      if (key === 'techprep') {
+        S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'OK as is';
+        S.form.done_by = S.form.done_by || (spencerAlone(t.scope.walk_type) ? 'Spencer' : 'Riley');
+      }
       if (key === 'moveout') { S.form.rr_holds = S.form.rr_holds || 'Yes'; }
-      S.formDirty = false;
+      restoreTimer(key, S.form, t);
+      S.formDirty = false; S.gate = null;
     }
     return formHtml(key, S.form, t, false);
+  }
+
+  // ---------- PMI timer ----------
+  // The walk timer lives on scope.pmi_timer (Riley walk: Scope submit ends it) or on tech_prep.pmi_timer
+  // (Spencer alone: started on Scope or Tech Prep, Tech Prep submit ends it). A running start is also kept
+  // in localStorage per turn ('new' before the turn exists) so a reload mid-walk keeps it.
+  function timerKey() { return 'p03timer:' + (S.view === 'turn' && S.turnId ? S.turnId : 'new'); }
+  function formKeyName() { var k = S.formKey ? S.formKey.split(':')[0] : ''; return k === 'scope-new' ? 'scope' : k; }
+  function timerRunning(tm) { return !!(tm && tm.start && !tm.end); }
+  /** Does this form hold the walk timer? */
+  function ownsTimer(key, d, t) {
+    if (key === 'scope') return !(t && spencerAlone(d.walk_type) && t.tech_prep && t.tech_prep.pmi_timer);
+    return key === 'techprep' && !!t && spencerAlone(t.scope.walk_type);
+  }
+  function endsWalk(key, d, t) { return key === 'scope' ? !spencerAlone(d.walk_type) : key === 'techprep' && !!t && spencerAlone(t.scope.walk_type); }
+  function timerHours(tm) {
+    if (!tm || !tm.start || !tm.end) return '';
+    return (Math.round((new Date(tm.end) - new Date(tm.start)) / 36e5 * 10) / 10) + ' h';
+  }
+  function pmiTimerOf(t) {
+    var a = t.scope && t.scope.pmi_timer, b = t.tech_prep && t.tech_prep.pmi_timer;
+    return spencerAlone(t.scope.walk_type) ? b || a : a || b;
+  }
+  function pmiTimeText(t) { var tm = pmiTimerOf(t); return !tm || !tm.start ? '' : tm.end ? timerHours(tm) : 'timer running'; }
+  function elapsed(start) {
+    var s = Math.max(0, Math.floor((Date.now() - new Date(start)) / 1000));
+    var m = Math.floor(s / 60) % 60, h = Math.floor(s / 3600);
+    return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+  }
+  function localDT(iso) { if (!iso) return ''; var d = new Date(iso), p = function (n) { return (n < 10 ? '0' : '') + n; }; return E.iso(d) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  setInterval(function () { document.querySelectorAll('[data-tick]').forEach(function (el) { el.textContent = elapsed(el.dataset.tick); }); }, 1000);
+
+  function restoreTimer(key, d, t) {
+    if (!ownsTimer(key, d, t) || (d.pmi_timer && d.pmi_timer.start)) return;
+    var ls = lsGet(timerKey());
+    if (ls) d.pmi_timer = { start: ls };
+  }
+
+  function timerHtml(key, d, t) {
+    if (key === 'scope' && !ownsTimer(key, d, t)) {
+      return '<div class="timer"><b>PMI timer</b> ' + esc(pmiTimeText(t)) + '. Spencer walks alone here: the timer is on the Tech Prep tab.</div>';
+    }
+    if (!ownsTimer(key, d, t)) return '';
+    var tm = d.pmi_timer || {};
+    if (!tm.start) return '<div class="timer"><button class="btn primary" data-act="timer-start">▶ Start timer</button><span class="muted">Times the inspection. ' +
+      (endsWalk(key, d, t) ? 'Submitting this form ends it.' : 'It keeps running until Tech Prep is submitted.') + '</span></div>';
+    if (!tm.end) return '<div class="timer run"><b>⏱ <span data-tick="' + esc(tm.start) + '">' + elapsed(tm.start) + '</span></b><span class="muted">since ' +
+      esc(new Date(tm.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + '. ' +
+      (endsWalk(key, d, t) ? 'Tap "Submit + end timer" when the walk is done.' : 'Keeps running until Tech Prep is submitted.') + '</span></div>';
+    return '<div class="timer"><label class="f"><span>PMI start</span><input type="datetime-local" data-tm="start" data-fid="tm-start" value="' + localDT(tm.start) + '"></label>' +
+      '<label class="f"><span>PMI end</span><input type="datetime-local" data-tm="end" data-fid="tm-end" value="' + localDT(tm.end) + '"></label>' +
+      '<div class="f"><span>Total</span><b id="pmi-total" style="padding-top:7px">' + timerHours(tm) + '</b></div></div>';
+  }
+
+  function startTimer() {
+    var d = S.form; if (!d) return;
+    var key = formKeyName(), t = S.view === 'turn' ? cur() : null;
+    d.pmi_timer = { start: new Date().toISOString() };
+    lsSet(timerKey(), d.pmi_timer.start);
+    if (t) { // also saved on the turn right away (the draft), not only on this phone
+      if (key === 'scope') t.scope.pmi_timer = clone(d.pmi_timer);
+      else { t.tech_prep = t.tech_prep || {}; t.tech_prep.pmi_timer = clone(d.pmi_timer); }
+      queueSave(t);
+    }
+    markDirty(); render();
+  }
+
+  /** The walk timer belongs on Tech Prep when Spencer walks alone (data contract). */
+  function moveTimerToTechPrep(t) {
+    if (!spencerAlone(t.scope.walk_type) || !t.scope.pmi_timer) return;
+    t.tech_prep = t.tech_prep || {};
+    if (!t.tech_prep.pmi_timer) t.tech_prep.pmi_timer = t.scope.pmi_timer;
+    delete t.scope.pmi_timer;
+  }
+
+  // ---------- emails (server builds + sends; the client only asks) ----------
+  function sendEmail(fn, t, after) {
+    toast('Sending email…');
+    return call(fn, t.id).then(function (r) {
+      toast('Email sent to ' + [].concat(r && r.to || []).join(', '));
+      if (after) after(r || {});
+      render();
+    }, function (e) { toast('Email not sent: ' + e.message, true); });
+  }
+  function sendTechPrepEmail(t) {
+    return sendEmail('apiSendTechPrepEmail', t, function (r) {
+      // keep the server's stamp locally, so the next save of tech_prep does not wipe it
+      t.tech_prep.email_sent_at = r.sentAt || new Date().toISOString();
+      if (S.form && S.formKey === 'techprep:' + t.id) S.form.email_sent_at = t.tech_prep.email_sent_at;
+    });
   }
 
   function showIf(cond, d) {
@@ -588,9 +756,12 @@
   function formHtml(key, d, t, isNew) {
     var F = FORMS[key];
     var h = '<div class="form"><div class="page-head"><h1>' + esc(F.title) + '</h1></div><div class="form-who">' + esc(F.who) + '</div>';
-    if (key === 'techprep' && t && t.move_out_check && t.move_out_check.exceptions) {
-      var added = t.move_out_check.exceptions.filter(function (x) { return x.type === 'New tech item'; });
-      if (added.length) h += '<div class="panel"><h3>Added at move-out</h3>' + added.map(function (x) { return '<div>• ' + esc(x.note) + '</div>'; }).join('') + '</div>';
+    if (key === 'scope' || key === 'techprep') h += timerHtml(key, d, t);
+    if (key === 'techprep' && t && t.move_out_check) {
+      var mo = t.move_out_check;
+      var added = (mo.exceptions || []).filter(function (x) { return x.type === 'New tech item'; }).map(function (x) { return x.note; })
+        .concat((mo.changes || []).filter(function (x) { return x.type === 'tech' && x.note; }).map(function (x) { return x.note + (x.hours ? ' (+' + x.hours + ' h)' : ''); }));
+      if (added.length) h += '<div class="panel"><h3>Added at move-out (the tech\'s list, ' + esc(techName(t)) + ')</h3>' + added.map(function (x) { return '<div>• ' + esc(x) + '</div>'; }).join('') + '</div>';
     }
     F.sections.forEach(function (sec) {
       h += '<div class="sec"><h3>' + esc(sec.title) + '</h3>' + (sec.help ? '<div class="help">' + esc(sec.help) + '</div>' : '') + '<div class="fields">';
@@ -598,12 +769,16 @@
       h += '</div></div>';
     });
     var submitted = d.submitted_at;
+    var endTimer = (key === 'scope' || key === 'techprep') && ownsTimer(key, d, t) && endsWalk(key, d, t) && timerRunning(d.pmi_timer);
+    if (S.gate && S.gate.length) h += '<div class="gate"><b>Before you can submit:</b>' + S.gate.map(function (g) { return '<div>• ' + esc(g) + '</div>'; }).join('') + '</div>';
     h += '<div class="form-foot">';
-    if (isNew) h += '<button class="btn primary" data-act="form-submit">Create turn + build schedule</button>';
-    else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">Save scope + update schedule</button>';
+    if (isNew) h += '<button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : 'Create turn + build schedule') + '</button>';
+    else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : 'Save scope + update schedule') + '</button>';
     else {
-      h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (submitted ? 'Save changes' : 'Submit') + '</button>';
-      if (submitted) h += '<span style="color:var(--muted);font-size:13px">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
+      h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : submitted ? 'Save changes' : 'Submit') + '</button>';
+      if (key === 'techprep' && submitted) h += '<button class="btn" data-act="resend-email">Resend email</button>';
+      if (submitted) h += '<span class="muted">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
+      if (key === 'techprep' && d.email_sent_at) h += '<span class="muted">Email sent ' + esc(new Date(d.email_sent_at).toLocaleString()) + '</span>';
     }
     h += '<span class="dirty" id="dirty">' + (S.formDirty ? 'Unsaved changes' : '') + '</span></div></div>';
     return h;
@@ -674,6 +849,12 @@
         return '<div class="f">' + planSummary(t) + '</div>';
       case 'ncreview':
         return '<div class="f">' + ncReview(t, d) + '</div>';
+      case 'changes':
+        return '<div class="f">' + changesHtml(t, d) + '</div>';
+      case 'oldexceptions': // pre-2026-11-09 free-text exceptions: read-only
+        var ex = (v || []).filter(function (x) { return x.type || x.trade || x.note; });
+        return ex.length ? '<div class="f"><span>Earlier exceptions (old form, read-only)</span>' + ex.map(function (x) {
+          return '<div>• ' + esc([x.type, x.trade, x.note].filter(Boolean).join(' · ')) + '</div>'; }).join('') + '</div>' : '';
     }
     return '';
   }
@@ -697,10 +878,15 @@
       var items = r.items.map(function (it, ii) {
         var e = st[ii] || {};
         if (e.s) { cnt[e.s]++; tot[e.s]++; }
-        return '<div class="ci"><span>' + esc(it) + '</span><span class="tri">' + [['ok', 'OK'], ['fix', 'Fix'], ['nc', 'Not checked'], ['na', 'N/A']].map(function (x) {
-          return '<button class="' + (e.s === x[0] ? 'on ' + x[0] : '') + '" data-act="ci" data-room="' + r.id + '" data-ii="' + ii + '" data-v="' + x[0] + '">' + x[1] + '</button>';
-        }).join('') + '</span>' +
-          (e.s === 'fix' || e.s === 'nc' ? '<div class="note"><input type="text" placeholder="' + (e.s === 'fix' ? 'What to fix / part needed' : 'Why not checked') + '" data-cin="1" data-room="' + r.id + '" data-ii="' + ii + '" data-fid="cin-' + r.id + '-' + ii + '" value="' + esc(e.note || '') + '"></div>' : '') + '</div>';
+        var at = ' data-room="' + r.id + '" data-ii="' + ii + '"';
+        var always = e.s === 'fix' || e.s === 'nc', showNote = always || e.note || S.noteOpen[r.id + ':' + ii];
+        return '<div class="ci"><span>' + esc(it) + '</span><span class="ci-ctl">' +
+          (e.s === 'fix' ? '<button class="ci-chg' + (e.charge ? ' on' : '') + '" data-act="ci-charge"' + at + ' title="Tenant pays for this fix">' + (e.charge ? '✓ ' : '') + 'Charge tenant</button>' : '') +
+          (!always ? '<button class="ci-pen' + (showNote ? ' on' : '') + '" data-act="ci-note"' + at + ' title="Add a note">✎</button>' : '') +
+          '<span class="tri">' + [['ok', 'OK'], ['fix', 'Fix'], ['nc', 'Not checked'], ['na', 'N/A']].map(function (x) {
+          return '<button class="' + (e.s === x[0] ? 'on ' + x[0] : '') + '" data-act="ci"' + at + ' data-v="' + x[0] + '">' + x[1] + '</button>';
+        }).join('') + '</span></span>' +
+          (showNote ? '<div class="note"><input type="text" placeholder="' + (e.s === 'fix' ? 'What to fix / part needed' : e.s === 'nc' ? 'Why not checked' : 'Note') + '" data-cin="1"' + at + ' data-fid="cin-' + r.id + '-' + ii + '" value="' + esc(e.note || '') + '"></div>' : '') + '</div>';
       }).join('');
       return '<details class="room"' + (cnt.fix || cnt.nc ? ' open' : '') + '><summary>' + esc(r.label) + '<em>' + (cnt.ok + cnt.fix + cnt.nc + cnt.na) + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items + '</details>';
     }).join('');
@@ -720,12 +906,15 @@
 
   function ncReview(t, d) {
     var items = ncItems(t);
-    if (!items.length) return '<div style="color:var(--muted)">' + (t && t.tech_prep ? 'Nothing was left unchecked at the PMI.' : 'Tech prep is not done yet.') + '</div>';
+    var tp = t && t.tech_prep, by = tp && tp.submitted_at ? '<div class="muted" style="margin-bottom:6px">Tech Prep filled by ' + esc(tp.done_by || 'the tech') + '.</div>' : '';
+    if (!items.length) return '<div class="muted">' + (tp && tp.submitted_at ? by + 'Nothing was left unchecked at the PMI.' : 'Tech prep is not done yet.') + '</div>';
     d.nc_review = d.nc_review || {};
-    return '<table class="list-t">' + items.map(function (x) {
+    // stored values stay the same; only the label names the tech
+    var opts = [['', '— answer —'], ['Fine now', 'Fine now'], ['Add to tech list', 'Add to the tech\'s list (' + techName(t) + ')'], ['Needs vendor', 'Needs vendor'], ['Charge tenant', 'Charge tenant']];
+    return by + '<table class="list-t nc-t">' + items.map(function (x) {
       var r = d.nc_review[x.key] || {};
-      return '<tr><td>' + esc(x.label) + (x.note ? '<div style="color:var(--muted);font-size:12px">' + esc(x.note) + '</div>' : '') + '</td><td style="width:190px"><select data-nc="' + esc(x.key) + '" data-fid="nc-' + esc(x.key) + '">' +
-        ['', 'Fine now', 'Add to tech list', 'Needs vendor'].map(function (o) { return '<option' + (o === r.r ? ' selected' : '') + ' value="' + o + '">' + (o || '—') + '</option>'; }).join('') + '</select></td></tr>';
+      return '<tr' + (r.r ? '' : ' class="todo"') + '><td>' + esc(x.label) + (x.note ? '<div class="muted" style="font-size:12px">' + esc(x.note) + '</div>' : '') + '</td><td style="width:190px"><select data-nc="' + esc(x.key) + '" data-fid="nc-' + esc(x.key) + '">' +
+        opts.map(function (o) { return '<option' + (o[0] === (r.r || '') ? ' selected' : '') + ' value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>'; }).join('') + '</select></td></tr>';
     }).join('') + '</table>';
   }
 
@@ -733,12 +922,180 @@
     if (!t) return '';
     var rows = t.steps.map(function (s) {
       return '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + color(s.key) + '"></span> <b>' + esc(s.label) + '</b> ' + esc(s.sizeLabel || '') +
-        (s.note ? '<div style="color:var(--muted);font-size:12px">' + esc(s.note) + '</div>' : '') + '</td><td>' + esc(s.vendor) + '</td><td>' + E.fmt(s.start) + '</td><td>' + ({ open: 'Not booked', booked: 'Confirmed', done: 'Done' })[s.status] + '</td></tr>';
+        (s.note ? '<div style="color:var(--muted);font-size:12px">' + esc(s.note) + '</div>' : '') + '</td><td>' + esc(s.vendor) + '</td><td>' + E.fmt(s.start) + '</td><td>' + STATUS_LABEL[s.status] + '</td></tr>';
     }).join('');
     var dm = (t.scope.damages || []).filter(function (x) { return x.item; });
     return '<table class="summary-t">' + rows + '</table>' +
       '<div style="margin-top:8px">Rent ready: <b>' + E.fmt(t.rent_ready_date) + '</b> · Move-in: <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
       (dm.length ? '<div style="margin-top:8px"><b>Damages at PMI:</b> ' + dm.map(function (x) { return esc(x.item) + (x.room ? ' (' + esc(x.room) + ')' : '') + (x.charge ? ' [tenant]' : ''); }).join('; ') + '</div>' : '');
+  }
+
+  // ---------- move-out scope changes (P4) ----------
+  var CHANGE_TYPES = [['add', 'Add a trade'], ['resize', 'Change a size'], ['remove', 'Remove a trade'], ['tech', 'New tech item'], ['vendor', 'Other vendor item (Jason)']];
+  function changeComplete(c) {
+    if (c.type === 'add' || c.type === 'resize') return !!(c.trade && c.size);
+    if (c.type === 'remove') return !!c.trade;
+    if (c.type === 'tech' || c.type === 'vendor') return !!(c.note && String(c.note).trim());
+    return false;
+  }
+
+  function changesHtml(t, d) {
+    d.changes = d.changes || [];
+    var applied = d.impact && d.impact.applied_at;
+    if (applied) {
+      return '<div class="mc-done">✓ Applied to the schedule ' + esc(new Date(applied).toLocaleString()) + '. Further changes: use the Schedule tab.</div>' +
+        d.changes.map(function (c) { return '<div>• ' + esc(changeText(c)) + '</div>'; }).join('') + impactSummary(t, d.impact);
+    }
+    var inSteps = t.steps.map(function (s) { return s.key; });
+    var rows = d.changes.map(function (c, ri) {
+      var a = ' data-mc="' + ri + '"', fid = function (col) { return ' data-col="' + col + '" data-fid="mc-' + ri + '-' + col + '"'; };
+      function sel(col, opts, val, blank) {
+        return '<select' + a + fid(col) + '><option value="">' + blank + '</option>' + opts.map(function (o) {
+          return '<option value="' + esc(o[0]) + '"' + (o[0] === val ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select>';
+      }
+      var h = '<label class="f"><span>Change ' + (ri + 1) + '</span>' + sel('type', CHANGE_TYPES, c.type, 'Pick a type') + '</label>';
+      if (c.type === 'add' || c.type === 'resize' || c.type === 'remove') {
+        var trades = cat().filter(function (x) { return c.type === 'add' ? inSteps.indexOf(x.key) < 0 || x.key === c.trade : inSteps.indexOf(x.key) >= 0; });
+        h += '<label class="f"><span>Trade</span>' + sel('trade', trades.map(function (x) { return [x.key, x.label]; }), c.trade, c.type === 'add' ? 'Trade to add' : 'Trade in the scope') + '</label>';
+        if (c.type !== 'remove' && catBy(c.trade)) {
+          h += '<label class="f"><span>' + (c.type === 'add' ? 'Size' : 'New size') + '</span>' + sel('size', catBy(c.trade).sizes.map(function (z) { return [z.id, z.label]; }), c.size, 'Pick a size') + '</label>';
+        }
+      }
+      if (c.type) {
+        var ph = c.type === 'tech' ? 'What the tech needs to do' : c.type === 'vendor' ? 'What is needed (Jason books it)' : 'Note (optional)';
+        h += '<label class="f"><span>' + (c.type === 'tech' || c.type === 'vendor' ? 'What' : 'Note') + '</span><input type="text"' + a + fid('note') + ' placeholder="' + esc(ph) + '" value="' + esc(c.note || '') + '"></label>';
+      }
+      if (c.type === 'tech') h += '<label class="f"><span>Extra hours (lengthens the Tech step)</span><input type="number" min="0" step="0.5"' + a + fid('hours') + ' value="' + esc(c.hours == null ? '' : c.hours) + '"></label>';
+      return '<div class="mc' + (changeComplete(c) ? '' : ' todo') + '"><button class="iconbtn mc-del" data-act="mc-del" data-ri="' + ri + '" title="Remove this change">✕</button>' + h + '</div>';
+    }).join('');
+    return rows + '<div><button class="btn sm" data-act="mc-add">+ Add a change</button></div>' +
+      '<div id="impact">' + impactHtml(t, d) + '</div>';
+  }
+
+  function changeText(c) {
+    var tl = (catBy(c.trade) || {}).label || c.trade || '', z = E.sizeOf(catBy(c.trade), c.size);
+    if (c.type === 'add') return 'Add ' + tl + (z ? ' (' + z.label + ')' : '') + (c.note ? ': ' + c.note : '');
+    if (c.type === 'resize') return tl + ' size → ' + (z ? z.label : '') + (c.note ? ': ' + c.note : '');
+    if (c.type === 'remove') return 'Remove ' + tl + (c.note ? ': ' + c.note : '');
+    if (c.type === 'tech') return 'Tech: ' + (c.note || '') + (c.hours ? ' (+' + c.hours + ' h)' : '');
+    return 'Other vendor (Jason): ' + (c.note || '');
+  }
+
+  /** Live before/after from the Engine, nothing saved. */
+  function impactOf(t, changes) {
+    var done = (changes || []).filter(changeComplete);
+    if (!done.length) return null;
+    var r = E.applyChanges(t.steps, done, cat(), t.move_out_date);
+    if (isBillProperty(t.property_label)) r.steps.forEach(function (s) { if (s.key === 'tech' && !s.vendorEdited && s.status === 'open') s.vendor = 'Bill'; });
+    return { result: r, diff: E.diffSteps(t.steps, r.steps), rrBefore: t.rent_ready_date, rrAfter: r.rentReady, changes: done };
+  }
+
+  function bizText(a, b) {
+    var n = E.bizDiff(a, b);
+    return n === 0 ? 'no change' : Math.abs(n) + ' business day' + (Math.abs(n) === 1 ? '' : 's') + (n > 0 ? ' later' : ' earlier');
+  }
+
+  function impactHtml(t, d) {
+    if (!t.move_out_date) return '<div class="imp muted">Set a move-out date to see the impact.</div>';
+    var im = impactOf(t, d.changes);
+    if (!im) return '<div class="imp muted">Add a change to see its effect on the schedule.</div>';
+    var before = {}; t.steps.forEach(function (s) { before[s.key] = s; });
+    var after = {}; im.result.steps.forEach(function (s) { after[s.key] = s; });
+    var rowsHtml = im.result.steps.concat(t.steps.filter(function (s) { return !after[s.key]; })) // new order, then removed
+      .map(function (s) {
+        var b = before[s.key], n = after[s.key];
+        var when = function (x) { return x ? E.fmt(x.start) + (x.days > 1 ? '–' + E.fmt(x.end).replace(/^\w+ /, '') : '') : ''; };
+        var tag = !b ? '<em class="new">new</em>' : !n ? '<em class="gone">removed</em>' : (b.start !== n.start || b.end !== n.end) ? '<em class="mv">moved</em>' : '';
+        var conf = b && (b.status === 'booked' || b.status === 'resched') && tag && !/new/.test(tag);
+        return '<div class="imp-row' + (conf ? ' conf' : '') + '"><span class="dot" style="background:' + color(s.key) + '"></span><b>' + esc(s.label) + '</b>' + tag +
+          '<span class="imp-d">' + (b ? esc(when(b)) : '—') + ' → ' + (n ? '<b>' + esc(when(n)) + '</b>' : '—') + '</span>' +
+          (conf ? '<span class="imp-c">Confirmed with ' + esc(b.vendor || 'vendor') + ': re-contact</span>' : '') + '</div>';
+      }).join('');
+    var bufA = E.buffer(im.rrAfter, t.move_in_date);
+    var confirmed = im.diff.moved.concat(im.diff.removed).filter(function (x) { return x.was_confirmed; });
+    return '<div class="imp"><div class="imp-h">Preview (not saved yet)</div>' +
+      '<div class="imp-rr">Rent ready <b>' + esc(E.fmt(im.rrBefore)) + '</b> → <b>' + esc(E.fmt(im.rrAfter)) + '</b> <span class="' + (E.bizDiff(im.rrBefore, im.rrAfter) > 0 ? 'bad' : 'ok') + '">(' + bizText(im.rrBefore, im.rrAfter) + ')</span></div>' +
+      '<div class="imp-rr">Move-in buffer: ' + (!t.move_in_date ? '<span class="muted">no move-in date</span>' : bufA.ok ? '<span class="ok">✓ OK, ' + bufA.days + ' business day' + (bufA.days === 1 ? '' : 's') + ' before move-in</span>' : '<span class="bad">✕ NOT OK (' + (bufA.days === 0 ? 'same day as move-in' : -bufA.days + ' business day(s) after move-in') + ')</span>') + '</div>' +
+      rowsHtml +
+      (confirmed.length ? '<div class="imp-warn">' + confirmed.length + ' confirmed vendor' + (confirmed.length === 1 ? '' : 's') + ' would move: ' + esc(confirmed.map(function (x) { return x.label + ' (' + (x.vendor || 'vendor') + ')'; }).join(', ')) + '</div>'
+        : '<div class="imp-ok">No confirmed vendor moves.</div>') +
+      (im.result.warnings.length ? '<div class="warns" style="margin:8px 0 0">' + im.result.warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>' : '') +
+      '<div class="row" style="margin-top:10px"><button class="btn primary" data-act="apply-changes">Apply to schedule</button></div></div>';
+  }
+
+  function paintImpact() { var el = $('#impact'), t = cur(); if (el && t && S.form) el.innerHTML = impactHtml(t, S.form); }
+
+  function impactSummary(t, im) {
+    if (!im) return '';
+    return '<div class="imp" style="margin-top:8px">Rent ready <b>' + esc(E.fmt(im.rr_before)) + '</b> → <b>' + esc(E.fmt(im.rr_after)) + '</b>' +
+      (im.moved || []).map(function (m) { return '<div class="imp-row' + (m.was_confirmed ? ' conf' : '') + '"><b>' + esc(m.label) + '</b><span class="imp-d">' + esc(E.fmt(m.before)) + ' → ' + (m.after ? esc(E.fmt(m.after)) : 'removed') + '</span></div>'; }).join('') + '</div>';
+  }
+
+  function applyMoveOutChanges() {
+    var t = cur(), d = S.form, im = impactOf(t, d.changes);
+    if (!im) { toast('Add a complete change first.', true); return; }
+    var conf = im.diff.moved.concat(im.diff.removed).filter(function (x) { return x.was_confirmed; });
+    if (!confirm('Apply ' + im.changes.length + ' change' + (im.changes.length === 1 ? '' : 's') + ' to the schedule?\nRent ready ' + E.fmt(im.rrBefore) + ' → ' + E.fmt(im.rrAfter) +
+      (conf.length ? '\n' + conf.length + ' confirmed vendor(s) will need to be re-contacted.' : '') + '\nThe change email goes out after.')) return;
+    pushUndo(t);
+    var moved = {}; im.diff.moved.forEach(function (m) { if (m.was_confirmed) moved[m.key] = 1; });
+    im.result.steps.forEach(function (s) { if (moved[s.key] && s.status !== 'done') s.status = 'resched'; });
+    t.steps = im.result.steps;
+    t.scope.trades = t.scope.trades || {};
+    im.changes.forEach(function (c) {
+      if (c.type === 'remove' && t.scope.trades[c.trade]) t.scope.trades[c.trade].size = '';
+      if (c.type === 'add' || c.type === 'resize') { var st = t.steps.filter(function (s) { return s.key === c.trade; })[0]; if (st) syncTrade(t, st); }
+    });
+    if (im.changes.some(function (c) { return c.type === 'tech'; }) && !t.scope.trades.tech) t.scope.trades.tech = { size: 'basic', note: '' };
+    d.impact = { applied_at: new Date().toISOString(), rr_before: im.rrBefore, rr_after: im.rrAfter,
+      moved: im.diff.moved.concat(im.diff.removed) };
+    S.gate = null;
+    t.move_out_check = clone(d);
+    S.formDirty = false; S.formKey = null;
+    recompute(t);
+    saveNow(t).then(function () {
+      render();
+      sendEmail('apiSendMoveOutEmail', t, function (r) {
+        // keep the server's stamp locally, so the next save of move_out_check does not wipe it
+        t.move_out_check.impact.email_sent_at = r.sentAt || new Date().toISOString();
+      });
+    }, function () {});
+  }
+
+  // ---------- conflicted schedule ----------
+  /** Who to call back: Confirmed steps whose date moved (status 'resched') + confirmed steps removed at move-out. */
+  function recontacts(t) {
+    var out = [], im = t.move_out_check && t.move_out_check.impact, mv = {};
+    ((im && im.moved) || []).forEach(function (m, mi) { mv[m.key] = m; if (m.after === null && m.was_confirmed && !m.cleared) out.push({ cancel: true, m: m, mi: mi }); });
+    t.steps.forEach(function (s, i) { if (s.status === 'resched') out.push({ s: s, i: i, m: mv[s.key] }); });
+    return out;
+  }
+
+  function conflictBanner(t, withLink) {
+    var n = recontacts(t).length;
+    if (!n) return '';
+    return '<div class="conflict">⚠ Schedule conflicted: ' + n + ' vendor' + (n === 1 ? '' : 's') + ' to re-contact' +
+      (withLink ? '<button class="btn sm" data-act="goto-recontact">See who</button>' : '') + '</div>';
+  }
+
+  function contactLine(label, val, href) {
+    if (!val) return '<div class="rc-c"><span class="muted">' + label + ': not set. Add in Settings.</span></div>';
+    return '<div class="rc-c"><span class="muted">' + label + '</span> <a class="rc-val" href="' + esc(href + val) + '">' + esc(val) + '</a>' +
+      '<button class="btn sm" data-act="copy" data-text="' + esc(val) + '">Copy</button></div>';
+  }
+
+  function recontactHtml(t) {
+    var list = recontacts(t);
+    if (!list.length) return '';
+    return '<div class="panel rc-list" id="recontact"><h3>Vendors to re-contact</h3>' + list.map(function (x) {
+      var vendor = x.cancel ? x.m.vendor : x.s.vendor, c = contactOf(vendor);
+      var what = x.cancel ? 'Cancel ' + x.m.label + ' (was ' + E.fmt(x.m.before) + ')'
+        : x.s.label + ': ' + (x.m ? E.fmt(x.m.before) + ' → ' : 'new date ') + E.fmt(x.s.start) + (x.s.time ? ', ' + E.fmtTime(x.s.time) : '');
+      return '<div class="rc"><div class="rc-h"><b>' + esc(vendor || 'No vendor set') + '</b><span>' + esc(what) + '</span></div>' +
+        contactLine('Phone', c.phone, 'tel:') + contactLine('Email', c.email, 'mailto:') +
+        '<div class="row">' + (x.cancel ? '<button class="btn sm primary" data-act="rc-cancelled" data-mi="' + x.mi + '">✓ Cancelled with vendor</button>'
+          : '<button class="btn sm primary" data-act="message" data-i="' + x.i + '">✉ Message with new date</button><button class="btn sm" data-act="status" data-v="booked" data-i="' + x.i + '">✓ Confirmed new date</button>') + '</div></div>';
+    }).join('') + '</div>';
   }
 
   function propLabel(p) { return p.canonical_address + (p.af_account && p.af_account !== '11' ? ' (' + p.af_account + ')' : ''); }
@@ -755,11 +1112,15 @@
     call('apiUnits', pid).then(function (rows) { S.units[pid] = rows; render(); }, function (e) { unitLoading[pid] = false; toast('Could not load units: ' + e.message, true); });
   }
 
-  function isCookieCutter(addr) {
-    // Match on house number + street name only ("90 Wealthy Street SE," = "90 Wealthy St SE").
-    var key = function (s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 2).join(' '); };
-    var a = key(addr);
-    return !!a && (S.settings.cookieCutter || []).some(function (c) { return key(c) === a; });
+  // Match on house number + street name only ("90 Wealthy Street SE," = "90 Wealthy St SE").
+  function addrKey(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 2).join(' '); }
+  function inAddrList(addr, list) { var a = addrKey(addr); return !!a && (list || []).some(function (c) { return addrKey(c) === a; }); }
+  function isCookieCutter(addr) { return inAddrList(addr, S.settings.cookieCutter); }
+  function isBillProperty(addr) { return inAddrList(addr, S.settings.billProperties || DEFAULT_SETTINGS.billProperties); }
+  /** At Bill's properties a new / reset Tech step goes to Bill (Spencer's own vendor edits win). */
+  function billTech(t) {
+    if (!isBillProperty(t.property_label)) return;
+    t.steps.forEach(function (s) { if (s.key === 'tech' && s.status === 'open' && !s.vendorEdited) s.vendor = 'Bill'; });
   }
 
   function markDirty() { S.formDirty = true; var el = $('#dirty'); if (el) el.textContent = 'Unsaved changes'; }
@@ -773,7 +1134,7 @@
         var p = (S.props || []).filter(function (x) { return propLabel(x) === val; })[0];
         d.property = p ? { id: p.property_id, label: p.canonical_address } : { id: null, label: val };
         d.unit = null;
-        if (p) d.walk_type = isCookieCutter(p.canonical_address) ? FORMS.scope.sections[0].fields[2].options[0] : FORMS.scope.sections[0].fields[2].options[1];
+        if (p) d.walk_type = isBillProperty(p.canonical_address) ? WALK[1] : isCookieCutter(p.canonical_address) ? WALK[0] : WALK[2];
         rerender = true;
       } else if (id === 'unit') {
         var units = S.units[d.property && d.property.id] || [];
@@ -792,10 +1153,24 @@
       var row = d[el.dataset.list][+el.dataset.ri];
       row[el.dataset.col] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
     } else if (el.dataset.cin) {
-      d.checklist[el.dataset.room][el.dataset.ii].note = el.value;
+      d.checklist = d.checklist || {};
+      var croom = d.checklist[el.dataset.room] = d.checklist[el.dataset.room] || {};
+      (croom[el.dataset.ii] = croom[el.dataset.ii] || {}).note = el.value;
+    } else if (el.dataset.tm) {
+      d.pmi_timer = d.pmi_timer || {};
+      if (el.value) d.pmi_timer[el.dataset.tm] = new Date(el.value).toISOString();
+      var tot = $('#pmi-total'); if (tot) tot.textContent = timerHours(d.pmi_timer);
+    } else if (el.dataset.mc) {
+      var mc = d.changes[+el.dataset.mc], col = el.dataset.col;
+      mc[col] = col === 'hours' ? (el.value === '' ? null : Number(el.value)) : el.value;
+      if (col === 'type') { mc.trade = ''; mc.size = ''; }
+      if (col === 'trade') { var mcat = catBy(mc.trade); mc.size = mc.type === 'add' && mcat ? mcat.sizes[0].id : ''; }
+      // Text boxes only repaint the preview: a full re-render on blur would swallow the next tap.
+      if (el.tagName === 'SELECT') rerender = true; else paintImpact();
     } else if (el.dataset.nc) {
       d.nc_review = d.nc_review || {};
       d.nc_review[el.dataset.nc] = { r: el.value };
+      rerender = true;
     } else return;
     markDirty();
     if (rerender) render();
@@ -808,19 +1183,41 @@
       var v = d[f.id];
       if (f.type === 'property' ? !(v && v.id) : (v == null || v === '')) miss.push(f.label);
     }); });
+    if (key === 'moveout') miss = !d.submitted_at || d.scope_matches ? moveOutGate(d) : []; // old submitted checks keep re-saving as before
     return miss;
+  }
+
+  /** Move-out submit gate (AC 10). Each entry says what to do. */
+  function moveOutGate(d) {
+    var t = cur(), out = [];
+    if (!d.scope_matches) out.push('Scope check: answer "Does the scope still match the PMI?"');
+    if (d.scope_matches === 'No') {
+      var ch = d.changes || [];
+      if (!ch.length) out.push('Scope check: add at least one change (or answer Yes)');
+      ch.forEach(function (c, i) { if (!changeComplete(c)) out.push('Scope check: finish change ' + (i + 1)); });
+      if (ch.length && !(d.impact && d.impact.applied_at)) out.push('Scope check: tap "Apply to schedule"');
+    }
+    var left = ncItems(t).filter(function (x) { return !((d.nc_review || {})[x.key] || {}).r; }).length;
+    if (left) out.push('Not checked at the PMI: answer ' + left + ' item' + (left === 1 ? '' : 's'));
+    if (!d.keys_received) out.push('Plan check: tick Keys received');
+    return out;
   }
 
   function submitForm(final) {
     var key = S.formKey.split(':')[0], d = S.form;
     if (key === 'scope-new') key = 'scope';
+    var t = S.view === 'new' ? null : cur();
     if (final) {
       var miss = validate(key, d);
-      if (miss.length) { toast('Still needed: ' + miss.join(', '), true); return; }
+      S.gate = key === 'moveout' && miss.length ? miss : null;
+      if (miss.length) { toast(key === 'moveout' ? 'Not submitted: ' + miss.length + ' thing' + (miss.length === 1 ? '' : 's') + ' missing (listed above the buttons)' : 'Still needed: ' + miss.join(', '), true); if (S.gate) render(); return; }
+      if ((key === 'scope' || key === 'techprep') && ownsTimer(key, d, t) && endsWalk(key, d, t) && timerRunning(d.pmi_timer)) {
+        d.pmi_timer.end = new Date().toISOString();
+        lsSet(timerKey(), null);
+      }
     }
     if (S.view === 'new') return createTurn(d);
-    var t = cur();
-    var before = t.rent_ready_date, doneMsg = '';
+    var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false;
     if (key === 'scope') {
       pushUndo(t);
       t.scope = clone(d);
@@ -828,7 +1225,10 @@
       t.unit_id = d.unit ? d.unit.id : null; t.unit_label = d.unit ? d.unit.label : null;
       t.af_wo_number = d.af_wo || null; t.move_out_date = d.move_out_date || null; t.move_in_date = d.move_in_date || null;
       t.steps = E.mergeScope(t.steps, t.scope, cat(), techHours(t));
+      billTech(t);
+      moveTimerToTechPrep(t);
     } else if (key === 'techprep') {
+      firstTechSubmit = final && !d.submitted_at && !d.email_sent_at;
       if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
       t.tech_prep = clone(d);
       var h = Number(d.tech_hours) || 0;
@@ -839,6 +1239,7 @@
           tech = E.makeStep(catBy('tech'), 'basic', '');
           insertInOrder(t, tech);
           t.scope.trades = t.scope.trades || {}; t.scope.trades.tech = { size: 'basic', note: '' };
+          billTech(t);
         }
         if (!tech.hoursEdited) { E.applyTechHours(tech, h); doneMsg = 'Submitted. Tech step set to ' + h + ' hours.'; }
       }
@@ -846,12 +1247,13 @@
       if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
       t.move_out_check = clone(d);
     }
-    S.formDirty = false; S.formKey = null;
+    S.formDirty = false; S.formKey = null; S.gate = null;
     recompute(t);
     saveNow(t).then(function () {
       toast(doneMsg || (key === 'scope' ? 'Scope saved, schedule updated' : final ? 'Submitted' : 'Draft saved'));
       if (key === 'scope') { S.tab = 'schedule'; }
       render(); flashRR(before, t);
+      if (firstTechSubmit) sendTechPrepEmail(t); // only the FIRST final submit sends; Resend is on purpose
     }, function () {});
   }
 
@@ -871,9 +1273,14 @@
     };
     t.scope.submitted_at = new Date().toISOString();
     t.steps = E.stepsFromScope(t.scope, cat(), 0);
+    billTech(t);
+    moveTimerToTechPrep(t);
     prepTurn(t);
     var btn = $('[data-act="form-submit"]'); if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
     saveNow(t).then(function (saved) {
+      var tm = pmiTimerOf(t);
+      lsSet('p03timer:new', null);
+      if (timerRunning(tm)) lsSet('p03timer:' + saved.id, tm.start); // Spencer-alone walk keeps running into Tech Prep
       S.turns.push(saved);
       S.formDirty = false; S.form = null; S.formKey = null;
       toast('Turn created. Here is the recommended schedule.');
@@ -887,6 +1294,7 @@
     if (!setDraft) setDraft = clone(S.settings);
     var vendors = {};
     setDraft.catalog.forEach(function (c) { if (c.vendor) vendors[c.vendor] = 1; c.sizes.forEach(function (z) { if (z.vendor) vendors[z.vendor] = 1; }); });
+    Object.keys(DEFAULT_SETTINGS.contacts).forEach(function (v) { vendors[v] = 1; }); // includes Bill
     var h = '<div class="page-head"><h1>Settings</h1><div class="sub">Durations, vendors and the message template. Changes apply to new schedules and the Recommended button.</div></div>';
     h += '<div class="sec"><h3>Trades + durations</h3><div class="help">Business days. Hours = time on site that day. Cure = no-entry days after the step.</div>' +
       setDraft.catalog.map(function (c, ci) {
@@ -899,15 +1307,17 @@
             return '<tr>' + inp('label') + inp('days', 1) + inp('hours', 1) + inp('cure', 1) + inp('vendor') + '</tr>';
           }).join('') + '</table></div></div>';
       }).join('') + '</div>';
-    h += '<div class="sec"><h3>Vendor contacts</h3><div class="help">Optional. Adds Text and Email buttons to the vendor message.</div><table class="list-t"><tr><th>Vendor</th><th>Phone</th><th>Email</th></tr>' +
+    h += '<div class="sec"><h3>Vendor contacts</h3><div class="help">Adds Text and Email buttons to the vendor message, and fills the re-contact list when a schedule changes. Grey text = the built-in default (used when the box is empty).</div><table class="list-t"><tr><th>Vendor</th><th>Phone</th><th>Email</th></tr>' +
       Object.keys(vendors).sort().map(function (v) {
-        var c = setDraft.contacts[v] || {};
-        return '<tr><td><b>' + esc(v) + '</b></td><td><input type="text" data-set="phone" data-v="' + esc(v) + '" value="' + esc(c.phone || '') + '"></td><td><input type="text" data-set="email" data-v="' + esc(v) + '" value="' + esc(c.email || '') + '"></td></tr>';
+        var c = setDraft.contacts[v] || {}, df = DEFAULT_SETTINGS.contacts[v] || {};
+        return '<tr><td><b>' + esc(v) + '</b></td><td><input type="text" data-set="phone" data-v="' + esc(v) + '" value="' + esc(c.phone || '') + '" placeholder="' + esc(df.phone || '') + '"></td><td><input type="text" data-set="email" data-v="' + esc(v) + '" value="' + esc(c.email || '') + '" placeholder="' + esc(df.email || '') + '"></td></tr>';
       }).join('') + '</table></div>';
     h += '<div class="sec"><h3>Vendor message template</h3><div class="help">Placeholders: {vendor} {trade} {address} {unit} {date} {time} {length} {scope} {access}. A line whose placeholders are all empty is left out.</div>' +
       '<div class="fields"><label class="f"><textarea rows="7" data-set="template">' + esc(setDraft.template) + '</textarea></label></div></div>';
     h += '<div class="sec"><h3>Cookie-cutter properties</h3><div class="help">One address per line. These default to "Spencer alone" on the scope form.</div>' +
       '<div class="fields"><label class="f"><textarea rows="8" data-set="cookie">' + esc((setDraft.cookieCutter || []).join('\n')) + '</textarea></label></div></div>';
+    h += '<div class="sec"><h3>Bill\'s properties</h3><div class="help">One address per line. Spencer walks these alone, Bill does the tech work (Tech step vendor = Bill, Tech Prep email goes to Bill). Checked before the cookie-cutter list.</div>' +
+      '<div class="fields"><label class="f"><textarea rows="6" data-set="bill">' + esc((setDraft.billProperties || DEFAULT_SETTINGS.billProperties).join('\n')) + '</textarea></label></div></div>';
     h += '<div class="form-foot"><button class="btn primary" data-act="settings-save">Save settings</button><button class="btn ghost" data-act="settings-reset">Reset to defaults</button></div>';
     return h;
   }
@@ -922,6 +1332,7 @@
     } else if (k === 'phone' || k === 'email') { var c = setDraft.contacts[el.dataset.v] = setDraft.contacts[el.dataset.v] || {}; c[k] = v.trim(); }
     else if (k === 'template') setDraft.template = v;
     else if (k === 'cookie') setDraft.cookieCutter = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    else if (k === 'bill') setDraft.billProperties = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
   }
 
   // ---------- events ----------
@@ -966,10 +1377,48 @@
     if (a === 'ci') {
       var cl = S.form.checklist = S.form.checklist || {}; var room = cl[el.dataset.room] = cl[el.dataset.room] || {};
       var it = room[el.dataset.ii] = room[el.dataset.ii] || {};
-      it.s = it.s === el.dataset.v ? null : el.dataset.v; markDirty(); render(); return;
+      it.s = it.s === el.dataset.v ? null : el.dataset.v;
+      if (it.s !== 'fix') delete it.charge; // charge only applies to Fix lines
+      markDirty(); render(); return;
+    }
+    if (a === 'ci-charge') {
+      var crow = S.form.checklist[el.dataset.room][el.dataset.ii]; crow.charge = !crow.charge; markDirty(); render(); return;
+    }
+    if (a === 'ci-note') {
+      var nk = el.dataset.room + ':' + el.dataset.ii; S.noteOpen[nk] = !S.noteOpen[nk]; render();
+      var ni = document.querySelector('[data-fid="cin-' + el.dataset.room + '-' + el.dataset.ii + '"]'); if (ni) ni.focus();
+      return;
+    }
+    if (a === 'timer-start') { startTimer(); return; }
+    if (a === 'copy') {
+      copyText(el.dataset.text).then(function (ok) {
+        if (ok) { toast('Copied ' + el.dataset.text); return; }
+        var sp = el.parentNode.querySelector('.rc-val'); // fallback: select the text so a long-press copies it
+        if (sp) { var rg = document.createRange(); rg.selectNodeContents(sp); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg); }
+        toast('Copy blocked. The text is selected: copy it by hand.', true);
+      });
+      return;
     }
     if (a === 'copy-msg') { copyText($('#msgtext').value).then(function (ok) { if (ok) toast('Copied. Paste it into a text or email.'); else { $('#msgtext').select(); toast('Press Ctrl/Cmd+C to copy', true); } }); return; }
     if (!t) return;
+    if (a === 'resend-email') {
+      if (S.formDirty) { toast('Save your changes first, then resend.', true); return; }
+      if (confirm('Send the Tech Prep email again?')) sendTechPrepEmail(t);
+      return;
+    }
+    if (a === 'mc-add') { e.preventDefault(); (S.form.changes = S.form.changes || []).push({ type: '', trade: '', size: '', note: '', hours: null }); markDirty(); render(); return; }
+    if (a === 'mc-del') { e.preventDefault(); S.form.changes.splice(+el.dataset.ri, 1); markDirty(); render(); return; }
+    if (a === 'apply-changes') { applyMoveOutChanges(); return; }
+    if (a === 'rc-cancelled') {
+      var mm = t.move_out_check.impact.moved[+el.dataset.mi]; mm.cleared = true;
+      if (S.form && S.formKey === 'moveout:' + t.id && S.form.impact) S.form.impact.moved[+el.dataset.mi].cleared = true;
+      queueSave(t); render(); toast(mm.label + ' cancellation noted'); return;
+    }
+    if (a === 'goto-recontact') {
+      if (S.tab !== 'schedule') { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = 'schedule'; render(); }
+      var rcl = $('#recontact'); if (rcl) rcl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (a === 'msg-booked') { pushUndo(t); t.steps[i].status = 'booked'; t.steps[i].confirmedAt = new Date().toISOString(); closeModal(); queueSave(t); render(); toast(t.steps[i].label + ' marked confirmed'); return; }
     if (a === 'message') { openMessage(t, i); return; }
     if (a === 'bar') { openBar(t, i); return; }
@@ -1007,7 +1456,7 @@
     } else if (a === 'add-step') {
       var c = catBy(el.dataset.k);
       var st = E.makeStep(c, (S.settings.defaults || {})[c.key] || c.sizes[0].id, '');
-      insertInOrder(t, st); syncTrade(t, st);
+      insertInOrder(t, st); syncTrade(t, st); billTech(t);
     } else { S.undo.pop(); return; }
     queueSave(t); render(); flashRR(before, t);
   }
@@ -1021,7 +1470,8 @@
   });
   document.addEventListener('input', function (e) {
     var el = e.target;
-    if (el.dataset.fp || el.dataset.list || el.dataset.cin || (el.dataset.trade && el.dataset.tf === 'note')) markDirty();
+    if (el.dataset.mc && el.dataset.col === 'hours') { formChange(el); return; } // live preview while typing hours
+    if (el.dataset.fp || el.dataset.list || el.dataset.cin || el.dataset.mc || el.dataset.tm || (el.dataset.trade && el.dataset.tf === 'note')) markDirty();
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
 

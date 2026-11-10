@@ -114,4 +114,78 @@ t('vendor message drops empty lines', () => {
   console.log('\n' + m + '\n');
 });
 
+// ---------- move-out scope changes (P4) ----------
+function baseSchedule() {
+  // Fri 11/20 move-out: tech Mon 11/23, paint Tue 11/24, clean Wed 11/25
+  const steps = E.stepsFromScope(scope({ tech: { size: 'basic' }, paint: { size: 'full' }, clean: { size: 'std' } }), cat, 0);
+  return E.layout(steps, '2026-11-20', cat).steps;
+}
+const dates = steps => Object.fromEntries(steps.map(s => [s.key, s.start + '..' + s.end]));
+
+t('move-out rebuild starts the next business day after move-out', () => {
+  const r = E.applyChanges(baseSchedule(), [], cat, '2026-11-20');
+  assert.equal(r.firstBuildDay, '2026-11-23');
+  assert.equal(r.steps[0].start, '2026-11-23');
+  const r2 = E.applyChanges(baseSchedule(), [], cat, '2026-11-25'); // Wed before Thanksgiving
+  assert.equal(r2.steps[0].start, '2026-11-27');
+});
+
+t('added trade shifts later steps; old list untouched', () => {
+  const before = baseSchedule();
+  const r = E.applyChanges(before, [{ type: 'add', trade: 'drywall', size: 'small' }], cat, '2026-11-20');
+  assert.deepEqual(r.steps.map(s => s.key), ['drywall', 'tech', 'paint', 'clean']);
+  assert.equal(dates(r.steps).drywall, '2026-11-23..2026-11-24');
+  assert.equal(dates(r.steps).tech, '2026-11-25..2026-11-25');
+  assert.equal(dates(r.steps).clean, '2026-11-30..2026-11-30'); // skips Thanksgiving + weekend
+  assert.equal(before[0].start, '2026-11-23');                    // input not mutated
+  assert.equal(E.bizDiff('2026-11-25', r.rentReady), 2);           // Wed 11/25 -> Mon 11/30 (Thanksgiving off)
+});
+
+t('removed trade pulls later steps forward', () => {
+  const r = E.applyChanges(baseSchedule(), [{ type: 'remove', trade: 'tech' }], cat, '2026-11-20');
+  assert.deepEqual(r.steps.map(s => s.key), ['paint', 'clean']);
+  assert.equal(r.steps[0].start, '2026-11-23');
+  assert.equal(r.rentReady, '2026-11-24');
+});
+
+t('resize + new tech item hours lengthen steps; vendor item has no effect', () => {
+  const r = E.applyChanges(baseSchedule(), [{ type: 'resize', trade: 'clean', size: 'heavy' },
+    { type: 'tech', note: 'Replace 3 blinds', hours: 3 }, { type: 'vendor', note: 'HVAC service' }], cat, '2026-11-20');
+  const by = Object.fromEntries(r.steps.map(s => [s.key, s]));
+  assert.equal(by.tech.hours, 11); assert.equal(by.tech.days, 2);
+  assert.equal(by.clean.days, 2);
+  assert.equal(dates(r.steps).paint, '2026-11-25..2026-11-25');
+  assert.equal(r.rentReady, '2026-11-30');
+  const r2 = E.applyChanges(baseSchedule(), [{ type: 'vendor', note: 'HVAC' }], cat, '2026-11-20');
+  assert.equal(r2.rentReady, '2026-11-25');
+});
+
+t('confirmed-moved detection (diffSteps) + pinned clash is released', () => {
+  const before = baseSchedule();
+  before[1].status = 'booked';                                     // paint confirmed Tue 11/24
+  before[2].status = 'booked'; before[2].pinned = true; before[2].start = '2026-12-01'; // clean confirmed, pinned later
+  E.layout(before, '2026-11-20', cat);
+  let r = E.applyChanges(before, [{ type: 'add', trade: 'flooring', size: 'lvp' }], cat, '2026-11-20');
+  let d = E.diffSteps(before, r.steps);
+  assert.deepEqual(d.added.map(x => x.key), ['flooring']);
+  assert.deepEqual(d.moved.map(x => [x.key, x.before, x.after, x.was_confirmed]),
+    [['tech', '2026-11-23', '2026-11-24', false], ['paint', '2026-11-24', '2026-11-25', true]]);
+  assert.equal(r.steps[3].start, '2026-12-01');                    // pin later than needed: kept, not moved
+  // big add pushes past the pin: pin is released and shows as moved
+  r = E.applyChanges(before, [{ type: 'add', trade: 'flooring', size: 'hardwood' }, { type: 'add', trade: 'drywall', size: 'large' }], cat, '2026-11-20');
+  d = E.diffSteps(before, r.steps);
+  const clean = d.moved.filter(x => x.key === 'clean')[0];
+  assert.ok(clean && clean.was_confirmed && clean.after > '2026-12-01');
+  assert.equal(r.steps.filter(s => s.key === 'clean')[0].pinned, false);
+  // removed confirmed step -> removed with after null
+  r = E.applyChanges(before, [{ type: 'remove', trade: 'paint' }], cat, '2026-11-20');
+  d = E.diffSteps(before, r.steps);
+  assert.deepEqual(d.removed.map(x => [x.key, x.after, x.was_confirmed]), [['paint', null, true]]);
+});
+
+t("progress does not count 'resched' as done or confirmed", () => {
+  const p = E.progress([{ status: 'done' }, { status: 'resched' }, { status: 'booked' }, { status: 'open' }]);
+  assert.deepEqual([p.done, p.booked, p.total, p.pct], [1, 1, 4, 38]);
+});
+
 console.log(n + ' tests passed');

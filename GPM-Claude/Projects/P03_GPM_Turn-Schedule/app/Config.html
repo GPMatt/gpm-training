@@ -36,10 +36,22 @@ var DEFAULT_SETTINGS = {
       sizes: [{ id: 'std', label: 'Standard', days: 1 }] }
   ],
   defaults: { tech: 'basic', paint: 'full', clean: 'std' },
-  contacts: {}, // vendor name -> {phone, email}; Spencer fills these in Settings
+  // vendor name -> {phone, email}; Spencer fills these in Settings. These defaults fill any blank
+  // field (saved settings never hide them). Vendors not listed here show "Add in Settings".
+  contacts: {
+    'Surface Tech': { email: 'surfacetechs1@hotmail.com' },
+    'Grand River Plumbing': { email: 'emails.grp@gmail.com' },
+    'Eastpointe Interiors': { phone: '616-272-7120', email: 'apartmentorders@eastpointeinteriors.com' },
+    'Matt Luschas': { email: 'mattjluschas@gmail.com' },
+    'Riley': { email: 'riley@greenpropertymgt.com' },
+    'Bill': { email: 'bill@greenpropertymgt.com' }
+  },
   // Matt 2026-11-06: the ONLY properties Spencer walks alone. Everything else = Riley walk.
   cookieCutter: ['900 Leonard St NW', '90 Wealthy St SE', '5943 8th Ave', '1960 Burton St SE',
     '100 Commerce Ave SW', '730 Leonard St NW', '445 Knapp St NE'],
+  // Matt 2026-11-09: Bill (on-site tech, never inspects) does the tech work here; Spencer walks alone.
+  // Pinery Woods, Oak Valley, Woods Edge, Taft, Havana.
+  billProperties: ['2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW', '2860 Taft Ave SW', '3608 Havana Ave SW'],
   template: 'Hi {vendor}, this is Spencer with Green Property Management.\n' +
     'Can you do {trade} at {address} {unit} on {date}, starting {time}? Plan on {length}.\n' +
     'Scope: {scope}\n' +
@@ -66,7 +78,7 @@ var FORMS = {
       { title: 'Unit', fields: [
         { id: 'property', type: 'property', label: 'Property', required: true },
         { id: 'unit', type: 'unit', label: 'Unit' },
-        { id: 'walk_type', type: 'select', label: 'Walk type', options: ['Cookie cutter (Spencer alone)', 'Riley walk (Spencer + Riley)'] },
+        { id: 'walk_type', type: 'select', label: 'Walk type', options: ['Cookie cutter (Spencer alone)', "Bill's property (Spencer alone)", 'Riley walk (Spencer + Riley)'] },
         { id: 'af_wo', type: 'text', label: 'Unit Turn WO # (AppFolio)', placeholder: 'e.g. 18171-1' },
         { id: 'pmi_date', type: 'date', label: 'PMI date', half: true },
         { id: 'pmi_time', type: 'time', label: 'PMI time', half: true },
@@ -104,7 +116,7 @@ var FORMS = {
   },
   techprep: {
     title: 'PMI Tech Prep',
-    who: 'Riley (Spencer fills it at cookie-cutter properties). Goes to Jason for parts.',
+    who: 'The tech (Riley). Spencer fills it when he walks alone (cookie-cutter and Bill\'s properties). Goes to Jason for parts.',
     sections: [
       { title: 'Walk', fields: [
         { id: 'done_by', type: 'select', label: 'Filled by', options: ['Riley', 'Spencer', 'Other tech'], half: true },
@@ -114,7 +126,7 @@ var FORMS = {
         { id: 'bedrooms', type: 'select', label: 'Bedrooms', options: ['0', '1', '2', '3', '4'], half: true },
         { id: 'bathrooms', type: 'select', label: 'Bathrooms', options: ['1', '2'], half: true }
       ]},
-      { title: 'Fix list', help: 'Jason\'s TURN checklist 2026, room by room. Tap each item: OK, Fix (repair needed / missing / replace), Not checked (blocked while occupied), or N/A (unit does not have it). Not-checked items show on Spencer\'s move-out check.', fields: [
+      { title: 'Fix list', help: 'Jason\'s TURN checklist 2026, room by room. Tap each item: OK, Fix (repair needed / missing / replace), Not checked (blocked while occupied), or N/A (unit does not have it). Tap the pencil to add a note to any line. Tag a Fix line Charge tenant when the tenant pays. Not-checked items show on Spencer\'s move-out check.', fields: [
         { id: 'checklist', type: 'checklist' },
         { id: 'furnace_filter_size', type: 'text', label: 'Furnace filter size (also add it to "Furnace Filter Sizes" in Drive)', placeholder: 'e.g. 16x25x1' }
       ]},
@@ -134,7 +146,8 @@ var FORMS = {
         { id: 'keys_entry', type: 'number', label: '# entry keys left in unit', half: true },
         { id: 'keys_mailbox', type: 'number', label: '# mailbox keys left in unit', half: true },
         { id: 'remotes_garage', type: 'number', label: '# garage remotes left (1 per door)', half: true },
-        { id: 'keys_other', type: 'text', label: 'Other keys / fobs', half: true }
+        { id: 'keys_other', type: 'text', label: 'Other keys / fobs', half: true },
+        { id: 'keys_charge', type: 'checkbox', label: 'Charge tenant for missing keys / remotes' }
       ]},
       { title: 'Other', fields: [
         { id: 'left_behind', type: 'textarea', label: 'Items left behind' },
@@ -145,21 +158,20 @@ var FORMS = {
   },
   moveout: {
     title: 'Move-out / Deposit Check',
-    who: 'Spencer alone, on move-out day. Record exceptions only.',
+    who: 'Spencer alone, on move-out day. Required to submit: the scope check, every not-checked item, and Keys received.',
     sections: [
-      { title: 'Plan check', help: 'Look over the plan. Only record what is wrong or missing.', fields: [
+      { title: 'Plan check', help: 'Look over the plan.', fields: [
         { id: 'plan_summary', type: 'plansummary' },
         { id: 'done_date', type: 'date', label: 'Date', half: true },
         { id: 'keys_received', type: 'checkbox', label: 'Keys received', half: true }
       ]},
-      { title: 'Riley could not check these', fields: [
+      { title: 'Not checked at the PMI', fields: [
         { id: 'nc_review', type: 'ncreview' }
       ]},
-      { title: 'Exceptions', help: 'Scope corrections, missed items, and new small fixes for the tech list. Change the schedule on the Schedule tab.', fields: [
-        { id: 'exceptions', type: 'list', label: 'Exception', columns: [
-          { id: 'type', type: 'select', label: 'Type', options: ['Scope correction', 'Missed item', 'New tech item'] },
-          { id: 'trade', type: 'tradeselect', label: 'Trade' },
-          { id: 'note', type: 'text', label: 'What' }] }
+      { title: 'Scope check', help: 'If the unit needs something the PMI scope missed, add a change. The new schedule starts the next business day after move-out. Check the preview, then Apply.', fields: [
+        { id: 'scope_matches', type: 'select', label: 'Does the scope still match the PMI?', options: ['Yes', 'No'], required: true },
+        { id: 'changes', type: 'changes', showIf: 'scope_matches=No' },
+        { id: 'exceptions', type: 'oldexceptions' }
       ]},
       { title: 'Rent ready', fields: [
         { id: 'rr_holds', type: 'select', label: 'Does the rent-ready date still hold?', options: ['Yes', 'No'] },
