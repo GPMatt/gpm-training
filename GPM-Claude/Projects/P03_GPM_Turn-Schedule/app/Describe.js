@@ -21,19 +21,41 @@ var REQUIRED_ENTRY_KEYS = 2;
 // Same matcher as isCookieCutter() in App.html: house number + street name only.
 function addrKey_(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 2).join(' '); }
 
-function isBillProperty(addr, settings) {
-  var list = (settings && settings.billProperties) || DEFAULT_BILL_PROPERTIES;
+/**
+ * R4.2: the tech assigned to a property, from settings.techProperties = [{tech, email, walks, addresses}].
+ * Without techProperties: defaults (Bill + Wesley), Bill's addresses from old settings.billProperties if present.
+ */
+function techForProperty(addr, settings) {
+  var list = settings && settings.techProperties;
+  if (!list) list = [
+    { tech: 'Bill', email: 'bill@greenpropertymgt.com', walks: false, addresses: (settings && settings.billProperties) || DEFAULT_BILL_PROPERTIES },
+    { tech: 'Wesley', email: 'wesley@greenpropertymgt.com', walks: true, addresses: ['547 Cherry St SE'] }
+  ];
   var a = addrKey_(addr);
-  return !!a && list.some(function (c) { return addrKey_(c) === a; });
+  if (!a) return null;
+  return list.filter(function (t) { return t && hasVal_(t.email) && (t.addresses || []).some(function (c) { return addrKey_(c) === a; }); })[0] || null;
 }
 
-/** Real recipients, or (when testTo is set) only testTo plus a note naming the real ones. */
-function techPrepRecipients(turn, settings, testTo) {
-  var to = ['spencer@greenpropertymgt.com', isBillProperty(turn.property_label, settings) ? 'bill@greenpropertymgt.com' : 'riley@greenpropertymgt.com'];
-  var cc = ['jason@greenpropertymgt.com'];
+/** Wraps real recipients for the EMAIL_TEST_TO switch: only testTo, no cc, plus a note naming the real ones. */
+function applyTestTo_(to, cc, testTo) {
   testTo = String(testTo || '').trim();
   if (!testTo) return { to: to, cc: cc, testNote: '' };
-  return { to: [testTo], cc: [], testNote: 'TEST: real recipients would be To: ' + to.join(', ') + '; Cc: ' + cc.join(', ') };
+  return { to: [testTo], cc: [], testNote: 'TEST: real recipients would be To: ' + to.join(', ') + (cc.length ? '; Cc: ' + cc.join(', ') : '') };
+}
+
+/** Real recipients, or (when testTo is set) only testTo plus a note naming the real ones. Used by every turn email. */
+function techPrepRecipients(turn, settings, testTo) {
+  var tech = techForProperty(turn.property_label, settings);
+  var to = ['spencer@greenpropertymgt.com', tech ? String(tech.email).trim().toLowerCase() : 'riley@greenpropertymgt.com'];
+  return applyTestTo_(to, ['jason@greenpropertymgt.com'], testTo);
+}
+
+/** EMAIL_TEST_TO cleanup: strips whitespace + trailing punctuation; '' = off; throws when not an email. */
+function cleanTestTo(v) {
+  var s = String(v || '').replace(/\s+/g, '').replace(/[.,;:!?'")\]>]+$/, '').replace(/^[<'"(\[]+/, '');
+  if (!s) return '';
+  if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(s)) throw new Error('EMAIL_TEST_TO is not a valid email: ' + v);
+  return s.toLowerCase();
 }
 
 // Same as roomInstances() in App.html.
@@ -131,7 +153,16 @@ function describeTechPrep(turn, rooms, settings) {
     return '- ' + (hasVal_(p.qty) ? p.qty + ' x ' : '') + String(p.item).trim() + (hasVal_(p.store) ? ' (' + p.store + ')' : '');
   });
   if (hasVal_(tp.rekey_parts) && (tp.rekey === 'Re-key' || tp.rekey === 'Replace')) parts.push('- Lock parts: ' + String(tp.rekey_parts).trim());
-  if (hasVal_(tp.blinds_count) || hasVal_(tp.blinds_sizes)) parts.push('- Blinds to replace: ' + (hasVal_(tp.blinds_count) ? tp.blinds_count : '?') + (hasVal_(tp.blinds_sizes) ? ' (sizes: ' + String(tp.blinds_sizes).trim() + ')' : ''));
+  var blinds = (tp.blinds || []).filter(function (b) { return b && (hasVal_(b.room) || hasVal_(b.window) || hasVal_(b.size)); });
+  if (blinds.length) {
+    var roomLabel = {};
+    instances.forEach(function (r) { roomLabel[r.id] = r.label; });
+    parts.push('- Blinds to replace: ' + blinds.length);
+    blinds.forEach(function (b) {
+      var where = [hasVal_(b.room) ? roomLabel[b.room] || String(b.room).trim() : '', hasVal_(b.window) ? String(b.window).trim() : ''].filter(Boolean).join(', ');
+      parts.push('  - ' + where + (where && hasVal_(b.size) ? ': ' : '') + (hasVal_(b.size) ? String(b.size).trim() : ''));
+    });
+  } else if (hasVal_(tp.blinds_count) || hasVal_(tp.blinds_sizes)) parts.push('- Blinds to replace: ' + (hasVal_(tp.blinds_count) ? tp.blinds_count : '?') + (hasVal_(tp.blinds_sizes) ? ' (sizes: ' + String(tp.blinds_sizes).trim() + ')' : ''));
   if (hasVal_(tp.furnace_filter_size)) parts.push('- Furnace filter size: ' + String(tp.furnace_filter_size).trim());
   if (parts.length) below.push('Parts to order:\n' + parts.join('\n'));
   if (notChecked.length) below.push('Not checked at the PMI:\n' + notChecked.join('\n'));
@@ -209,9 +240,9 @@ function changeLine_(c, catalog) {
   return '- ' + line + (note ? ' - ' + note : '');
 }
 
-function movedLine_(m) {
-  // The Tech step's vendor is a person: never name them in the body.
-  var vendor = m.key === 'tech' || /riley/i.test(m.vendor || '') ? '' : String(m.vendor || '').trim();
+function movedLine_(m, named) {
+  // The Tech step's vendor is a person: never name them in Spencer's emails. named === true (Matt's review) shows it.
+  var vendor = named !== true && (m.key === 'tech' || /riley/i.test(m.vendor || '')) ? '' : String(m.vendor || '').trim();
   return '- ' + m.label + (vendor ? ' - ' + vendor : '') + ': ' + fmtDay_(m.before) + ' -> ' + (m.after === null ? 'removed' : fmtDay_(m.after));
 }
 
@@ -274,4 +305,109 @@ function buildMoveOutAlertMail(turn, settings, testTo) {
   var r = techPrepRecipients(turn, settings, testTo);
   var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+}
+
+// ---------- R4.5 Conflict review email to Matt (sent by apiSendMoveOutEmail + apiSendMoveOutAlert) ----------
+
+var STATUS_LABEL_SERVER = { open: 'Not booked', booked: 'Confirmed', done: 'Done', resched: 'Reschedule' };
+var REVIEW_WINDOW_BIZ_DAYS = 15;
+
+function placeOf_(t) { return [t.property_label, t.unit_label].filter(hasVal_).join(' '); }
+
+function withinBiz_(a, b, n) {
+  if (!hasVal_(a) || !hasVal_(b)) return false;
+  if (Math.abs(parseUtc_(a) - parseUtc_(b)) > 40 * 86400000) return false; // 15 business days < 40 calendar days
+  return Math.abs(bizDiffServer_(a, b)) <= n;
+}
+
+/**
+ * turn = the changed turn; impact = move_out_check.impact (applied) or .pending_impact (not applied);
+ * otherTurns = open p03_turns rows (id, property_label, unit_label, steps). Returns null when no confirmed vendor moved.
+ */
+function describeConflictReview(turn, impact, applied, otherTurns, settings) {
+  var moved = ((impact && impact.moved) || []).filter(function (m) { return m.was_confirmed; });
+  if (!moved.length) return null;
+  var catalog = (settings && settings.catalog) || [];
+  var changes = ((turn.move_out_check && turn.move_out_check.changes) || []).map(function (c) { return changeLine_(c, catalog); });
+  var blocks = [(applied ? rentReadyLine_ : wouldRentReadyLine_)(impact.rr_before, impact.rr_after)];
+  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
+  blocks.push((applied ? 'Vendors to re-contact (were confirmed):' : 'Confirmed vendors that would need a new date:') + '\n' + moved.map(function (m) { return movedLine_(m, true); }).join('\n'));
+  var seen = {}, rows = [];
+  moved.forEach(function (m) {
+    var v = String(m.vendor || '').trim().toLowerCase();
+    if (!v) return;
+    (otherTurns || []).forEach(function (o) {
+      if (o.id === turn.id || o.archived) return;
+      (o.steps || []).forEach(function (s, i) {
+        var id = o.id + ':' + i;
+        if (seen[id] || String(s.vendor || '').trim().toLowerCase() !== v) return;
+        if (!withinBiz_(s.start, m.before, REVIEW_WINDOW_BIZ_DAYS) && !withinBiz_(s.start, m.after, REVIEW_WINDOW_BIZ_DAYS)) return;
+        seen[id] = true;
+        var who = String(m.vendor).trim(); // Matt-only email: real names, tech included
+        rows.push({ sort: s.start + '|' + who + '|' + placeOf_(o), line: '- ' + who + ': ' + fmtDay_(s.start) + ' ' + s.label + ' at ' + placeOf_(o) + ' (' + (STATUS_LABEL_SERVER[s.status] || s.status || '') + ')' });
+      });
+    });
+  });
+  rows.sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
+  blocks.push('Same vendors on other open turns:\n' + (rows.length ? rows.map(function (r) { return r.line; }).join('\n') : 'None found'));
+  var text = blocks.join('\n\n');
+  return { subject: 'Turn conflict review: ' + placeOf_(turn), text: text, html: textToHtml_(text) };
+}
+
+/** Matt only, no cc; EMAIL_TEST_TO applies. null when no confirmed vendor moved. */
+function buildConflictReviewMail(turn, impact, applied, otherTurns, settings, testTo) {
+  var d = describeConflictReview(turn, impact, applied, otherTurns, settings);
+  if (!d) return null;
+  var r = applyTestTo_(['matt@greenpropertymgt.com'], [], testTo);
+  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
+  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+}
+
+// ---------- R4.6 Google Calendar: event list for a turn (synced by syncTurnCalendar_ in Code.js) ----------
+
+function addDaysIso_(s, n) { return isoUtc_(new Date(parseUtc_(s).getTime() + n * 86400000)); }
+
+/**
+ * One event per step with a start date + one Rent ready event. All-day events: start..end inclusive,
+ * endExclusive = end + 1 day. A one-day step with a start time is timed: time .. time + hours (8 if unset, max 12).
+ * key = step key ('#2' suffix on duplicates), '_rentready' for rent ready.
+ */
+function calendarEvents(turn, appUrl) {
+  var place = placeOf_(turn), out = [], used = {};
+  var info = function (status) {
+    return [status ? 'Status: ' + status : '', hasVal_(turn.af_wo_number) ? 'WO: ' + turn.af_wo_number : '',
+      hasVal_(turn.rent_ready_date) ? 'Rent ready: ' + fmtDay_(turn.rent_ready_date) : '', appUrl ? 'GPM Turns: ' + appUrl : ''].filter(Boolean).join('\n');
+  };
+  (turn.steps || []).forEach(function (s) {
+    if (!hasVal_(s.start)) return;
+    var key = s.key || 'step';
+    used[key] = (used[key] || 0) + 1;
+    if (used[key] > 1) key += '#' + used[key];
+    var end = hasVal_(s.end) && s.end >= s.start ? s.end : s.start;
+    var title = (s.status === 'done' ? '✓ ' : '') + s.label + ' · ' + (hasVal_(s.vendor) ? String(s.vendor).trim() : 'no vendor') + ' · ' + place +
+      (s.status === 'resched' ? ' [Reschedule]' : s.status === 'open' || !s.status ? ' [Not booked]' : '');
+    var ev = { key: key, title: title, description: info(STATUS_LABEL_SERVER[s.status] || 'Not booked') };
+    if (end === s.start && /^\d{1,2}:\d{2}$/.test(s.time || '')) {
+      var p = s.time.split(':'), startMin = +p[0] * 60 + +p[1];
+      var h = Number(s.hours) > 0 && Number(s.hours) <= 12 ? Number(s.hours) : 8;
+      var endMin = Math.min(startMin + Math.round(h * 60), 23 * 60 + 59);
+      var hm = function (m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); };
+      ev.allDay = false; ev.start = s.start + ' ' + hm(startMin); ev.end = s.start + ' ' + hm(endMin);
+    } else {
+      ev.allDay = true; ev.start = s.start; ev.end = addDaysIso_(end, 1);
+    }
+    out.push(ev);
+  });
+  if (hasVal_(turn.rent_ready_date)) {
+    out.push({ key: '_rentready', title: 'Rent ready · ' + place, description: info(''), allDay: true,
+      start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
+  }
+  return out;
+}
+
+/** Short fingerprint of an event so unchanged events are not re-written on every save. */
+function eventHash(ev) {
+  var s = JSON.stringify([ev.title, ev.description, ev.allDay, ev.start, ev.end]), h = 5381;
+  for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
+  return h.toString(36);
 }

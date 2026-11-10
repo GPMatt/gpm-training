@@ -10,7 +10,8 @@
  * Script Properties (Matt sets these once):
  *   SUPABASE_URL          - same project as the warehouse pipeline
  *   SUPABASE_SERVICE_KEY  - service_role key (server side only, never sent to the browser)
- *   EMAIL_TEST_TO         - optional; when set, the Tech Prep WO email goes ONLY to this address
+ *   EMAIL_TEST_TO         - optional; when set, every app email goes ONLY to this address
+ *   cal_<turnId>          - written by the app (calendar event ids per turn); don't edit by hand
  */
 
 var TZ = 'America/Detroit';
@@ -63,16 +64,23 @@ function apiSaveTurn(turn) {
   if (!turn.id) {
     if (!row.property_label) throw new Error('Pick a property first.');
     row.created_by = row.updated_by;
-    return sb_('post', 'p03_turns', row)[0];
+    return withCalendar_(sb_('post', 'p03_turns', row)[0]);
   }
   var out = sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), row);
   if (!out.length) throw new Error('Turn not found (it may have been deleted).');
-  return out[0];
+  return withCalendar_(out[0]);
 }
 
 function apiArchiveTurn(id, archived) {
-  return sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(id),
-    { archived: archived !== false, updated_by: userEmail_(), updated_at: new Date().toISOString() })[0];
+  return withCalendar_(sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(id),
+    { archived: archived !== false, updated_by: userEmail_(), updated_at: new Date().toISOString() })[0]);
+}
+
+/** Syncs the saved row to Google Calendar; a failure only adds row.calendarError. */
+function withCalendar_(row) {
+  var err = syncCalendarSafe_(row);
+  if (err && row && typeof row === 'object') row.calendarError = err;
+  return row;
 }
 
 function apiArchivedTurns() {
@@ -138,7 +146,8 @@ function apiSendMoveOutEmail(turnId) {
   var mo = turn.move_out_check;
   mo.impact.email_sent_at = sentAt;
   sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt,
+    review: sendConflictReview_(turn, mo.impact, true, settingsRows.length ? settingsRows[0].value : {}) };
 }
 
 /**
@@ -159,11 +168,113 @@ function apiSendMoveOutAlert(turnId) {
   var mo = turn.move_out_check;
   mo.pending_impact.alert_sent_at = sentAt;
   sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt,
+    review: sendConflictReview_(turn, mo.pending_impact, false, settingsRows.length ? settingsRows[0].value : {}) };
+}
+
+/**
+ * R4.5: separate email to Matt when confirmed vendors move, listing the same vendors' bookings on other
+ * open turns. Returns {sentAt}, null when nothing confirmed moved, or {error} (the main email already went).
+ */
+function sendConflictReview_(turn, impact, applied, settings) {
+  try {
+    if (!((impact && impact.moved) || []).some(function (m) { return m.was_confirmed; })) return null;
+    var others = sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,steps,archived');
+    var mail = buildConflictReviewMail(turn, impact, applied, others, settings, emailTestTo_());
+    if (!mail) return null;
+    MailApp.sendEmail({ to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html });
+    return { sentAt: new Date().toISOString() };
+  } catch (e) {
+    console.error('Conflict review email failed: ' + e.message);
+    return { error: e.message };
+  }
 }
 
 function emailTestTo_() {
-  return (PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO') || '').trim();
+  return cleanTestTo(PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO'));
+}
+
+// ---------- R4.6 Google Calendar sync (event list: calendarEvents in Describe.js) ----------
+
+function calendar_(settings) {
+  var id = (settings && settings.calendarId) || 'primary';
+  var cal = id === 'primary' ? CalendarApp.getDefaultCalendar() : CalendarApp.getCalendarById(id);
+  if (!cal) throw new Error('Calendar not found: ' + id);
+  return cal;
+}
+
+function detroitDate_(s) { return Utilities.parseDate(s.length > 10 ? s : s + ' 00:00', TZ, 'yyyy-MM-dd HH:mm'); }
+
+/**
+ * Upserts one event per step + rent ready on automation@'s calendar. Mapping stepKey -> {id, h} lives in
+ * Script Property cal_<turnId> (not in the turn row, so a client save can't clobber it). Unchanged events
+ * (same hash) are skipped unless force. Archived turn = delete all + the key.
+ */
+function syncTurnCalendar_(turn, settings, force) {
+  if (!turn || !turn.id) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  var props = PropertiesService.getScriptProperties(), pk = 'cal_' + turn.id;
+  var map = JSON.parse(props.getProperty(pk) || '{}');
+  try {
+    var cal = calendar_(settings);
+    var events = turn.archived ? [] : calendarEvents(turn, ScriptApp.getService().getUrl());
+    var want = {};
+    events.forEach(function (ev) {
+      want[ev.key] = true;
+      var h = eventHash(ev), old = map[ev.key];
+      if (old && old.h === h && !force) return;
+      var e = old ? cal.getEventById(old.id) : null;
+      var start = detroitDate_(ev.start), end = detroitDate_(ev.end);
+      if (e) {
+        e.setTitle(ev.title);
+        e.setDescription(ev.description);
+        if (ev.allDay) e.setAllDayDates(start, end); else e.setTime(start, end);
+      } else {
+        e = ev.allDay ? cal.createAllDayEvent(ev.title, start, end, { description: ev.description })
+          : cal.createEvent(ev.title, start, end, { description: ev.description });
+      }
+      map[ev.key] = { id: e.getId(), h: h };
+    });
+    Object.keys(map).forEach(function (k) {
+      if (want[k]) return;
+      var e = cal.getEventById(map[k].id);
+      if (e) e.deleteEvent();
+      delete map[k];
+    });
+  } finally {
+    if (Object.keys(map).length) props.setProperty(pk, JSON.stringify(map)); else props.deleteProperty(pk);
+    lock.releaseLock();
+  }
+}
+
+/** Calendar sync that never fails a save: returns '' or the error message (also logged). */
+function syncCalendarSafe_(turn) {
+  try {
+    var s = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+    syncTurnCalendar_(turn, s.length ? s[0].value : {}, false);
+    return '';
+  } catch (e) {
+    console.error('Calendar sync failed for turn ' + (turn && turn.id) + ': ' + e.message);
+    return e.message || String(e);
+  }
+}
+
+/** Run once from the editor (Code.js) to backfill: syncs every open turn, clears events of turns no longer open. */
+function apiSyncAllCalendar() {
+  var s = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var settings = s.length ? s[0].value : {};
+  var turns = sb_('get', 'p03_turns?archived=eq.false&select=*');
+  var open = {}, failed = 0;
+  turns.forEach(function (t) {
+    open[t.id] = true;
+    try { syncTurnCalendar_(t, settings, true); } catch (e) { failed++; console.error('Turn ' + t.id + ': ' + e.message); }
+  });
+  var keys = PropertiesService.getScriptProperties().getKeys().filter(function (k) { return k.indexOf('cal_') === 0 && !open[k.slice(4)]; });
+  keys.forEach(function (k) {
+    try { syncTurnCalendar_({ id: k.slice(4), archived: true }, settings, true); } catch (e) { failed++; console.error(k + ': ' + e.message); }
+  });
+  Logger.log('Calendar sync: %s open turns, %s closed turns cleared, %s failed', turns.length, keys.length, failed);
 }
 
 /** Run from the editor (Code.js) after setting Script Properties: confirms the tables exist + are granted. */

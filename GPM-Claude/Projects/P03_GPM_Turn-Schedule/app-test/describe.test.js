@@ -66,8 +66,51 @@ t('(b) Bill property routes to bill@, not riley@', () => {
   r = plain(D.techPrepRecipients(turn, { billProperties: [] }, ''));
   assert.ok(r.to.includes('riley@greenpropertymgt.com'));
   // 2860 must not match 2861 / a different street
-  assert.equal(D.isBillProperty('2861 Taft Ave SW', {}), false);
-  assert.equal(D.isBillProperty('2860 Clyde Park Ave SW', {}), false);
+  assert.equal(D.techForProperty('2861 Taft Ave SW', {}), null);
+  assert.equal(D.techForProperty('2860 Clyde Park Ave SW', {}), null);
+});
+
+t('(R4.2) techProperties: Wesley default, custom list, lowercase, old billProperties honoured', () => {
+  let r = plain(D.techPrepRecipients({ property_label: '547 Cherry Street SE' }, {}, ''));
+  assert.deepEqual(r.to, ['spencer@greenpropertymgt.com', 'wesley@greenpropertymgt.com']);
+  assert.deepEqual(r.cc, ['jason@greenpropertymgt.com']);
+  assert.equal(D.techForProperty('547 Cherry St SE', {}).walks, true);
+  assert.equal(D.techForProperty('3608 Havana Ave SW', {}).walks, false);
+  const tp = { techProperties: [{ tech: 'Zed', email: ' Zed@GreenPropertyMgt.com ', walks: true, addresses: ['900 Leonard St NW'] }] };
+  r = plain(D.techPrepRecipients({ property_label: '900 Leonard St NW' }, tp, ''));
+  assert.deepEqual(r.to, ['spencer@greenpropertymgt.com', 'zed@greenpropertymgt.com']);
+  // techProperties set: replaces the defaults, so Bill's old address now goes to riley@
+  r = plain(D.techPrepRecipients({ property_label: '3608 Havana Ave SW' }, tp, ''));
+  assert.deepEqual(r.to, ['spencer@greenpropertymgt.com', 'riley@greenpropertymgt.com']);
+  // move-out emails use the same routing
+  const m = moveOutTurn(); m.property_label = '547 Cherry St SE';
+  assert.deepEqual(plain(D.buildMoveOutMail(m, {}, '')).to, ['spencer@greenpropertymgt.com', 'wesley@greenpropertymgt.com']);
+});
+
+t('(R4) cleanTestTo: strips space + trailing punctuation, throws on junk', () => {
+  assert.equal(D.cleanTestTo('  matt@greenpropertymgt.com. '), 'matt@greenpropertymgt.com');
+  assert.equal(D.cleanTestTo('Matt@GreenPropertyMgt.com,;'), 'matt@greenpropertymgt.com');
+  assert.equal(D.cleanTestTo(''), '');
+  assert.equal(D.cleanTestTo(null), '');
+  assert.equal(D.cleanTestTo('  '), '');
+  assert.throws(() => D.cleanTestTo('matt at gpm'), /EMAIL_TEST_TO is not a valid email: matt at gpm/);
+  assert.throws(() => D.cleanTestTo('matt@'), /not a valid email/);
+});
+
+t('(R4.8) blinds rows under Parts to order; old fields as fallback', () => {
+  const turn = { tech_prep: { bedrooms: '2', bathrooms: '1', blinds_count: 9, blinds_sizes: 'ignored',
+    blinds: [{ room: 'bed1', window: 'North', size: '35x64' }, { room: 'living', window: 'Front left', size: '23x64' },
+      { room: 'den', window: '', size: '30x64' }, { room: '', window: '', size: '' }] } };
+  assert.equal(D.describeTechPrep(turn, D.CHECK_ROOMS_SERVER, {}).text, [
+    'No repairs found at the PMI.', '', '---- Not for the work order ----', '',
+    'Parts to order:',
+    '- Blinds to replace: 3',
+    '  - Bedroom 1, North: 35x64',
+    '  - Living room, Front left: 23x64',
+    '  - den: 30x64'
+  ].join('\n'));
+  delete turn.tech_prep.blinds;
+  assert.ok(D.describeTechPrep(turn, D.CHECK_ROOMS_SERVER, {}).text.endsWith('- Blinds to replace: 9 (sizes: ignored)'));
 });
 
 t('(c) EMAIL_TEST_TO: only test address, [TEST] subject, first line names real recipients', () => {
@@ -315,6 +358,97 @@ t('(n2) move-out alert: test switch + Bill routing', () => {
   const real = plain(D.buildMoveOutAlertMail(bill, eng.S, ''));
   assert.deepEqual(real.to, ['spencer@greenpropertymgt.com', 'bill@greenpropertymgt.com']);
   assert.deepEqual(real.cc, ['jason@greenpropertymgt.com']);
+});
+
+// ---------- R4.5 conflict review email ----------
+function otherTurns() {
+  return [
+    { id: 'x', property_label: '2361 Example St SW', unit_label: '#4', steps: [{ key: 'paint', label: 'Paint', vendor: 'Trevor', start: '2026-11-25', status: 'booked' }] }, // same turn: skipped
+    { id: 'o1', property_label: '90 Wealthy St SE', unit_label: '2B', steps: [
+      { key: 'paint', label: 'Paint', vendor: 'trevor ', start: '2026-12-01', status: 'booked' },
+      { key: 'clean', label: 'Clean', vendor: 'Up & Up', start: '2026-12-02', status: 'open' },
+      { key: 'paint', label: 'Paint', vendor: 'Trevor', start: '2027-01-15', status: 'open' }] },     // > 15 business days: out
+    { id: 'o2', property_label: '445 Knapp St NE', unit_label: null, steps: [
+      { key: 'tech', label: 'Tech', vendor: 'Riley', start: '2026-11-19', status: 'resched' },
+      { key: 'paint', label: 'Paint', vendor: 'Trevor', start: '2026-11-18', status: 'done' }] },
+    { id: 'o3', archived: true, property_label: '1 Old St', steps: [{ key: 'paint', label: 'Paint', vendor: 'Trevor', start: '2026-11-24', status: 'booked' }] }
+  ];
+}
+
+const EXPECTED_REVIEW = [
+  'Scope changed at move-out. Rent ready moves from Tue Nov 24 to Mon Nov 30 (+3 business days).',
+  '',
+  'Changes:',
+  '- Add Flooring (LVP / vinyl) - Kitchen + bath',
+  '- Paint: size now Color change (2 days)',
+  '- Remove Carpet cleaning',
+  '- New tech item: Replace closet door (+2 h)',
+  '- Other vendor item: Glass company for cracked window',
+  '',
+  'Vendors to re-contact (were confirmed):',
+  '- Tech - Riley: Fri Nov 20 -> Mon Nov 23',
+  '- Paint - Trevor: Mon Nov 23 -> Wed Nov 25',
+  '',
+  'Same vendors on other open turns:',
+  '- Trevor: Wed Nov 18 Paint at 445 Knapp St NE (Done)',
+  '- Riley: Thu Nov 19 Tech at 445 Knapp St NE (Reschedule)',
+  '- Trevor: Tue Dec 1 Paint at 90 Wealthy St SE 2B (Confirmed)'
+].join('\n');
+
+t('(R4.5) conflict review: exact text, Matt only, test switch, null when nothing confirmed', () => {
+  const turn = moveOutTurn();
+  const d = D.describeConflictReview(turn, turn.move_out_check.impact, true, otherTurns(), eng.S);
+  assert.equal(d.subject, 'Turn conflict review: 2361 Example St SW #4');
+  assert.equal(d.text, EXPECTED_REVIEW);
+  // Spencer's emails for the same turn still never name the tech
+  assert.ok(!/riley/i.test(D.describeMoveOut(turn, eng.S).text));
+  assert.ok(!/riley/i.test(D.describeMoveOutAlert(alertTurn(), eng.S).text));
+  console.log('\n' + d.text + '\n');
+  let m = plain(D.buildConflictReviewMail(turn, turn.move_out_check.impact, true, otherTurns(), eng.S, ''));
+  assert.deepEqual(m.to, ['matt@greenpropertymgt.com']);
+  assert.deepEqual(m.cc, []);
+  m = plain(D.buildConflictReviewMail(turn, turn.move_out_check.impact, true, otherTurns(), eng.S, 'test@greenpropertymgt.com'));
+  assert.deepEqual(m.to, ['test@greenpropertymgt.com']);
+  assert.equal(m.subject, '[TEST] Turn conflict review: 2361 Example St SW #4');
+  assert.equal(m.text, 'TEST: real recipients would be To: matt@greenpropertymgt.com\n\n' + EXPECTED_REVIEW);
+  // not-applied wording (alert) + None found
+  const a = alertTurn();
+  const ad = D.describeConflictReview(a, a.move_out_check.pending_impact, false, [], eng.S);
+  assert.ok(ad.text.startsWith('If applied, rent ready would move'));
+  assert.ok(ad.text.includes('Confirmed vendors that would need a new date:\n'));
+  assert.ok(ad.text.endsWith('Same vendors on other open turns:\nNone found'));
+  // nothing confirmed -> no review
+  assert.equal(D.buildConflictReviewMail(turn, { moved: [{ key: 'clean', vendor: 'X', was_confirmed: false }] }, true, [], eng.S, ''), null);
+});
+
+// ---------- R4.6 calendar events ----------
+t('(R4.6) calendarEvents: titles, all-day vs timed, rent ready, duplicate keys', () => {
+  const turn = { id: 'x', property_label: '2361 Example St SW', unit_label: '#4', af_wo_number: '18171-1', rent_ready_date: '2026-11-30',
+    steps: [
+      { key: 'tech', label: 'Tech', vendor: 'Riley', start: '2026-11-23', end: '2026-11-23', time: '09:00', hours: 4, status: 'done' },
+      { key: 'drywall', label: 'Drywall / plaster', vendor: 'Matt Luschas', start: '2026-11-24', end: '2026-11-25', time: '09:00', hours: 16, status: 'booked' },
+      { key: 'paint', label: 'Paint', vendor: 'Trevor', start: '2026-11-27', end: '2026-11-27', time: '', status: 'resched' },
+      { key: 'clean', label: 'Clean', vendor: '', start: '2026-11-30', end: '2026-11-30', time: '13:30', hours: 0, status: 'open' },
+      { key: 'carpetclean', label: 'Carpet cleaning', vendor: '', start: null, end: null, status: 'open' },
+      { key: 'clean', label: 'Clean', vendor: 'Up & Up', start: '2026-11-30', end: '2026-11-30', time: '', status: 'booked' }
+    ] };
+  const ev = plain(D.calendarEvents(turn, 'https://script.google.com/a/macros/x/exec'));
+  assert.deepEqual(ev.map(e => [e.key, e.title, e.allDay, e.start, e.end]), [
+    ['tech', '✓ Tech · Riley · 2361 Example St SW #4', false, '2026-11-23 09:00', '2026-11-23 13:00'],
+    ['drywall', 'Drywall / plaster · Matt Luschas · 2361 Example St SW #4', true, '2026-11-24', '2026-11-26'],
+    ['paint', 'Paint · Trevor · 2361 Example St SW #4 [Reschedule]', true, '2026-11-27', '2026-11-28'],
+    ['clean', 'Clean · no vendor · 2361 Example St SW #4 [Not booked]', false, '2026-11-30 13:30', '2026-11-30 21:30'],
+    ['clean#2', 'Clean · Up & Up · 2361 Example St SW #4', true, '2026-11-30', '2026-12-01'],
+    ['_rentready', 'Rent ready · 2361 Example St SW #4', true, '2026-11-30', '2026-12-01']
+  ]);
+  assert.equal(ev[1].description, 'Status: Confirmed\nWO: 18171-1\nRent ready: Mon Nov 30\nGPM Turns: https://script.google.com/a/macros/x/exec');
+  assert.equal(ev[5].description, 'WO: 18171-1\nRent ready: Mon Nov 30\nGPM Turns: https://script.google.com/a/macros/x/exec');
+  ev.forEach(e => console.log('  ' + e.title));
+  // hash: stable, changes when the event changes
+  assert.equal(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, 'https://script.google.com/a/macros/x/exec'))[0]));
+  turn.steps[0].status = 'booked';
+  assert.notEqual(D.eventHash(ev[0]), D.eventHash(plain(D.calendarEvents(turn, 'https://script.google.com/a/macros/x/exec'))[0]));
+  assert.deepEqual(plain(D.calendarEvents({ steps: [] }, '')), []);
 });
 
 console.log(n + ' tests passed');
