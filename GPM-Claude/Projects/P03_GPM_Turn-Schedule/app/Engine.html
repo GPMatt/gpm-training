@@ -128,7 +128,8 @@ var Engine = (function () {
    * Lay out dates. Mutates and returns {steps, rentReady, firstBuildDay, warnings}.
    * steps are in Spencer's chosen order (default = locked order).
    */
-  function layout(steps, moveOut, catalog) {
+  function layout(steps, moveOut, catalog, opts) {
+    var reflow = opts && opts.reflow;
     var warnings = [];
     if (!moveOut) return { steps: steps, rentReady: null, firstBuildDay: null, warnings: ['Set a move-out date to build the schedule.'] };
     var first = nextBiz(moveOut);
@@ -140,7 +141,9 @@ var Engine = (function () {
       var start;
       if (s.pinned && s.start) {
         start = rollBiz(s.start);
-        if (start < first) warnings.push(s.label + ' is set before the first build day (' + fmt(first) + '). The tenant may still be in the unit.');
+        // reflow (move-out rebuild): a pin that now clashes with the steps before it is released and moves.
+        if (reflow && (start < first || (prev && start < earliest))) { s.pinned = false; start = earliest; }
+        else if (start < first) warnings.push(s.label + ' is set before the first build day (' + fmt(first) + '). The tenant may still be in the unit.');
         else if (start < earliest && prev) warnings.push(s.label + ' starts before ' + prev.label + ' is finished.');
       } else {
         start = earliest;
@@ -193,6 +196,70 @@ var Engine = (function () {
     return { days: d, ok: d >= 1 };
   }
 
+  /**
+   * Move-out scope changes -> a NEW laid-out schedule (oldSteps is not touched).
+   * changes: [{type:'add'|'resize'|'remove'|'tech'|'vendor', trade, size, note, hours}]; 'vendor' has no effect.
+   * Add/resize set the trade's size (add of a trade already in the list = resize); remove drops the step;
+   * tech adds hours to the Tech step (made if missing). Dates rebuild from the next business day after
+   * move-out; pins that clash with the new order are released (layout reflow).
+   */
+  function applyChanges(oldSteps, changes, catalog, moveOut) {
+    var steps = JSON.parse(JSON.stringify(oldSteps || []));
+    var byKey = catalogByKey(catalog), order = catalog.map(function (c) { return c.key; });
+    function find(k) { for (var i = 0; i < steps.length; i++) if (steps[i].key === k) return i; return -1; }
+    function insert(st) {
+      var idx = steps.length;
+      for (var i = 0; i < steps.length; i++) if (order.indexOf(steps[i].key) > order.indexOf(st.key)) { idx = i; break; }
+      steps.splice(idx, 0, st);
+    }
+    var extra = 0, techNotes = false;
+    (changes || []).forEach(function (c) {
+      var i = find(c.trade), cat = byKey[c.trade];
+      if ((c.type === 'add' || c.type === 'resize') && cat) {
+        var sz = sizeOf(cat, c.size); if (!sz) return;
+        if (i < 0) { insert(makeStep(cat, sz.id, c.note)); return; }
+        var s = steps[i];
+        s.size = sz.id; s.sizeLabel = sz.label; s.days = sz.days || 1; s.hours = sz.hours || 8 * (sz.days || 1); s.cure = sz.cure || 0;
+        s.fromTechPrep = false;
+        if (!s.vendorEdited) s.vendor = sz.vendor || cat.vendor || '';
+        if (c.note) s.note = c.note;
+      } else if (c.type === 'remove' && i >= 0) {
+        steps.splice(i, 1);
+      } else if (c.type === 'tech') {
+        techNotes = true; extra += Number(c.hours) || 0;
+      }
+    });
+    if (techNotes && byKey.tech) {
+      var ti = find('tech'), t;
+      if (ti < 0) { t = makeStep(byKey.tech, 'basic', ''); if (extra > 0) t.hours = 0; insert(t); } else t = steps[ti];
+      if (extra > 0) {
+        t.hours = (Number(t.hours) || 0) + extra;
+        t.days = Math.max(Number(t.days) || 1, Math.ceil(t.hours / 8));
+        t.hoursEdited = true;
+      }
+    }
+    return layout(steps, moveOut, catalog, { reflow: true });
+  }
+
+  /**
+   * Compare two schedules by step key. moved = in both, start or end changed; removed = gone (after: null).
+   * was_confirmed = the vendor had confirmed the old date (status booked, or already 'resched').
+   */
+  function diffSteps(before, after) {
+    var a = {}, b = {}, moved = [], removed = [], added = [];
+    (after || []).forEach(function (s) { a[s.key] = s; });
+    (before || []).forEach(function (s) { b[s.key] = s; });
+    (before || []).forEach(function (s) {
+      var n = a[s.key], conf = s.status === 'booked' || s.status === 'resched';
+      var row = { key: s.key, label: s.label, vendor: (n || s).vendor || '', before: s.start, after: n ? n.start : null,
+        before_end: s.end, after_end: n ? n.end : null, was_confirmed: conf };
+      if (!n) removed.push(row);
+      else if (n.start !== s.start || n.end !== s.end) moved.push(row);
+    });
+    (after || []).forEach(function (n) { if (!b[n.key]) added.push({ key: n.key, label: n.label, vendor: n.vendor || '', after: n.start, after_end: n.end }); });
+    return { moved: moved, removed: removed, added: added };
+  }
+
   function progress(steps) {
     if (!steps || !steps.length) return { pct: 0, booked: 0, done: 0, total: 0 };
     var booked = 0, done = 0;
@@ -228,7 +295,7 @@ var Engine = (function () {
     iso: iso, parse: parse, addDays: addDays, isBiz: isBiz, rollBiz: rollBiz, nextBiz: nextBiz, prevBiz: prevBiz,
     addBiz: addBiz, bizDiff: bizDiff, bizDaysInRange: bizDaysInRange, holidays: holidays, holidayName: holidayName,
     makeStep: makeStep, stepsFromScope: stepsFromScope, mergeScope: mergeScope, applyTechHours: applyTechHours,
-    layout: layout, recommended: recommended, buffer: buffer, progress: progress,
+    layout: layout, recommended: recommended, buffer: buffer, progress: progress, applyChanges: applyChanges, diffSteps: diffSteps,
     fmt: fmt, fmtTime: fmtTime, lengthText: lengthText, vendorMessage: vendorMessage, sizeOf: sizeOf, catalogByKey: catalogByKey
   };
 })();
