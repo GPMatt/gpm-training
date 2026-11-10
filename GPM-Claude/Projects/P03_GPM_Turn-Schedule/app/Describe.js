@@ -212,7 +212,7 @@ function changeLine_(c, catalog) {
 function movedLine_(m) {
   // The Tech step's vendor is a person: never name them in the body.
   var vendor = m.key === 'tech' || /riley/i.test(m.vendor || '') ? '' : String(m.vendor || '').trim();
-  return '- ' + m.label + (vendor ? ' - ' + vendor : '') + ': ' + fmtDay_(m.before) + ' -> ' + fmtDay_(m.after);
+  return '- ' + m.label + (vendor ? ' - ' + vendor : '') + ': ' + fmtDay_(m.before) + ' -> ' + (m.after === null ? 'removed' : fmtDay_(m.after));
 }
 
 /** turn = p03_turns row with move_out_check.impact; settings = p03_turn_settings value (catalog gives trade/size labels). */
@@ -236,6 +236,41 @@ function describeMoveOut(turn, settings) {
 /** Everything apiSendMoveOutEmail sends; same recipients + test switch as the Tech Prep email. */
 function buildMoveOutMail(turn, settings, testTo) {
   var d = describeMoveOut(turn, settings);
+  var r = techPrepRecipients(turn, settings, testTo);
+  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
+  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+}
+
+// ---------- Move-out alert: scope changed, NOT applied (apiSendMoveOutAlert in Code.js) ----------
+
+function wouldRentReadyLine_(a, b) {
+  if (!hasVal_(a) || !hasVal_(b)) return 'If applied, rent ready would be ' + fmtDay_(b) + '.';
+  if (a === b) return 'If applied, rent ready would stay ' + fmtDay_(a) + '.';
+  var n = bizDiffServer_(a, b);
+  return 'If applied, rent ready would move ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
+    ' (' + (n < 0 ? '-' : '+') + plural_(Math.abs(n), 'business day', 'business days') + ').';
+}
+
+/** turn = p03_turns row with move_out_check.pending_impact (the client's preview, saved at submit). */
+function describeMoveOutAlert(turn, settings) {
+  var mo = turn.move_out_check || {}, imp = mo.pending_impact || {};
+  var catalog = (settings && settings.catalog) || [];
+  var who = mo.done_by === 'Spencer' ? 'Spencer submitted the move-out check' : 'The move-out check was submitted';
+  var blocks = [who + ': the scope changed, but the schedule has NOT been updated yet. Open the turn and tap Apply to schedule.',
+    wouldRentReadyLine_(imp.rr_before, imp.rr_after)];
+  var changes = (mo.changes || []).map(function (c) { return changeLine_(c, catalog); });
+  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
+  var confirmed = (imp.moved || []).filter(function (m) { return m.was_confirmed; }).map(movedLine_);
+  blocks.push(confirmed.length ? 'Confirmed vendors that would need a new date:\n' + confirmed.join('\n') : 'No confirmed vendors would move.');
+  var text = blocks.join('\n\n');
+  var subject = 'Turn scope changed, NOT applied: ' + [turn.property_label, turn.unit_label].filter(hasVal_).join(' ') +
+    (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
+  return { subject: subject, text: text, html: textToHtml_(text) };
+}
+
+/** Everything apiSendMoveOutAlert sends; same recipients + test switch as the other emails. */
+function buildMoveOutAlertMail(turn, settings, testTo) {
+  var d = describeMoveOutAlert(turn, settings);
   var r = techPrepRecipients(turn, settings, testTo);
   var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };

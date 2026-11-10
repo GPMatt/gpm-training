@@ -141,6 +141,27 @@ function apiSendMoveOutEmail(turnId) {
   return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
 }
 
+/**
+ * Optional alert when a "No" move-out check is submitted WITHOUT Apply (text builder: Describe.js).
+ * Reads move_out_check.pending_impact (the client's preview), stamps pending_impact.alert_sent_at.
+ */
+function apiSendMoveOutAlert(turnId) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
+  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
+  var turn = rows[0];
+  if (!turn.move_out_check || !turn.move_out_check.pending_impact) throw new Error('No scope change preview saved on this turn.');
+  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var mail = buildMoveOutAlertMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
+  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
+  if (mail.cc.length) msg.cc = mail.cc.join(',');
+  MailApp.sendEmail(msg);
+  var sentAt = new Date().toISOString();
+  var mo = turn.move_out_check;
+  mo.pending_impact.alert_sent_at = sentAt;
+  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+}
+
 function emailTestTo_() {
   return (PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO') || '').trim();
 }
