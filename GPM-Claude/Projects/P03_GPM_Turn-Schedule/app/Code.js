@@ -10,6 +10,7 @@
  * Script Properties (Matt sets these once):
  *   SUPABASE_URL          - same project as the warehouse pipeline
  *   SUPABASE_SERVICE_KEY  - service_role key (server side only, never sent to the browser)
+ *   EMAIL_TEST_TO         - optional; when set, the Tech Prep WO email goes ONLY to this address
  */
 
 var TZ = 'America/Detroit';
@@ -96,6 +97,52 @@ function apiProperties() {
 function apiUnits(propertyId) {
   if (!/^[0-9a-f-]{36}$/i.test(propertyId || '')) return [];
   return sb_('get', 'dim_unit?active=eq.true&property_id=eq.' + propertyId + '&select=unit_id,unit_label_af&order=unit_label_af.asc');
+}
+
+/**
+ * Emails the AppFolio WO description built from the saved Tech Prep (text builder: Describe.js).
+ * Reads the turn fresh from Supabase, sends one email, stamps tech_prep.email_sent_at.
+ */
+function apiSendTechPrepEmail(turnId) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
+  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
+  var turn = rows[0];
+  if (!turn.tech_prep) throw new Error('This turn has no Tech Prep saved yet, so there is nothing to email.');
+  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var mail = buildTechPrepMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
+  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
+  if (mail.cc.length) msg.cc = mail.cc.join(',');
+  MailApp.sendEmail(msg);
+  var sentAt = new Date().toISOString();
+  var tp = turn.tech_prep;
+  tp.email_sent_at = sentAt;
+  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { tech_prep: tp });
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+}
+
+/**
+ * Emails the move-out scope change + schedule impact (text builder: Describe.js). Called once by the
+ * client right after "Apply to schedule". Stamps move_out_check.impact.email_sent_at.
+ */
+function apiSendMoveOutEmail(turnId) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
+  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
+  var turn = rows[0];
+  if (!turn.move_out_check || !turn.move_out_check.impact) throw new Error('Apply the scope changes to the schedule first, then send.');
+  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var mail = buildMoveOutMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
+  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
+  if (mail.cc.length) msg.cc = mail.cc.join(',');
+  MailApp.sendEmail(msg);
+  var sentAt = new Date().toISOString();
+  var mo = turn.move_out_check;
+  mo.impact.email_sent_at = sentAt;
+  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+}
+
+function emailTestTo_() {
+  return (PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO') || '').trim();
 }
 
 /** Run from the editor (Code.js) after setting Script Properties: confirms the tables exist + are granted. */
