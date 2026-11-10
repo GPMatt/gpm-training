@@ -179,6 +179,9 @@ Excluded entirely (owner uses own vendors):
 - Launch: migrate open turns from Jason's "Apartment Turn Schedule" sheet.
 
 ## Open items
+- [ ] REAL RELEASE (Matt 2026-11-09): when a move-out scope change moves confirmed vendors, consider
+      swapping or rearranging (same vendor, different day or a different unit's slot) before cancelling,
+      since one vendor does most trades. Aim: avoid cancellation fees. Needs a cross-turn vendor-day view.
 - [x] BS2 (2026-11-05 Matt): read-back = Spencer SHARES the turn WO by email after each visit (same
       day, photos attached; the 11/5 share of WO 18171-1 arrived at 25.5 MB, so the 18 MB fear may not
       hold). Risk = he forgets: system sends a 5pm follow-up if a PMI/visit was due today and no share

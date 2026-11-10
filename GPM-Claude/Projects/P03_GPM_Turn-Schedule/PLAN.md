@@ -108,6 +108,19 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
   vendor contact info; required = scope Yes/No, every not-checked answered, keys received (photos not
   required); all 4 change types; change email to Spencer + tech + Jason cc (Matt).
 
+- 2026-11-09 Matt: EMAIL_TEST_TO = matt@ is set; checkSetup run (send_mail authorized). Test deploy
+  AKfycbw_6vLB-pW... (@5), live @3 untouched.
+- 2026-11-09 Move-out gate = option C: a "No" answer can be submitted WITHOUT Apply. Optional
+  (default on) alert email at submit: `apiSendMoveOutAlert` from `move_out_check.pending_impact`; red
+  "Scope changed, not applied to schedule" banner until Apply. Round 2 also: new-turn gantt fix, full
+  Undo after Apply, "Edit changes" (re-apply from the pre-Apply snapshot) (Matt).
+
+## For the real release (Matt, 2026-11-09)
+- When a scope change moves confirmed vendors, consider SWAPPING or rearranging instead of
+  rescheduling: offer the same vendor a different day or a different unit (another turn's slot), since
+  one vendor does most trades. Goal: avoid cancellation fees. Needs a cross-turn view of each vendor's
+  booked days.
+
 ## Noticed (not done)
 - 2340 Michael, 2935 Oak Valley, 2700 Clyde Park were taken off the cookie-cutter list on 11/6
   ("now Riley walks"). Bill's rule now makes them Spencer-alone again. Bill's rule wins in this plan.
