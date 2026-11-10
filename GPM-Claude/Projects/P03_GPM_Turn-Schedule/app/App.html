@@ -17,6 +17,7 @@
 .mc .mc-del{position:absolute;top:8px;right:8px}
 .mc .f input,.mc .f select{width:100%}
 .mc-done{font-weight:600;color:var(--green);margin-bottom:6px}
+.imp .row,.f .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .imp{margin-top:10px;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;background:var(--cream)}
 .imp-h{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin-bottom:6px}
 .imp-rr{margin-bottom:4px}
@@ -943,8 +944,10 @@
     d.changes = d.changes || [];
     var applied = d.impact && d.impact.applied_at;
     if (applied) {
-      return '<div class="mc-done">✓ Applied to the schedule ' + esc(new Date(applied).toLocaleString()) + '. Further changes: use the Schedule tab.</div>' +
-        d.changes.map(function (c) { return '<div>• ' + esc(changeText(c)) + '</div>'; }).join('') + impactSummary(t, d.impact);
+      return '<div class="mc-done">✓ Applied to the schedule ' + esc(new Date(applied).toLocaleString()) + '.</div>' +
+        d.changes.map(function (c) { return '<div>• ' + esc(changeText(c)) + '</div>'; }).join('') + impactSummary(t, d.impact) +
+        (d.pre_apply ? '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="mc-edit">Edit changes</button>' +
+          '<span class="muted">Puts the schedule back to before Apply, then you can change the rows and Apply again.</span></div>' : '');
     }
     var inSteps = t.steps.map(function (s) { return s.key; });
     var rows = d.changes.map(function (c, ri) {
@@ -1037,7 +1040,9 @@
     var conf = im.diff.moved.concat(im.diff.removed).filter(function (x) { return x.was_confirmed; });
     if (!confirm('Apply ' + im.changes.length + ' change' + (im.changes.length === 1 ? '' : 's') + ' to the schedule?\nRent ready ' + E.fmt(im.rrBefore) + ' → ' + E.fmt(im.rrAfter) +
       (conf.length ? '\n' + conf.length + ' confirmed vendor(s) will need to be re-contacted.' : '') + '\nThe change email goes out after.')) return;
-    pushUndo(t);
+    // Pre-Apply snapshot: saved on the turn (Edit changes works after a reload) + on the Undo stack.
+    d.pre_apply = { steps: clone(t.steps), trades: clone(t.scope.trades || {}) };
+    S.undo.push(JSON.stringify({ id: t.id, apply: true }));
     var moved = {}; im.diff.moved.forEach(function (m) { if (m.was_confirmed) moved[m.key] = 1; });
     im.result.steps.forEach(function (s) { if (moved[s.key] && s.status !== 'done') s.status = 'resched'; });
     t.steps = im.result.steps;
@@ -1058,8 +1063,32 @@
       sendEmail('apiSendMoveOutEmail', t, function (r) {
         // keep the server's stamp locally, so the next save of move_out_check does not wipe it
         t.move_out_check.impact.email_sent_at = r.sentAt || new Date().toISOString();
+        if (S.form && S.formKey === 'moveout:' + t.id && S.form.impact) S.form.impact.email_sent_at = t.move_out_check.impact.email_sent_at; // open form copy too, or its next save wipes it
       });
     }, function () {});
+  }
+
+  /**
+   * Full undo of a move-out Apply: steps (dates, statuses, Tech hours) and trades go back to the pre-Apply
+   * snapshot; the impact moves to impact_history[] (undone_at) so the email record stays. Rows unlock.
+   */
+  function undoApply(t) {
+    var mo = t.move_out_check, pre = mo && mo.pre_apply;
+    if (!pre || !mo.impact) { toast('Nothing to undo: the changes were not applied.', true); return false; }
+    var before = t.rent_ready_date;
+    t.steps = clone(pre.steps);
+    t.scope.trades = clone(pre.trades);
+    var old = clone(mo.impact); old.undone_at = new Date().toISOString();
+    mo.impact_history = (mo.impact_history || []).concat([old]);
+    delete mo.impact; delete mo.pre_apply;
+    if (S.form && S.formKey === 'moveout:' + t.id) { // keep any other unsaved answers in the open form
+      S.form.impact_history = clone(mo.impact_history); delete S.form.impact; delete S.form.pre_apply;
+    }
+    S.undo = S.undo.filter(function (x) { return x.indexOf('"apply":true') < 0; });
+    recompute(t);
+    saveNow(t).then(function () { toast('Apply undone. Schedule is back to before the move-out changes.'); render(); flashRR(before, t); }, function () {});
+    render();
+    return true;
   }
 
   // ---------- conflicted schedule ----------
@@ -1281,7 +1310,7 @@
       var tm = pmiTimerOf(t);
       lsSet('p03timer:new', null);
       if (timerRunning(tm)) lsSet('p03timer:' + saved.id, tm.start); // Spencer-alone walk keeps running into Tech Prep
-      S.turns.push(saved);
+      S.turns.push(prepTurn(saved)); // same path as the boot load: lays out dates so the gantt + calendar show now
       S.formDirty = false; S.form = null; S.formKey = null;
       toast('Turn created. Here is the recommended schedule.');
       go('turn', { turnId: saved.id, tab: 'schedule' });
@@ -1409,6 +1438,10 @@
     if (a === 'mc-add') { e.preventDefault(); (S.form.changes = S.form.changes || []).push({ type: '', trade: '', size: '', note: '', hours: null }); markDirty(); render(); return; }
     if (a === 'mc-del') { e.preventDefault(); S.form.changes.splice(+el.dataset.ri, 1); markDirty(); render(); return; }
     if (a === 'apply-changes') { applyMoveOutChanges(); return; }
+    if (a === 'mc-edit') {
+      if (confirm('Undo the Apply? Every step goes back to its date and status from before Apply (anything you re-confirmed since is undone too).')) undoApply(t);
+      return;
+    }
     if (a === 'rc-cancelled') {
       var mm = t.move_out_check.impact.moved[+el.dataset.mi]; mm.cleared = true;
       if (S.form && S.formKey === 'moveout:' + t.id && S.form.impact) S.form.impact.moved[+el.dataset.mi].cleared = true;
@@ -1440,6 +1473,7 @@
     if (a === 'undo') {
       var snap = S.undo.pop(); if (!snap) return;
       var o = JSON.parse(snap); if (o.id !== t.id) return;
+      if (o.apply) { if (confirm('Undo the move-out Apply? The whole schedule goes back to before it.')) undoApply(t); else S.undo.push(snap); return; }
       t.steps = o.steps; t.scope.trades = o.trades; queueSave(t); render(); flashRR(before, t); return;
     }
     pushUndo(t);
