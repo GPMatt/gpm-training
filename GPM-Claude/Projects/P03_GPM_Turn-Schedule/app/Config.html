@@ -35,7 +35,7 @@ var DEFAULT_SETTINGS = {
     { key: 'carpetclean', label: 'Carpet cleaning', vendor: '', color: '#A8566F',
       sizes: [{ id: 'std', label: 'Standard', days: 1 }] }
   ],
-  defaults: { tech: 'basic', paint: 'full', clean: 'std' },
+  defaults: { tech: 'basic', paint: 'full', clean: 'std', carpetclean: 'std' }, // Matt 2026-11-10: carpet cleaning on by default
   // vendor name -> {phone, email}; Spencer fills these in Settings. These defaults fill any blank
   // field (saved settings never hide them). Vendors not listed here show "Add in Settings".
   contacts: {
@@ -44,14 +44,22 @@ var DEFAULT_SETTINGS = {
     'Eastpointe Interiors': { phone: '616-272-7120', email: 'apartmentorders@eastpointeinteriors.com' },
     'Matt Luschas': { email: 'mattjluschas@gmail.com' },
     'Riley': { email: 'riley@greenpropertymgt.com' },
-    'Bill': { email: 'bill@greenpropertymgt.com' }
+    'Bill': { email: 'bill@greenpropertymgt.com' },
+    'Wesley': { email: 'wesley@greenpropertymgt.com' }
   },
-  // Matt 2026-11-06: the ONLY properties Spencer walks alone. Everything else = Riley walk.
+  // Properties Spencer walks alone (Matt 2026-11-06; 2340 Michael, 2935 Oak Valley, 2700 Clyde Park added 2026-11-10).
+  // A tech-property match (below) wins over this list.
   cookieCutter: ['900 Leonard St NW', '90 Wealthy St SE', '5943 8th Ave', '1960 Burton St SE',
-    '100 Commerce Ave SW', '730 Leonard St NW', '445 Knapp St NE'],
-  // Matt 2026-11-09: Bill (on-site tech, never inspects) does the tech work here; Spencer walks alone.
-  // Pinery Woods, Oak Valley, Woods Edge, Taft, Havana.
-  billProperties: ['2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW', '2860 Taft Ave SW', '3608 Havana Ave SW'],
+    '100 Commerce Ave SW', '730 Leonard St NW', '445 Knapp St NE',
+    '2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW'],
+  // Tech by property (Matt 2026-11-09/10). walks:false = the tech never inspects, Spencer walks alone
+  // ("<Tech>'s property (Spencer alone)"). walks:true = the tech walks with Spencer ("<Tech> walk") and fills
+  // Tech Prep. Everywhere else = Riley walk. Old saved settings.billProperties feed Bill's addresses.
+  techProperties: [
+    { tech: 'Bill', email: 'bill@greenpropertymgt.com', walks: false,
+      addresses: ['2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW', '2860 Taft Ave SW', '3608 Havana Ave SW'] }, // Pinery Woods, Oak Valley, Woods Edge, Taft, Havana
+    { tech: 'Wesley', email: 'wesley@greenpropertymgt.com', walks: true, addresses: ['547 Cherry St SE'] }
+  ],
   template: 'Hi {vendor}, this is Spencer with Green Property Management.\n' +
     'Can you do {trade} at {address} {unit} on {date}, starting {time}? Plan on {length}.\n' +
     'Scope: {scope}\n' +
@@ -136,8 +144,11 @@ var FORMS = {
           { id: 'qty', type: 'number', label: 'Qty' },
           { id: 'store', type: 'select', label: 'Store', options: ['Ace', 'HD Supply', 'Other'] }] },
         { id: 'tools', type: 'text', label: 'Tools to bring' },
-        { id: 'blinds_count', type: 'number', label: 'Blinds to replace (count)', half: true },
-        { id: 'blinds_sizes', type: 'text', label: 'Blind sizes', half: true }
+        { id: 'blinds_old', type: 'oldblinds' }, // pre-2026-11-10 blinds_count / blinds_sizes, read-only
+        { id: 'blinds', type: 'list', label: 'Blind', title: 'Blinds to replace', columns: [
+          { id: 'room', type: 'roomselect', label: 'Room' },
+          { id: 'window', type: 'text', label: 'Window', placeholder: 'e.g. left of bed' },
+          { id: 'size', type: 'text', label: 'Size', placeholder: 'e.g. 35x64' }] }
       ]},
       { title: 'Locks + keys', help: 'From the checklist: entry lock replaced or re-keyed, 2 GPM entry keys (2 key min), mailbox key, 1 garage remote per door. Counts are what is LEFT IN THE UNIT; the tech recounts on build day.', fields: [
         { id: 'rekey', type: 'select', label: 'Entry lock', options: ['OK as is', 'Re-key', 'Replace'], half: true },
@@ -177,11 +188,8 @@ var FORMS = {
         { id: 'rr_holds', type: 'select', label: 'Does the rent-ready date still hold?', options: ['Yes', 'No'] },
         { id: 'rr_reason', type: 'text', label: 'Why not (then update the schedule)', showIf: 'rr_holds=No' }
       ]},
-      { title: 'Final tenant damages', help: 'Tag Charge tenant for deposit deductions.', fields: [
-        { id: 'damages', type: 'list', label: 'Damage', columns: [
-          { id: 'item', type: 'text', label: 'Damage' },
-          { id: 'room', type: 'text', label: 'Room' },
-          { id: 'charge', type: 'checkbox', label: 'Charge tenant' }] },
+      { title: 'Final tenant damages', help: 'The final list for the deposit. Scope damages, Tech Prep charge-tenant lines and missing keys are brought in here: mark each one Charge or Don\'t charge. Add anything new you find.', fields: [
+        { id: 'damages', type: 'damages' },
         { id: 'photos_whole_unit', type: 'checkbox', label: 'Whole empty unit photographed (on the WO)' },
         { id: 'deposit_notes', type: 'textarea', label: 'Deposit notes' }
       ]}
