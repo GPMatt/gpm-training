@@ -18,6 +18,9 @@
 .mc .f input,.mc .f select{width:100%}
 .mc-done{font-weight:600;color:var(--green);margin-bottom:6px}
 .imp .row,.f .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gate.pend{background:#F6E7C8;border-color:#E3C98F;color:#5E4210}
+.gate.pend label.cb{display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:600;cursor:pointer}
+.gate.pend label.cb input{width:18px;height:18px;accent-color:var(--green)}
 .imp{margin-top:10px;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;background:var(--cream)}
 .imp-h{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin-bottom:6px}
 .imp-rr{margin-bottom:4px}
@@ -307,7 +310,7 @@
     return '<div class="card" data-open="' + t.id + '">' +
       '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(unitTitle(t)) + '</div>' +
       '<div class="card-prop">' + esc(shortProp(t)) + '</div></div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
-      conflictBanner(t, false) +
+      conflictBanner(t, false) + pendingBanner(t) +
       '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
       '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
       progressHtml(t) +
@@ -332,7 +335,7 @@
       '<div class="rrbox" id="rrbox"><span>Rent ready</span><b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'em') + '</div>' +
       '<div class="kv"><span>Move-in</span><b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
       '</div></div>' +
-      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' + conflictBanner(t, true) +
+      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' + conflictBanner(t, true) + pendingBanner(t) +
       '<div class="tabs">' + tabs.map(function (x) {
         return '<button data-tab="' + x[0] + '" class="' + (S.tab === x[0] ? 'on' : '') + '">' + x[1] + (x[2] ? '<span class="tick">✓</span>' : '') + '</button>';
       }).join('') + '</div></div>';
@@ -652,7 +655,7 @@
       }
       if (key === 'moveout') { S.form.rr_holds = S.form.rr_holds || 'Yes'; }
       restoreTimer(key, S.form, t);
-      S.formDirty = false; S.gate = null;
+      S.formDirty = false; S.gate = null; S.alertOn = true; // alert checkbox: checked by default
     }
     return formHtml(key, S.form, t, false);
   }
@@ -771,6 +774,12 @@
     });
     var submitted = d.submitted_at;
     var endTimer = (key === 'scope' || key === 'techprep') && ownsTimer(key, d, t) && endsWalk(key, d, t) && timerRunning(d.pmi_timer);
+    if (key === 'moveout' && unapplied(d) && (d.changes || []).some(changeComplete)) {
+      var pa = d.pending_impact && d.pending_impact.alert_sent_at;
+      h += '<div class="gate pend">Changes are not applied to the schedule yet. You can still submit.' +
+        (pa ? '<div>Alert email sent ' + esc(new Date(pa).toLocaleString()) + '.</div>'
+          : '<label class="cb"><input type="checkbox" data-alert="1"' + (S.alertOn ? ' checked' : '') + '> Email an alert that the schedule isn\'t updated yet</label>') + '</div>';
+    }
     if (S.gate && S.gate.length) h += '<div class="gate"><b>Before you can submit:</b>' + S.gate.map(function (g) { return '<div>• ' + esc(g) + '</div>'; }).join('') + '</div>';
     h += '<div class="form-foot">';
     if (isNew) h += '<button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : 'Create turn + build schedule') + '</button>';
@@ -1054,6 +1063,7 @@
     if (im.changes.some(function (c) { return c.type === 'tech'; }) && !t.scope.trades.tech) t.scope.trades.tech = { size: 'basic', note: '' };
     d.impact = { applied_at: new Date().toISOString(), rr_before: im.rrBefore, rr_after: im.rrAfter,
       moved: im.diff.moved.concat(im.diff.removed) };
+    delete d.pending_impact; // applied now: the pending preview becomes the real impact
     S.gate = null;
     t.move_out_check = clone(d);
     S.formDirty = false; S.formKey = null;
@@ -1098,6 +1108,15 @@
     ((im && im.moved) || []).forEach(function (m, mi) { mv[m.key] = m; if (m.after === null && m.was_confirmed && !m.cleared) out.push({ cancel: true, m: m, mi: mi }); });
     t.steps.forEach(function (s, i) { if (s.status === 'resched') out.push({ s: s, i: i, m: mv[s.key] }); });
     return out;
+  }
+
+  /** Scope answered No, changes not applied to the schedule (move-out check form data). */
+  function unapplied(mo) { return !!mo && mo.scope_matches === 'No' && !(mo.impact && mo.impact.applied_at); }
+
+  function pendingBanner(t) {
+    var mo = t.move_out_check;
+    if (!mo || !mo.submitted_at || !unapplied(mo)) return '';
+    return '<div class="conflict">⚠ Scope changed, not applied to schedule<button class="btn sm" data-act="goto-apply" data-id="' + t.id + '">Apply now</button></div>';
   }
 
   function conflictBanner(t, withLink) {
@@ -1224,7 +1243,7 @@
       var ch = d.changes || [];
       if (!ch.length) out.push('Scope check: add at least one change (or answer Yes)');
       ch.forEach(function (c, i) { if (!changeComplete(c)) out.push('Scope check: finish change ' + (i + 1)); });
-      if (ch.length && !(d.impact && d.impact.applied_at)) out.push('Scope check: tap "Apply to schedule"');
+      // Apply is NOT required (Matt, option C): an unapplied No is saved as pending_impact + banner.
     }
     var left = ncItems(t).filter(function (x) { return !((d.nc_review || {})[x.key] || {}).r; }).length;
     if (left) out.push('Not checked at the PMI: answer ' + left + ' item' + (left === 1 ? '' : 's'));
@@ -1273,7 +1292,15 @@
         if (!tech.hoursEdited) { E.applyTechHours(tech, h); doneMsg = 'Submitted. Tech step set to ' + h + ' hours.'; }
       }
     } else if (key === 'moveout') {
-      if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
+      if (final) { d.submitted_at = d.submitted_at || new Date().toISOString(); d.done_by = 'Spencer'; } // move-out is Spencer alone; the alert email reads it
+      var sendAlert = false;
+      if (final && unapplied(d)) { // scope changed but not applied: keep the preview as pending_impact
+        var pim = impactOf(t, d.changes), prevAlert = d.pending_impact && d.pending_impact.alert_sent_at;
+        d.pending_impact = { computed_at: new Date().toISOString(), rr_before: pim.rrBefore, rr_after: pim.rrAfter,
+          moved: pim.diff.moved.concat(pim.diff.removed) };
+        if (prevAlert) d.pending_impact.alert_sent_at = prevAlert;
+        sendAlert = S.alertOn && !prevAlert;
+      } else if (final) delete d.pending_impact;
       t.move_out_check = clone(d);
     }
     S.formDirty = false; S.formKey = null; S.gate = null;
@@ -1283,6 +1310,11 @@
       if (key === 'scope') { S.tab = 'schedule'; }
       render(); flashRR(before, t);
       if (firstTechSubmit) sendTechPrepEmail(t); // only the FIRST final submit sends; Resend is on purpose
+      if (sendAlert) sendEmail('apiSendMoveOutAlert', t, function (r) {
+        var at = r.sentAt || new Date().toISOString();
+        t.move_out_check.pending_impact.alert_sent_at = at;
+        if (S.form && S.formKey === 'moveout:' + t.id && S.form.pending_impact) S.form.pending_impact.alert_sent_at = at;
+      });
     }, function () {});
   }
 
@@ -1419,6 +1451,14 @@
       return;
     }
     if (a === 'timer-start') { startTimer(); return; }
+    if (a === 'goto-apply') { // works from the board card too (no current turn there)
+      e.stopPropagation();
+      if (S.view === 'turn' && S.turnId === el.dataset.id) {
+        if (S.tab !== 'moveout') { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = 'moveout'; render(); }
+      } else go('turn', { turnId: el.dataset.id, tab: 'moveout' });
+      var ip = $('#impact'); if (ip) ip.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     if (a === 'copy') {
       copyText(el.dataset.text).then(function (ok) {
         if (ok) { toast('Copied ' + el.dataset.text); return; }
@@ -1498,6 +1538,7 @@
   document.addEventListener('change', function (e) {
     var el = e.target;
     if (el.dataset.actChange === 'cal-unit') { S.calUnit = el.value; render(); return; }
+    if (el.dataset.alert) { S.alertOn = el.checked; return; }
     if (el.dataset.ed) { editStep(+el.dataset.i, el.dataset.ed, el.value); return; }
     if (el.dataset.set) { settingsChange(el); return; }
     formChange(el);

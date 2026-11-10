@@ -45,7 +45,10 @@ const mock = `<script>
     if (localStorage.getItem('mockEmailFail')) throw new Error('Mail service unavailable (preview stub)');
     var t = db.turns.filter(function(x){return x.id===id;})[0]; if (!t) throw new Error('Turn not found');
     var bill = /Bill/.test(t.scope.walk_type||''), sentAt = new Date().toISOString();
-    if (kind==='tp') t.tech_prep.email_sent_at = sentAt; else t.move_out_check.impact.email_sent_at = sentAt;
+    window.mockMailCalls = (window.mockMailCalls||[]).concat([kind+':'+id]);
+    if (kind==='tp') t.tech_prep.email_sent_at = sentAt;
+    else if (kind==='alert') t.move_out_check.pending_impact.alert_sent_at = sentAt;
+    else t.move_out_check.impact.email_sent_at = sentAt;
     persist();
     return {to:['spencer@greenpropertymgt.com', bill ? 'bill@greenpropertymgt.com' : 'riley@greenpropertymgt.com'], cc:['jason@greenpropertymgt.com'],
       subject:(kind==='tp' ? 'Turn WO description: ' : 'Turn scope changed: ') + t.property_label + ' ' + (t.unit_label||''), sentAt:sentAt};
@@ -55,6 +58,7 @@ const mock = `<script>
       return {user:'spencer@greenpropertymgt.com', settings:db.settings, turns:JSON.parse(JSON.stringify(db.turns.filter(function(t){return !t.archived;})))}; },
     apiSendTechPrepEmail: function(id){ return mail(id, 'tp'); },
     apiSendMoveOutEmail: function(id){ return mail(id, 'mo'); },
+    apiSendMoveOutAlert: function(id){ return mail(id, 'alert'); },
     apiSaveTurn: function(t){ t = JSON.parse(JSON.stringify(t)); t.updated_at = new Date().toISOString();
       if(!t.id){ t.id = 'turn-' + Math.random().toString(36).slice(2,8); db.turns.push(t); }
       else { db.turns = db.turns.map(function(x){ return x.id===t.id ? t : x; }); }
