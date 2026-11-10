@@ -252,4 +252,69 @@ t('(m4) bizDiffServer_ + fmtDay_ match Engine over 2026-2027', () => {
   }
 });
 
+// ---------- Move-out alert (submitted without Apply) ----------
+function alertTurn() {
+  const t = moveOutTurn();
+  t.move_out_check.done_by = 'Spencer';
+  t.move_out_check.pending_impact = {
+    computed_at: '2026-11-19T20:00:00Z', rr_before: '2026-11-24', rr_after: '2026-11-30',
+    moved: [
+      { key: 'tech', label: 'Tech', vendor: 'Riley', before: '2026-11-20', after: '2026-11-23', before_end: '2026-11-20', after_end: '2026-11-23', was_confirmed: true },
+      { key: 'carpetclean', label: 'Carpet cleaning', vendor: 'Stanley Steemer', before: '2026-11-24', after: null, before_end: '2026-11-24', after_end: null, was_confirmed: true },
+      { key: 'clean', label: 'Clean', vendor: 'Up & Up', before: '2026-11-24', after: '2026-11-30', was_confirmed: false }
+    ]
+  };
+  delete t.move_out_check.impact;
+  return t;
+}
+
+const EXPECTED_ALERT = [
+  'Spencer submitted the move-out check: the scope changed, but the schedule has NOT been updated yet. Open the turn and tap Apply to schedule.',
+  '',
+  'If applied, rent ready would move from Tue Nov 24 to Mon Nov 30 (+3 business days).',
+  '',
+  'Changes:',
+  '- Add Flooring (LVP / vinyl) - Kitchen + bath',
+  '- Paint: size now Color change (2 days)',
+  '- Remove Carpet cleaning',
+  '- New tech item: Replace closet door (+2 h)',
+  '- Other vendor item: Glass company for cracked window',
+  '',
+  'Confirmed vendors that would need a new date:',
+  '- Tech: Fri Nov 20 -> Mon Nov 23',
+  '- Carpet cleaning - Stanley Steemer: Tue Nov 24 -> removed'
+].join('\n');
+
+t('(n1) move-out alert: exact text + subject, no Riley, neutral wording', () => {
+  const d = D.describeMoveOutAlert(alertTurn(), eng.S);
+  assert.equal(d.text, EXPECTED_ALERT);
+  assert.equal(d.subject, 'Turn scope changed, NOT applied: 2361 Example St SW #4 (WO 18171-1)');
+  assert.ok(!/riley/i.test(d.text + d.subject + d.html));
+  console.log('\n' + d.text + '\n');
+  const t2 = alertTurn();
+  delete t2.move_out_check.done_by;
+  t2.move_out_check.pending_impact.moved = [];
+  t2.move_out_check.pending_impact.rr_after = '2026-11-24';
+  t2.move_out_check.changes = [];
+  assert.equal(D.describeMoveOutAlert(t2, eng.S).text, [
+    'The move-out check was submitted: the scope changed, but the schedule has NOT been updated yet. Open the turn and tap Apply to schedule.',
+    '',
+    'If applied, rent ready would stay Tue Nov 24.',
+    '',
+    'No confirmed vendors would move.'
+  ].join('\n'));
+});
+
+t('(n2) move-out alert: test switch + Bill routing', () => {
+  const m = plain(D.buildMoveOutAlertMail(alertTurn(), eng.S, 'matt@greenpropertymgt.com'));
+  assert.deepEqual(m.to, ['matt@greenpropertymgt.com']);
+  assert.deepEqual(m.cc, []);
+  assert.equal(m.subject, '[TEST] Turn scope changed, NOT applied: 2361 Example St SW #4 (WO 18171-1)');
+  assert.equal(m.text, 'TEST: real recipients would be To: spencer@greenpropertymgt.com, riley@greenpropertymgt.com; Cc: jason@greenpropertymgt.com\n\n' + EXPECTED_ALERT);
+  const bill = alertTurn(); bill.property_label = '2340 Michael Ave SW';
+  const real = plain(D.buildMoveOutAlertMail(bill, eng.S, ''));
+  assert.deepEqual(real.to, ['spencer@greenpropertymgt.com', 'bill@greenpropertymgt.com']);
+  assert.deepEqual(real.cc, ['jason@greenpropertymgt.com']);
+});
+
 console.log(n + ' tests passed');
