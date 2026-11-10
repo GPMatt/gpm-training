@@ -48,7 +48,10 @@ const mock = `<script>
       keys_charge:true, keys_entry:1, keys_mailbox:0, remotes_garage:0,
       checklist:{basement:{2:{s:'nc', note:'Washer area locked'}}, bed1:{3:{s:'nc', note:'Blocked by boxes'}}, kitchen:{8:{s:'fix', note:'Door handle snapped', charge:true}}}};
     c.scope.damages = [{item:'Hole in hallway wall', room:'Hallway', charge:true}, {item:'Carpet stain', room:'Bedroom'}];
-    return [a, b, w, c];
+    // an older turn that still has a Pre-clean step (pre-clean is no longer offered as a trade)
+    var p = turn('turn-preclean', '44444444-4444-4444-4444-444444444444', '90 Wealthy St SE', null, null,
+      'Cookie cutter (Spencer alone)', day(16), day(35), {preclean:{size:'std'}, tech:{size:'basic'}, paint:{size:'full'}, clean:{size:'std'}});
+    return [a, b, w, c, p];
   }
   function mail(id, kind){
     if (localStorage.getItem('mockEmailFail')) throw new Error('Mail service unavailable (preview stub)');
@@ -71,7 +74,10 @@ const mock = `<script>
     apiSaveTurn: function(t){ t = JSON.parse(JSON.stringify(t)); t.updated_at = new Date().toISOString();
       if(!t.id){ t.id = 'turn-' + Math.random().toString(36).slice(2,8); db.turns.push(t); }
       else { db.turns = db.turns.map(function(x){ return x.id===t.id ? t : x; }); }
-      persist(); return t; },
+      persist();
+      // localStorage.mockCalendarError = 'msg' makes every save report a Calendar sync failure (the save itself works)
+      var ce = localStorage.getItem('mockCalendarError'); if (ce) { t = JSON.parse(JSON.stringify(t)); t.calendarError = ce; }
+      return t; },
     apiArchiveTurn: function(id){ db.turns.forEach(function(t){ if(t.id===id) t.archived=true; }); persist(); return {}; },
     apiSaveSettings: function(v){ db.settings = v; localStorage.setItem('mockSettings', JSON.stringify(v)); return v; },
     apiProperties: function(){ return props; },
