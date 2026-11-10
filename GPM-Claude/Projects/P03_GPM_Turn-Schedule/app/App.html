@@ -1063,6 +1063,7 @@
     if (im.changes.some(function (c) { return c.type === 'tech'; }) && !t.scope.trades.tech) t.scope.trades.tech = { size: 'basic', note: '' };
     d.impact = { applied_at: new Date().toISOString(), rr_before: im.rrBefore, rr_after: im.rrAfter,
       moved: im.diff.moved.concat(im.diff.removed) };
+    if (d.pending_impact && d.pending_impact.alert_sent_at) d.impact.alert_sent_at = d.pending_impact.alert_sent_at; // keep the alert record
     delete d.pending_impact; // applied now: the pending preview becomes the real impact
     S.gate = null;
     t.move_out_check = clone(d);

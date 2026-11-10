@@ -131,8 +131,8 @@ function describeTechPrep(turn, rooms, settings) {
     return '- ' + (hasVal_(p.qty) ? p.qty + ' x ' : '') + String(p.item).trim() + (hasVal_(p.store) ? ' (' + p.store + ')' : '');
   });
   if (hasVal_(tp.rekey_parts) && (tp.rekey === 'Re-key' || tp.rekey === 'Replace')) parts.push('- Lock parts: ' + String(tp.rekey_parts).trim());
-  if (hasVal_(tp.blinds_count) || hasVal_(tp.blinds_sizes)) parts.push('Blinds to replace: ' + (hasVal_(tp.blinds_count) ? tp.blinds_count : '?') + (hasVal_(tp.blinds_sizes) ? ' (sizes: ' + String(tp.blinds_sizes).trim() + ')' : ''));
-  if (hasVal_(tp.furnace_filter_size)) parts.push('Furnace filter size: ' + String(tp.furnace_filter_size).trim());
+  if (hasVal_(tp.blinds_count) || hasVal_(tp.blinds_sizes)) parts.push('- Blinds to replace: ' + (hasVal_(tp.blinds_count) ? tp.blinds_count : '?') + (hasVal_(tp.blinds_sizes) ? ' (sizes: ' + String(tp.blinds_sizes).trim() + ')' : ''));
+  if (hasVal_(tp.furnace_filter_size)) parts.push('- Furnace filter size: ' + String(tp.furnace_filter_size).trim());
   if (parts.length) below.push('Parts to order:\n' + parts.join('\n'));
   if (notChecked.length) below.push('Not checked at the PMI:\n' + notChecked.join('\n'));
   var misc = [];
