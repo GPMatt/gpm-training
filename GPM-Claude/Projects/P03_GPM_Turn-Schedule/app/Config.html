@@ -49,6 +49,23 @@ var DEFAULT_SETTINGS = {
     'Bill': { email: 'bill@greenpropertymgt.com' },
     'Wesley': { email: 'wesley@greenpropertymgt.com' }
   },
+  // V1 vendor book (Matt 2026-11-11): one row per company. trade = catalog key, 'other', or ''.
+  // Text / Email buttons, the re-contact list and the {contact} placeholder read from here.
+  // Old saved settings.contacts (phone/email by vendor name) are merged in once (mergeSettings).
+  vendors: [
+    { company: 'Dumpster Divers', trade: 'trash', contact: '', email: '', cell: '' },
+    { company: 'Surface Tech', trade: 'tub', contact: '', email: 'surfacetechs1@hotmail.com', cell: '' },
+    { company: 'Grand River Plumbing', trade: 'tub', contact: '', email: 'emails.grp@gmail.com', cell: '' },
+    { company: 'Eastpointe Interiors', trade: 'flooring', contact: 'Tom Rozanski', email: 'apartmentorders@eastpointeinteriors.com', cell: '616-272-7120' },
+    { company: 'Matt Luschas', trade: 'drywall', contact: 'Matt', email: 'mattjluschas@gmail.com', cell: '' },
+    { company: 'Riley', trade: 'tech', contact: 'Riley', email: 'riley@greenpropertymgt.com', cell: '' },
+    { company: 'Bill', trade: 'tech', contact: 'Bill', email: 'bill@greenpropertymgt.com', cell: '' },
+    { company: 'Wesley', trade: 'tech', contact: 'Wesley', email: 'wesley@greenpropertymgt.com', cell: '' },
+    { company: 'Trevor', trade: 'paint', contact: 'Trevor', email: '', cell: '' },
+    { company: 'GR Cleaning Co', trade: 'clean', contact: '', email: '', cell: '' },
+    { company: 'Up & Up', trade: 'clean', contact: '', email: '', cell: '' },
+    { company: 'Surface Experts', trade: 'surface', contact: '', email: '', cell: '' }
+  ],
   // Properties Spencer walks alone (Matt 2026-11-06; 2340 Michael, 2935 Oak Valley, 2700 Clyde Park added 2026-11-10).
   // A tech-property match (below) wins over this list.
   cookieCutter: ['900 Leonard St NW', '90 Wealthy St SE', '5943 8th Ave', '1960 Burton St SE',
@@ -62,7 +79,7 @@ var DEFAULT_SETTINGS = {
       addresses: ['2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW', '2860 Taft Ave SW', '3608 Havana Ave SW'] }, // Pinery Woods, Oak Valley, Woods Edge, Taft, Havana
     { tech: 'Wesley', email: 'wesley@greenpropertymgt.com', walks: true, addresses: ['547 Cherry St SE'] }
   ],
-  template: 'Hi {vendor}, this is Spencer with Green Property Management.\n' +
+  template: 'Hi {contact}, this is Spencer with Green Property Management.\n' +
     'Can you do {trade} at {address} {unit} on {date}, starting {time}? Plan on {length}.\n' +
     'Scope: {scope}\n' +
     'Access: {access}\n' +
@@ -74,7 +91,7 @@ var SCOPE_HIDDEN_TRADES = ['preclean'];
 
 var CHECK_ROOMS = [
   // Items match Jason's "TURN checklist 2026" (Drive 1CQD_TPlhFzpN3wyr3NTS4-0Dk6gzmSpdhwQrSywkutU) room by room.
-  { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind'] },
+  { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind', 'Porch light'] }, // Porch light added V1 2026-11-11 (appended: answers are stored by index)
   { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock', '2 key min', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
   { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 (outside bedroom)'] },
   { id: 'kitchen', label: 'Kitchen', items: ['Light above sink', 'Run dishwasher', 'Disposal', 'Faucet', 'Drains under sink', 'Stove / oven', 'Drip pans', 'Hood filter', 'Microwave', 'Fridge / freezer', 'Countertops', 'Cabinets / drawers', 'GFCI protecting', 'Outlet / switch covers'] },

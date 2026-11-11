@@ -1,54 +1,57 @@
-# P03 Turn app: manual test on the TEST deployment (Matt, round 4)
+# P03 Turn app: manual test on the TEST deployment (Matt, round 6 = round 5 fixes + V1)
 
-Open: https://script.google.com/a/macros/greenpropertymgt.com/s/AKfycbw_6vLB-pWRR4JIQunwFFmSrgxhVC-nt25LfT9qNszKtJ2LtiYPodAAUWg4btpODJU8mA/exec
-(phone if you can). EMAIL_TEST_TO = matt@ is set: every email comes only to you, the subject starts with `[TEST]`,
-and the first line names the real recipients.
+Open ON YOUR PHONE: https://script.google.com/a/macros/greenpropertymgt.com/s/AKfycbw_6vLB-pWRR4JIQunwFFmSrgxhVC-nt25LfT9qNszKtJ2LtiYPodAAUWg4btpODJU8mA/exec
+EMAIL_TEST_TO = matt@ is set: every email comes only to you, subject starts with `[TEST]`, first line names the real recipients.
 
-Before you start: this deployment uses the LIVE tables and the account that deployed it writes the calendar
-events, so Spencer sees these turns until step 13. Archive them HERE (not in the live app: the live app doesn't
-delete calendar events yet). The Unit box is a dropdown, so "TEST" goes in the **Unit Turn WO #** box.
-Use move-out = today. Keep the calendar of the deploying account (automation@) open in another tab.
+This deployment uses the LIVE tables + automation@'s calendar: archive the TEST turns HERE at the end (step 12).
+"TEST" goes in the **Unit Turn WO #** box. Use move-out = today.
 
-1. **New turn, Wesley property.** + New turn, pick `547 Cherry St SE`. *See:* walk type "Wesley walk (Spencer +
-   Wesley)"; Paint, Clean AND **Carpet cleaning** already selected. Tap **Start timer**, reload the page, open
-   + New turn again: the clock is still running. WO #: `TEST`, move-out today, also pick Tech Basic.
-   Damages: + Add damage "Hole in hall wall", room "Hall", tick Charge tenant. Button reads **Submit + end timer**: tap it.
-   *See:* gantt right away; Tech step vendor **Wesley**; header "PMI 0.x h".
-2. **Calendar.** *See (within a minute) in the calendar:* one event per step, e.g. "Paint · Trevor · 547 Cherry
-   St SE [Not booked]" at 9 AM, plus an all-day "Rent ready · 547 Cherry St SE". Then mark **Paint** and **Clean**
-   Confirmed on the turn. *See:* those two titles lose "[Not booked]" after a refresh.
-3. **Tech Prep (Wesley).** Tech Prep tab. *See:* Filled by = Wesley, no timer. Open Kitchen, tap **OK** on two
-   lines: the room stays open. Mark "Disposal" **Fix**, Charge tenant, note "Disposal jammed". Mark a Bedroom 2
-   line Fix, then set Bedrooms to 1. *See:* "Bedroom 2 has 1 answer… Remove them / Keep 2 bedrooms": tap **Keep**.
-   + Add blind twice: Bedroom 1, "left of bed", 35x64; Living room, 23x64. Entry keys 1, tick Charge tenant for
-   missing keys. Hours 4. **Submit**.
-   *See:* toast "Email sent to matt@…"; email first line names spencer@ + **wesley@**, Cc jason@; body has
-   "Kitchen: Disposal jammed. (Charge Tenant)", a Keys line with (Charge Tenant), and under Parts to order
-   "Blinds to replace: 2" with both rows (room, window, size).
-4. **No double send + Resend.** Hours 5, **Save changes**: no email. **Resend email**: one more arrives.
-5. **New turn, Bill property.** + New turn, pick `2935 Oak Valley Ave SW`. *See:* "Bill's property (Spencer
-   alone)". Start timer: the button says "Create turn + build schedule". WO # `TEST`, move-out today, Tech Basic. Create.
-   *See:* Tech vendor **Bill**.
-6. **Bill Tech Prep.** *See:* clock still running, Filled by = Spencer (Bill isn't in the list), button **Submit +
-   end timer**. Hours 2, one Fix line, submit. *See:* email names spencer@ + bill@, no "Riley" anywhere; header "PMI x h".
-7. **Move-out blocked.** Cherry turn → Move-out check → **Submit** with nothing filled. *See:* "Before you can
-   submit" lists the scope question, Keys received, and "Final tenant damages: mark Charge or Don't charge on 3 items".
-   The damages list shows 3 carried-in rows: Scope "Hole in hall wall", Tech Prep "Disposal: Disposal jammed", Keys.
-8. **Damages.** Mark the 3 rows Charge / Don't charge / Charge. + Add damage "Broken closet door", mark Charge.
-   Leave the tab and come back. *See:* still 4 rows, no duplicates, your choices kept.
-9. **Move-out No + preview.** Scope matches = **No**, + Add a change: Add a trade, Tub, Resurface. *See:* rent
-   ready old → new, move-in buffer, "Paint / Clean confirmed: re-contact".
-10. **Submit without Apply.** Tick Keys received, keep "Email an alert" ticked, **Submit**. *See:* email
-    `[TEST] Turn scope changed, NOT applied: …` PLUS a second email `[TEST] Turn conflict review: 547 Cherry St SE`
-    (moved vendors + "Same vendors on other open turns"); red "Scope changed, not applied" banner on the turn and its
-    board card; dates unchanged.
-11. **Apply.** **Apply now** on the board card → **Apply to schedule** → OK. *See:* `[TEST] Turn schedule changed: …`
-    and another conflict review email; Paint/Clean red "Reschedule"; "Schedule conflicted: 2 vendors to re-contact"
-    with the re-contact list; not-applied banner gone. In the calendar, Paint/Clean move to the new days, marked
-    "[Reschedule]", and a Tub event appears.
-12. **Clear + undo.** **Confirmed new date** on both: banner disappears. Move-out tab → **Edit changes** → OK.
-    *See:* dates and Confirmed statuses back to before Apply, the not-applied banner returns, the calendar moves back
-    (no email).
-13. **Clean up.** Each TEST turn: Schedule tab → **Archive** → OK. *See:* both leave the board AND all their events
-    leave the calendar. Expected emails: 2 Tech Prep (Cherry) + 1 (Oak Valley) + 1 alert + 1 change + 2 conflict
-    reviews = 7. Tell the general what arrived and anything that looked wrong.
+**Phone layout (V1)**
+1. **New turn, Wesley property.** + New turn, `547 Cherry St SE`. *See:* NO timer anywhere; one field per row, no
+   sideways scrolling, tapping a box does not zoom the page. Trades: Paint, Clean, Carpet cleaning picked; "Not needed"
+   trades show no note box; picking a size on Tub makes its note box appear. *Round 5:* Pre-clean is NOT a trade, it is
+   a Type under "Other vendors". Damages: + Add damage → it is a card (Damage / Room / Charge tenant), not a table row.
+   "Hole in hall wall", Hall, Charge tenant. WO # `TEST`, move-out today, Tech Basic. **Create turn + build schedule**.
+2. **Turn header on a form tab.** Open the Tech Prep tab. *See:* the header shrinks to unit + tabs and stays stuck at
+   the top while you scroll; no green rent-ready bar over the Submit button (it shows on Schedule only).
+3. **Checklist (V1).** *See:* Filled by = Wesley. Each line = name with ✎ on the right, then 4 equal buttons
+   OK / Fix / Not checked / N/A. Exterior ends with **Porch light**. Footer shows "0 / N answered · 0 fix" and updates
+   as you tap. Kitchen: tap OK on 2 lines (room stays open, round 5), Fix "Disposal" + Charge tenant + note "Disposal
+   jammed". Tap **Mark the other N OK + next room**: Kitchen closes with ✓ and green, the next room opens.
+   *Round 5:* Rooms chips: tap Basement off → it leaves the list (asks first if it has answers).
+   Set Bedrooms lower than a bedroom you answered → "Remove them / Keep" prompt → **Keep**.
+4. **Blinds + keys.** + Add blind twice (cards): Bedroom 1, "left of bed", 35x64; Living room, 23x64. Entry keys 1,
+   Charge tenant for missing keys. Hours 4. **Submit**. *See:* toast "Email sent to matt@…"; email names spencer@ +
+   wesley@, Cc jason@; "Kitchen: Disposal jammed. (Charge Tenant)", a Keys line, blinds under Parts to order.
+5. **WO description copy (V1).** Tap **⧉ AppFolio WO description** (Tech Prep footer). *See:* popup with the room
+   lines + Keys line ONLY (no parts, no "Not for the work order"). **Copy for AppFolio WO**, paste into Notes: matches.
+   Same button on the Schedule tab's "Before move-out" panel. Edit hours, don't save, tap the button: "Save your
+   changes first". Save changes: no email. **Resend email**: one more arrives.
+6. **Bill property.** + New turn, `2935 Oak Valley Ave SW`. *See:* "Bill's property (Spencer alone)"; Tech vendor
+   **Bill**. Tech Prep: Filled by = Spencer, button just "Submit". Hours 2, one Fix, submit: email to spencer@ + bill@,
+   no "Riley" anywhere.
+
+**Vendor book (V1)**
+
+7. **Settings → Vendor book.** *See:* cards with Company / Trade / Contact name / Email / Cell, seeded with our vendors
+   (Eastpointe has Tom Rozanski + 616-272-7120; Riley, Bill, Wesley under Tech). Set Trevor's cell to your cell,
+   + Add vendor "TEST Painter", trade Paint. **Save settings**, reload: both kept.
+8. **Vendor book in use.** Cherry turn → Schedule → Paint step: tap the Vendor box: Trevor + TEST Painter suggested
+   first. **✉ Vendor message** on Paint: starts "Hi Trevor," and has a **Text <your cell>** button that opens Messages
+   with the text filled in. Then delete TEST Painter in Settings + Save.
+
+**Move-out (round 4/5 flow, now on a phone)**
+
+9. **Blocked + damages.** Cherry → Move-out check → **Submit** empty. *See:* the red list; 3 carried-in damage rows
+   (Scope hall wall, Tech Prep disposal, Keys). *Round 5:* NO "Does the rent-ready date still hold?" question.
+   Mark them Charge / Don't charge / Charge (two big buttons each), + Add damage "Broken closet door", Charge.
+10. **No + submit without Apply.** Scope matches = No, + Add a change: Add a trade, Tub, Resurface (preview shows rent
+    ready old → new, "Paint / Clean confirmed: re-contact" if you confirmed them). Keys received, Submit.
+    *See:* `[TEST] Turn scope changed, NOT applied` + `[TEST] Turn conflict review` (only if a confirmed vendor moved);
+    red "not applied" banner.
+11. **Apply + calendar.** Apply now → Apply to schedule. *See:* `[TEST] Turn schedule changed`; re-contact list shows
+    each vendor's phone/email FROM THE VENDOR BOOK. Calendar (automation@): one event per step, rent ready ONLY on its
+    own all-day event (round 5). Edit changes → OK: everything back.
+12. **Clean up.** Archive both TEST turns HERE: they leave the board and the calendar.
+
+Tell me what arrived and anything that looked wrong. When it passes, I deploy it to the live URL (EMAIL_TEST_TO stays on).

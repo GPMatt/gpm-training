@@ -1,6 +1,6 @@
 # GPM Turn Plan (P03 / to-do #17)
 
-Current state as of 2026-11-05 (after the 2026-11-04 team meeting). Nothing is built yet.
+Current state: MVP app LIVE (see PLAN.md for rounds 1-5 + V1, 2026-11-11). Sections below 2026-11-06 are history.
 Visual: https://claude.ai/artifact/2wMcYR94HjYqYiDhjKWTVj (v7, shared "anyone with the link").
 Artifact source is kept in this folder as `turn-flow.html` (republish with the Artifact tool + that url).
 
@@ -184,7 +184,9 @@ Excluded entirely (owner uses own vendors):
 - [ ] REAL RELEASE (Matt 2026-11-09): when a move-out scope change moves confirmed vendors, consider
       swapping or rearranging (same vendor, different day or a different unit's slot) before cancelling,
       since one vendor does most trades. Aim: avoid cancellation fees. Needs a cross-turn vendor-day view.
-- [x] BS2 (2026-11-05 Matt): read-back = Spencer SHARES the turn WO by email after each visit (same
+- [x] BS2 SUPERSEDED 2026-11-11 (Matt): sharing the AppFolio WO by email is SCRAPPED. The app drafts the WO
+      description and Spencer copies it into AppFolio ("Copy for AppFolio WO"). No read-back from AppFolio in V1.
+- [x] (old) BS2 (2026-11-05 Matt): read-back = Spencer SHARES the turn WO by email after each visit (same
       day, photos attached; the 11/5 share of WO 18171-1 arrived at 25.5 MB, so the 18 MB fear may not
       hold). Risk = he forgets: system sends a 5pm follow-up if a PMI/visit was due today and no share
       email arrived. Daily CSV demoted to backup.

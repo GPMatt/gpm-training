@@ -523,4 +523,16 @@ t('(R5.1+2) 151 Sweet re-rendered; rooms_off skips fix + not-checked lines', () 
   assert.equal(D.describeTechPrep(on, D.CHECK_ROOMS_SERVER, {}).text, EXPECTED_151);
 });
 
+t('(V1) paste = the email text above the divider, nothing below it', () => {
+  const d = D.describeTechPrep(example2361(), D.CHECK_ROOMS_SERVER, {});
+  assert.equal(d.paste, d.text.split('\n\n---- Not for the work order ----')[0]);
+  assert.ok(!/Not for the work order|Parts to order|Filled by/.test(d.paste));
+});
+
+t('(V1) Porch light is the LAST Exterior item (answers are stored by index)', () => {
+  const ext = D.CHECK_ROOMS_SERVER.find(r => r.id === 'exterior').items;
+  assert.equal(ext[ext.length - 1], 'Porch light');
+  assert.equal(ext.indexOf('Garage / storage room for items left behind'), 4);
+});
+
 console.log(n + ' tests passed');

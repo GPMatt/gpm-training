@@ -6,7 +6,7 @@
 // Server copy of CHECK_ROOMS in Config.html. Keep identical: describe.test.js fails if they drift.
 var CHECK_ROOMS_SERVER = [
   // Items match Jason's "TURN checklist 2026" (Drive 1CQD_TPlhFzpN3wyr3NTS4-0Dk6gzmSpdhwQrSywkutU) room by room.
-  { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind'] },
+  { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind', 'Porch light'] },
   { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock', '2 key min', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
   { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 (outside bedroom)'] },
   { id: 'kitchen', label: 'Kitchen', items: ['Light above sink', 'Run dishwasher', 'Disposal', 'Faucet', 'Drains under sink', 'Stove / oven', 'Drip pans', 'Hood filter', 'Microwave', 'Fridge / freezer', 'Countertops', 'Cabinets / drawers', 'GFCI protecting', 'Outlet / switch covers'] },
@@ -210,7 +210,8 @@ function describeTechPrep(turn, rooms, settings) {
   var text = top.join('\n\n') + (below.length ? '\n\n---- Not for the work order ----\n\n' + below.join('\n\n') : '');
   var subject = 'Turn WO description: ' + [turn.property_label, turn.unit_label].filter(hasVal_).join(' ') +
     (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
-  return { subject: subject, text: text, html: textToHtml_(text) };
+  // paste = only the part above the divider: what Spencer copies into the AppFolio Unit Turn WO (V1 copy button)
+  return { subject: subject, text: text, html: textToHtml_(text), paste: top.join('\n\n') };
 }
 
 /** Everything apiSendTechPrepEmail sends: recipients + subject/body, test mode applied. */

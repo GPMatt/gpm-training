@@ -2,10 +2,6 @@
 /* 2026-11-09 additions (timer, per-line charge/note, move-out changes, conflicted schedule) */
 .muted{color:var(--muted);font-size:13px}
 .form-foot{flex-wrap:wrap}
-.timer{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin-bottom:12px}
-.timer.run{border-color:var(--green-3);background:var(--green-soft)}
-.timer.run b{font-size:20px;font-variant-numeric:tabular-nums}
-.timer input{min-width:0}
 .ci-ctl{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .ci-pen,.ci-chg{border:1px solid var(--line-2);background:#fff;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted)}
 .ci-pen.on{color:var(--green);border-color:var(--green-3)}
@@ -66,7 +62,93 @@ tr.miss td{background:var(--red-soft)}
 .seg button.on.resched{background:var(--red);color:#fff}
 .prog-seg.resched{background:var(--red)}
 .ev.resched{background:var(--red)!important;color:#fff}
-</style>
+/* ---------- V1 2026-11-11: vendor book, WO copy, checklist flow ---------- */
+.vb{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.vb-card{position:relative;display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px 12px 12px;background:#fff}
+.vb-card .f input,.vb-card .f select{width:100%}
+.vb-card .vb-del{position:absolute;top:8px;right:8px}
+.vb-card .f:first-of-type{padding-right:38px}
+.wo-modal textarea{font:14px/1.5 ui-monospace,Menlo,monospace;min-height:220px}
+.room summary{align-items:center;gap:10px}
+.room.all summary{background:var(--green-soft);color:var(--green)}
+.room-foot{padding:10px 12px;border-top:1px solid var(--cream-2);display:flex;justify-content:flex-end}
+.cl-tot{margin-bottom:8px;font-weight:600}
+.foot-count{font-size:13px;color:var(--muted);flex-basis:100%}
+.foot-count b{color:var(--green)}
+/* ---------- V1 phone-first forms (Spencer + techs fill these on a phone during the walk) ---------- */
+@media (max-width:760px){
+  html,body{font-size:15px}
+  .topbar{position:static}
+  .brand{font-size:17px}
+  .nav button{padding:9px 12px}
+  main{padding:10px 10px 90px}
+  /* compact turn header on the form tabs: unit + tabs only, stuck to the top */
+  .turn-head.is-form{position:sticky;top:0;z-index:25;margin:-10px -10px 12px;padding:8px 10px 0;box-shadow:0 2px 8px rgba(31,42,34,.08)}
+  .turn-head.is-form .th-dates,.turn-head.is-form .prog,.turn-head.is-form .th-row>.btn{display:none}
+  .turn-head.is-form .th-unit{font-size:19px}
+  .turn-head.is-form .th-prop{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 30px)}
+  .turn-head.is-form .tabs{margin-top:6px}
+  .tabs button{padding:11px 12px}
+  .form .page-head{margin-bottom:6px}
+  .form .page-head h1{font-size:23px}
+  .form-who{font-size:13px;margin:0 0 10px}
+  .sec{padding:14px 12px;border-radius:12px}
+  .sec h3{font-size:18px}
+  /* 16px inputs: iOS zooms the page on focus below 16px */
+  .f input,.f select,.f textarea,.list-t input,.list-t select,.dmg-in input,.trade-row select,.trade-row input,.ci .note input,.modal textarea{font-size:16px;min-height:44px}
+  .fields .f.half{flex:1 1 100%;min-width:0}
+  .f label.cb{min-height:44px;font-size:15px}
+  .f label.cb input,.gate.pend label.cb input{width:24px;height:24px}
+  .btn{min-height:44px;padding:10px 14px}
+  .btn.sm{min-height:40px}
+  .iconbtn{width:40px;height:40px}
+  /* checklist: line name on top, four equal answer buttons under it */
+  .room{border-radius:12px}
+  .room summary{padding:14px 12px;font-size:16px}
+  /* row 1: line name + note pencil · row 2: the four answers · row 3: Charge tenant (Fix only) · then the note */
+  .ci{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px;align-items:center}
+  .ci>span:first-child{font-size:15px;font-weight:600;grid-column:1;grid-row:1}
+  .ci-ctl{display:contents}
+  .ci-ctl .ci-pen{grid-column:2;grid-row:1}
+  .ci-ctl .tri{grid-column:1/-1;grid-row:2}
+  .ci-ctl .ci-chg{grid-column:1/-1;grid-row:3;justify-self:start}
+  .ci .note{grid-row:4}
+  .tri{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;border-radius:10px}
+  .tri button{min-height:46px;font-size:14px;padding:6px 2px}
+  .ci-pen,.ci-chg{min-height:42px;padding:8px 14px;font-size:14px}
+  .ci:has(.ci-chg) .ci-pen{display:none}
+  .form,.sec,.fields,.f,.room{min-width:0;max-width:100%}
+  .fields .f{flex-basis:100%}
+  .rp-chip{padding:9px 13px;font-size:14px}
+  /* list tables become one card per row */
+  .lt-cards,.lt-cards tbody,.lt-cards tr,.lt-cards td{display:block;width:100%!important}
+  .lt-cards .lt-h{display:none}
+  .lt-cards tr{position:relative;border:1px solid var(--line);border-radius:10px;padding:8px 52px 8px 10px;margin-bottom:8px;background:#fff}
+  .lt-cards td{padding:4px 0}
+  .lt-cards td[data-label]:before{content:attr(data-label);display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--muted);margin-bottom:3px}
+  .lt-cards td:has(> label.cb):before{display:none}
+  .lt-cards td.lt-del{position:absolute;top:8px;right:8px;width:auto!important;padding:0}
+  .lt-cards label.cb{min-height:40px;font-size:15px!important}
+  .lt-cards label.cb input{width:22px;height:22px}
+  .nc-t,.nc-t tbody,.nc-t tr,.nc-t td{display:block;width:100%!important}
+  .nc-t tr{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fff}
+  .nc-t td{padding:3px 0}
+  .dmg-in .seg{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .seg button{min-height:42px}
+  .trade-row{padding:10px 0;gap:8px}
+  .trade-row.off input[data-tf="note"]{display:none} /* note box only once a size is picked */
+  .trade-row{grid-template-columns:12px minmax(0,1fr)}
+  .mc{padding:10px 48px 10px 10px}
+  /* sticky submit bar with full-width buttons */
+  .form-foot{position:sticky;bottom:0;z-index:20;margin:10px -10px 0;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));gap:8px;box-shadow:0 -2px 10px rgba(31,42,34,.08)}
+  .form-foot .btn{flex:1 1 auto}
+  .form-foot .btn.primary{flex-basis:100%;order:-1;font-size:16px;min-height:50px}
+  .form-foot .foot-count{order:-2}
+  .form-foot .muted,.form-foot .dirty{flex-basis:100%;font-size:12px}
+  .vb{grid-template-columns:1fr}
+  .modal{padding:16px 14px}
+  .modal .row .btn{flex:1 1 auto}
+}</style>
 <script>
 (function () {
   'use strict';
@@ -115,10 +197,19 @@ tr.miss td{background:var(--red-soft)}
     var tech = (t.steps || []).filter(function (s) { return s.key === 'tech'; })[0], tp = techProp(t.property_label);
     return (tech && tech.vendor) || (tp ? tp.tech : 'Riley');
   }
-  /** Settings contact, with DEFAULT_SETTINGS.contacts filling any blank field. */
+  /** Vendor book entry for a step's vendor name ("GR Cleaning Co / Up & Up" = the first company), or null. */
+  function vendorEntry(v) {
+    var names = [v].concat(String(v || '').split(' / ')).map(vkey).filter(Boolean);
+    var book = S.settings.vendors || [];
+    for (var n = 0; n < names.length; n++) for (var i = 0; i < book.length; i++) if (vkey(book[i].company) === names[n]) return book[i];
+    return null;
+  }
+  /** Contact for a vendor name: the vendor book (V1), else the old contacts / built-in defaults. */
   function contactOf(v) {
+    var b = vendorEntry(v);
+    if (b) return { phone: b.cell || '', email: b.email || '', contact: b.contact || '' };
     var c = (S.settings.contacts || {})[v] || {}, d = DEFAULT_SETTINGS.contacts[v] || {};
-    return { phone: c.phone || d.phone || '', email: c.email || d.email || '' };
+    return { phone: c.phone || d.phone || '', email: c.email || d.email || '', contact: '' };
   }
 
   function call(fn) {
@@ -177,6 +268,17 @@ tr.miss td{background:var(--red-soft)}
       s.techProperties.forEach(function (tp) { if (tp.tech === 'Bill') tp.addresses = saved.billProperties.slice(); });
     }
     delete s.billProperties;
+    // V1 vendor book: settings saved before it existed start from the defaults, plus every old contact (phone/email by name)
+    if (!saved.vendors) {
+      s.vendors = clone(DEFAULT_SETTINGS.vendors);
+      Object.keys(saved.contacts || {}).forEach(function (name) {
+        var c = saved.contacts[name] || {}, k = vkey(name), row = null;
+        s.vendors.forEach(function (x) { if (vkey(x.company) === k) row = x; });
+        if (!row) { if (!c.phone && !c.email) return; row = { company: name, trade: '', contact: '', email: '', cell: '' }; s.vendors.push(row); }
+        if (c.phone) row.cell = c.phone;
+        if (c.email) row.email = c.email;
+      });
+    }
     // trades added to the defaults later (carpet cleaning, 2026-11-10) also apply to old saved settings
     var dfl = clone(DEFAULT_SETTINGS.defaults); Object.keys(s.defaults || {}).forEach(function (k) { dfl[k] = s.defaults[k]; }); s.defaults = dfl;
     return s;
@@ -367,7 +469,7 @@ tr.miss td{background:var(--red-soft)}
     if (!t) return '<div class="empty"><h2>Turn not found</h2><button class="btn" data-nav="turns">Back to turns</button></div>';
     var tabs = [['schedule', 'Schedule', true], ['scope', 'Scope', true],
       ['techprep', 'Tech Prep', t.tech_prep && t.tech_prep.submitted_at], ['moveout', 'Move-out check', t.move_out_check && t.move_out_check.submitted_at]];
-    var head = '<div class="turn-head"><div class="th-row">' +
+    var head = '<div class="turn-head' + (S.tab === 'schedule' ? '' : ' is-form') + '"><div class="th-row">' +
       '<button class="btn sm ghost" data-nav="turns">← Turns</button>' +
       '<div><h1 class="th-unit">' + esc(unitTitle(t)) + ' <span class="pill ' + t.stage + '" style="vertical-align:middle">' + STAGE_LABEL[t.stage] + '</span></h1>' +
       '<div class="th-prop">' + esc(t.property_label) + (t.af_wo_number ? ' · WO ' + esc(t.af_wo_number) : '') + (t.scope.walk_type ? ' · ' + esc(t.scope.walk_type.split(' (')[0]) : '') +
@@ -386,7 +488,7 @@ tr.miss td{background:var(--red-soft)}
     else body = viewForm(S.tab, t);
     var b = E.buffer(t.rent_ready_date, t.move_in_date);
     var flt = '<div class="rr-float' + (b && !b.ok ? ' bad' : '') + '">Rent ready <b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'span') + '</div>';
-    return head + body + flt;
+    return head + body + (S.tab === 'schedule' ? flt : '');
   }
 
   // ---------- Schedule ----------
@@ -399,7 +501,7 @@ tr.miss td{background:var(--red-soft)}
         : '<button class="btn sm" data-act="mark-ready">Mark rent ready</button>') +
       '<button class="btn sm ghost danger" data-act="archive" data-id="' + t.id + '">Archive</button>' +
       '<span class="savestate" id="savestate"></span></div>';
-    h += recontactHtml(t);
+    h += vendorLists() + recontactHtml(t);
     if (t._warnings && t._warnings.length) h += '<div class="warns">' + t._warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>';
 
     // before move-out
@@ -407,7 +509,8 @@ tr.miss td{background:var(--red-soft)}
     h += '<div class="panel"><h3>Before move-out</h3><div class="pre-row">' +
       '<span>PMI: <b>' + (sc.pmi_date ? E.fmt(sc.pmi_date) + (sc.pmi_time ? ', ' + E.fmtTime(sc.pmi_time) : '') : 'not set') + '</b></span>' +
       '<span>Tech prep: <b>' + (t.tech_prep && t.tech_prep.submitted_at ? 'done (' + techHours(t) + ' h estimate)' : 'not done yet') + '</b></span>' +
-      (pmiTimeText(t) ? '<span>' + (/running/.test(pmiTimeText(t)) ? '<b>' + esc(pmiTimeText(t)) + '</b>' : 'PMI time: <b>' + esc(pmiTimeText(t)) + '</b>') + '</span>' : '') +
+      (t.tech_prep && t.tech_prep.submitted_at ? '<button class="btn sm primary" data-act="wo-desc">⧉ AppFolio WO description</button>' : '') +
+      (pmiTimeText(t) ? '<span>PMI time: <b>' + esc(pmiTimeText(t)) + '</b></span>' : '') +
       (sc.project ? '<span>Project estimate (Jason): <span class="seg">' + ['open', 'done'].map(function (s) {
         return '<button class="' + ((sc.project_status || 'open') === s ? 'on ' + (s === 'done' ? 'done' : 'open') : '') + '" data-act="project-status" data-v="' + s + '">' + (s === 'done' ? 'Done' : 'Open') + '</button>';
       }).join('') + '</span></span>' : '') +
@@ -484,7 +587,7 @@ tr.miss td{background:var(--red-soft)}
       '<label class="f"><span>Size</span><select data-ed="size" data-i="' + i + '" data-fid="sz' + i + '">' + c.sizes.map(function (z) {
         return '<option value="' + esc(z.id) + '"' + (z.id === s.size ? ' selected' : '') + '>' + esc(z.label) + '</option>';
       }).join('') + '</select></label>' +
-      '<label class="f w-vendor"><span>Vendor</span><input type="text" data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '" value="' + esc(s.vendor) + '"></label>' +
+      '<label class="f w-vendor"><span>Vendor</span><input type="text" list="vbl-' + esc(s.key) + '" data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '" value="' + esc(s.vendor) + '"></label>' +
       '<label class="f w-date"><span>Day</span><input type="date" data-ed="start" data-i="' + i + '" data-fid="d' + i + '" value="' + esc(s.start || '') + '"></label>' +
       '<label class="f w-time"><span>Time</span>' + timeSelect('data-ed="time" data-i="' + i + '" data-fid="t' + i + '"', s.time || '') + '</label>' +
       '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
@@ -497,7 +600,7 @@ tr.miss td{background:var(--red-soft)}
 
   function messageFor(t, s) {
     return E.vendorMessage(S.settings.template, {
-      vendor: (s.vendor || '').split(' / ')[0], trade: s.label.toLowerCase() + (s.sizeLabel ? ' (' + s.sizeLabel.replace(/\s*\(.*\)/, '').toLowerCase() + ')' : ''),
+      vendor: (s.vendor || '').split(' / ')[0], contact: contactOf(s.vendor).contact || (s.vendor || '').split(' / ')[0], trade: s.label.toLowerCase() + (s.sizeLabel ? ' (' + s.sizeLabel.replace(/\s*\(.*\)/, '').toLowerCase() + ')' : ''),
       address: shortProp(t), unit: t.unit_label ? 'Unit ' + t.unit_label : '',
       date: E.fmt(s.start), time: E.fmtTime(s.time), length: E.lengthText(s),
       scope: s.note || '', access: t.scope.access || ''
@@ -590,6 +693,20 @@ tr.miss td{background:var(--red-soft)}
 
   function closeModal() { $('#overlay').innerHTML = ''; }
 
+  /** V1: the AppFolio Unit Turn WO description (top block of the Tech Prep email), built on the server from the SAVED Tech Prep. */
+  function openWoDescription(t) {
+    var ov = $('#overlay');
+    ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal"><h3>AppFolio WO description</h3><div class="muted">Building it from the saved Tech Prep…</div></div></div>';
+    call('apiWoDescription', t.id).then(function (r) {
+      if (!$('#overlay').innerHTML) return; // closed meanwhile
+      ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal wo-modal">' +
+        '<h3>AppFolio WO description</h3><div class="muted">' + esc(shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '')) +
+        (r.wo ? ' · paste into Unit Turn WO ' + esc(r.wo) : ' · paste into the Unit Turn WO') + '. You can edit it here first.</div>' +
+        '<textarea id="wotext" rows="10">' + esc(r.paste) + '</textarea>' +
+        '<div class="row"><button class="btn primary" data-act="copy-wo">⧉ Copy for AppFolio WO</button><div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
+    }, function (e) { ov.innerHTML = ''; toast(e.message, true); });
+  }
+
   function flashRR(before, t) {
     if (before !== t.rent_ready_date) { var b = $('#rrbox'); if (b) { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); } }
   }
@@ -675,7 +792,6 @@ tr.miss td{background:var(--red-soft)}
       S.formKey = 'scope-new';
       S.form = { trades: {}, walk_type: '', pests: 'None' };
       Object.keys(S.settings.defaults || {}).forEach(function (k) { S.form.trades[k] = { size: S.settings.defaults[k], note: '' }; });
-      restoreTimer('scope', S.form, null);
       S.missing = null;
     }
     return '<div class="page-head"><button class="btn sm ghost" data-nav="turns">← Turns</button></div>' + formHtml('scope', S.form, null, true);
@@ -697,7 +813,6 @@ tr.miss td{background:var(--red-soft)}
         var dtp = techProp(t.property_label); // walks:true tech fills it; Spencer when he walks alone
         S.form.done_by = S.form.done_by || (spencerAlone(t.scope.walk_type) ? 'Spencer' : dtp && dtp.walks ? dtp.tech : 'Riley');
       }
-      restoreTimer(key, S.form, t);
       S.formDirty = false; S.gate = null; S.alertOn = true; // alert checkbox: checked by default
       S.roomOpen = {}; S.roomCut = null; S.missing = null;
       if (key === 'moveout') carryDamages(t, S.form);
@@ -705,87 +820,19 @@ tr.miss td{background:var(--red-soft)}
     return formHtml(key, S.form, t, false);
   }
 
-  // ---------- PMI timer ----------
-  // The walk timer lives on scope.pmi_timer (Riley walk: Scope submit ends it) or on tech_prep.pmi_timer
-  // (Spencer alone: started on Scope or Tech Prep, Tech Prep submit ends it). A running start is also kept
-  // in localStorage per turn ('new' before the turn exists) so a reload mid-walk keeps it.
-  function timerKey() { return 'p03timer:' + (S.view === 'turn' && S.turnId ? S.turnId : 'new'); }
+  // ---------- PMI timer: OUT of V1 (Matt 2026-11-11) ----------
+  // No start / stop UI any more. Turns that already have a finished walk time still show it (scope.pmi_timer or
+  // tech_prep.pmi_timer = {start, end} ISO). A timer that was started but never ended is ignored.
   function formKeyName() { var k = S.formKey ? S.formKey.split(':')[0] : ''; return k === 'scope-new' ? 'scope' : k; }
-  function timerRunning(tm) { return !!(tm && tm.start && !tm.end); }
-  /** Does this form hold the walk timer? */
-  function ownsTimer(key, d, t) {
-    if (key === 'scope') return !(t && spencerAlone(d.walk_type) && t.tech_prep && t.tech_prep.pmi_timer);
-    return key === 'techprep' && !!t && spencerAlone(t.scope.walk_type);
-  }
-  function endsWalk(key, d, t) { return key === 'scope' ? !spencerAlone(d.walk_type) : key === 'techprep' && !!t && spencerAlone(t.scope.walk_type); }
   function timerHours(tm) {
     if (!tm || !tm.start || !tm.end) return '';
     return (Math.round((new Date(tm.end) - new Date(tm.start)) / 36e5 * 10) / 10) + ' h';
   }
-  function pmiTimerOf(t) {
-    var a = t.scope && t.scope.pmi_timer, b = t.tech_prep && t.tech_prep.pmi_timer;
-    return spencerAlone(t.scope.walk_type) ? b || a : a || b;
-  }
-  /** '1.3 h' when ended; running = the full sentence (Spencer-alone walks say what stops it). */
   function pmiTimeText(t) {
-    var tm = pmiTimerOf(t);
-    if (!tm || !tm.start) return '';
-    if (tm.end) return timerHours(tm);
-    return spencerAlone(t.scope.walk_type) ? 'PMI timer running: it stops when Tech Prep is submitted' : 'PMI timer running';
+    var a = t.scope && t.scope.pmi_timer, b = t.tech_prep && t.tech_prep.pmi_timer;
+    return timerHours(b) || timerHours(a);
   }
-  function pmiHead(t) { var x = pmiTimeText(t); return !x ? '' : /running/.test(x) ? x : 'PMI ' + x; }
-  function elapsed(start) {
-    var s = Math.max(0, Math.floor((Date.now() - new Date(start)) / 1000));
-    var m = Math.floor(s / 60) % 60, h = Math.floor(s / 3600);
-    return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
-  }
-  function localDT(iso) { if (!iso) return ''; var d = new Date(iso), p = function (n) { return (n < 10 ? '0' : '') + n; }; return E.iso(d) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
-  setInterval(function () { document.querySelectorAll('[data-tick]').forEach(function (el) { el.textContent = elapsed(el.dataset.tick); }); }, 1000);
-
-  function restoreTimer(key, d, t) {
-    if (!ownsTimer(key, d, t) || (d.pmi_timer && d.pmi_timer.start)) return;
-    var ls = lsGet(timerKey());
-    if (ls) d.pmi_timer = { start: ls };
-  }
-
-  function timerHtml(key, d, t) {
-    if (key === 'scope' && !ownsTimer(key, d, t)) {
-      var ptx = pmiTimeText(t);
-      return '<div class="timer' + (/running/.test(ptx) ? ' run' : '') + '">' + (/running/.test(ptx) ? '<b>' + esc(ptx) + '.</b>' : '<b>PMI time ' + esc(ptx) + '.</b>') +
-        ' <span class="muted">Spencer walks alone here: the timer is on the Tech Prep tab.</span></div>';
-    }
-    if (!ownsTimer(key, d, t)) return '';
-    var tm = d.pmi_timer || {};
-    if (!tm.start) return '<div class="timer"><button class="btn primary" data-act="timer-start">▶ Start timer</button><span class="muted">Times the inspection. ' +
-      (endsWalk(key, d, t) ? 'Submitting this form ends it.' : 'It keeps running until Tech Prep is submitted.') + '</span></div>';
-    if (!tm.end) return '<div class="timer run"><b>⏱ <span data-tick="' + esc(tm.start) + '">' + elapsed(tm.start) + '</span></b><span class="muted">since ' +
-      esc(new Date(tm.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) + '. ' +
-      (endsWalk(key, d, t) ? 'Tap "Submit + end timer" when the walk is done.' : 'Keeps running until Tech Prep is submitted.') + '</span></div>';
-    return '<div class="timer"><label class="f"><span>PMI start</span><input type="datetime-local" data-tm="start" data-fid="tm-start" value="' + localDT(tm.start) + '"></label>' +
-      '<label class="f"><span>PMI end</span><input type="datetime-local" data-tm="end" data-fid="tm-end" value="' + localDT(tm.end) + '"></label>' +
-      '<div class="f"><span>Total</span><b id="pmi-total" style="padding-top:7px">' + timerHours(tm) + '</b></div></div>';
-  }
-
-  function startTimer() {
-    var d = S.form; if (!d) return;
-    var key = formKeyName(), t = S.view === 'turn' ? cur() : null;
-    d.pmi_timer = { start: new Date().toISOString() };
-    lsSet(timerKey(), d.pmi_timer.start);
-    if (t) { // also saved on the turn right away (the draft), not only on this phone
-      if (key === 'scope') t.scope.pmi_timer = clone(d.pmi_timer);
-      else { t.tech_prep = t.tech_prep || {}; t.tech_prep.pmi_timer = clone(d.pmi_timer); }
-      queueSave(t);
-    }
-    markDirty(); render();
-  }
-
-  /** The walk timer belongs on Tech Prep when Spencer walks alone (data contract). */
-  function moveTimerToTechPrep(t) {
-    if (!spencerAlone(t.scope.walk_type) || !t.scope.pmi_timer) return;
-    t.tech_prep = t.tech_prep || {};
-    if (!t.tech_prep.pmi_timer) t.tech_prep.pmi_timer = t.scope.pmi_timer;
-    delete t.scope.pmi_timer;
-  }
+  function pmiHead(t) { var x = pmiTimeText(t); return x ? 'PMI ' + x : ''; }
 
   // ---------- emails (server builds + sends; the client only asks) ----------
   function sendEmail(fn, t, after) {
@@ -814,7 +861,6 @@ tr.miss td{background:var(--red-soft)}
   function formHtml(key, d, t, isNew) {
     var F = FORMS[key];
     var h = '<div class="form"><div class="page-head"><h1>' + esc(F.title) + '</h1></div><div class="form-who">' + esc(F.who) + '</div>';
-    if (key === 'scope' || key === 'techprep') h += timerHtml(key, d, t);
     if (key === 'techprep' && t && t.move_out_check) {
       var mo = t.move_out_check;
       var added = (mo.exceptions || []).filter(function (x) { return x.type === 'New tech item'; }).map(function (x) { return x.note; })
@@ -828,7 +874,6 @@ tr.miss td{background:var(--red-soft)}
       h += '</div></div>';
     });
     var submitted = d.submitted_at;
-    var endTimer = (key === 'scope' || key === 'techprep') && ownsTimer(key, d, t) && endsWalk(key, d, t) && timerRunning(d.pmi_timer);
     if (key === 'moveout' && unapplied(d) && (d.changes || []).some(changeComplete)) {
       var pa = d.pending_impact && d.pending_impact.alert_sent_at;
       h += '<div class="gate pend">Changes are not applied to the schedule yet. You can still submit.' +
@@ -836,12 +881,12 @@ tr.miss td{background:var(--red-soft)}
           : '<label class="cb"><input type="checkbox" data-alert="1"' + (S.alertOn ? ' checked' : '') + '> Email an alert that the schedule isn\'t updated yet</label>') + '</div>';
     }
     if (S.gate && S.gate.length) h += '<div class="gate"><b>Before you can submit:</b>' + S.gate.map(function (g) { return '<div>• ' + esc(g) + '</div>'; }).join('') + '</div>';
-    h += '<div class="form-foot">';
-    if (isNew) h += '<button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : 'Create turn + build schedule') + '</button>';
-    else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : 'Save scope + update schedule') + '</button>';
+    h += '<div class="form-foot">' + (key === 'techprep' ? '<div class="foot-count" id="cl-count">' + clCountText(d) + '</div>' : '');
+    if (isNew) h += '<button class="btn primary" data-act="form-submit">' + 'Create turn + build schedule' + '</button>';
+    else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">' + 'Save scope + update schedule' + '</button>';
     else {
-      h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (endTimer ? 'Submit + end timer' : submitted ? 'Save changes' : 'Submit') + '</button>';
-      if (key === 'techprep' && submitted) h += '<button class="btn" data-act="resend-email">Resend email</button>';
+      h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (submitted ? 'Save changes' : 'Submit') + '</button>';
+      if (key === 'techprep' && submitted) h += '<button class="btn primary" data-act="wo-desc">⧉ AppFolio WO description</button><button class="btn" data-act="resend-email">Resend email</button>';
       if (submitted) h += '<span class="muted">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
       if (key === 'techprep' && d.email_sent_at) h += '<span class="muted">Email sent ' + esc(new Date(d.email_sent_at).toLocaleString()) + '</span>';
     }
@@ -898,20 +943,21 @@ tr.miss td{background:var(--red-soft)}
         }).join('') + '</div>';
       case 'list':
         var rows = v || [];
-        return '<div class="f">' + (f.title ? '<span>' + esc(f.title) + '</span>' : '') + '<table class="list-t"><tr>' + f.columns.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '<th></th></tr>' +
+        return '<div class="f">' + (f.title ? '<span>' + esc(f.title) + '</span>' : '') + '<table class="list-t lt-cards"><tr class="lt-h">' + f.columns.map(function (c) { return '<th>' + esc(c.label) + '</th>'; }).join('') + '<th></th></tr>' +
           rows.map(function (r, ri) {
             return '<tr>' + f.columns.map(function (c) {
               var a = 'data-list="' + f.id + '" data-ri="' + ri + '" data-col="' + c.id + '" data-fid="l-' + f.id + '-' + ri + '-' + c.id + '"';
-              if (c.type === 'checkbox') return '<td style="width:110px"><label class="cb" style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ' + a + (r[c.id] ? ' checked' : '') + '>' + esc(c.label) + '</label></td>';
+              var dl = ' data-label="' + esc(c.label) + '"';
+              if (c.type === 'checkbox') return '<td' + dl + ' style="width:110px"><label class="cb" style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" ' + a + (r[c.id] ? ' checked' : '') + '>' + esc(c.label) + '</label></td>';
               if (c.type === 'select' || c.type === 'tradeselect' || c.type === 'roomselect') {
                 var opts = c.type === 'select' ? c.options : c.type === 'roomselect' ? roomInstances(d).map(function (x) { return x.label; })
                   : cat().map(function (x) { return x.label; }).concat(['Other']);
                 if (r[c.id] && opts.indexOf(r[c.id]) < 0) opts = opts.concat([r[c.id]]); // keep a saved value selectable
-                return '<td><select ' + a + '><option value="">—</option>' + opts.map(function (o) { return '<option' + (o === r[c.id] ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></td>';
+                return '<td' + dl + '><select ' + a + '><option value="">—</option>' + opts.map(function (o) { return '<option' + (o === r[c.id] ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></td>';
               }
-              return '<td' + (c.type === 'number' ? ' style="width:80px"' : '') + '><input type="' + (c.type === 'number' ? 'number' : 'text') + '" ' + a + ' value="' + esc(r[c.id] == null ? '' : r[c.id]) + '"' +
+              return '<td' + dl + (c.type === 'number' ? ' style="width:80px"' : '') + '><input type="' + (c.type === 'number' ? 'number' : 'text') + '"' + (c.type === 'number' ? ' inputmode="decimal"' : '') + ' ' + a + ' value="' + esc(r[c.id] == null ? '' : r[c.id]) + '"' +
                 (c.placeholder ? ' placeholder="' + esc(c.placeholder) + '"' : '') + '></td>';
-            }).join('') + '<td style="width:36px"><button class="iconbtn" data-act="list-del" data-list="' + f.id + '" data-ri="' + ri + '" title="Remove">✕</button></td></tr>';
+            }).join('') + '<td class="lt-del" style="width:36px"><button class="iconbtn" data-act="list-del" data-list="' + f.id + '" data-ri="' + ri + '" title="Remove">✕</button></td></tr>';
           }).join('') + '</table><div><button class="btn sm" data-act="list-add" data-list="' + f.id + '">+ Add ' + esc(f.label.toLowerCase()) + '</button></div></div>';
       case 'checklist':
         return '<div class="f">' + checklistHtml(d) + '</div>';
@@ -966,9 +1012,18 @@ tr.miss td{background:var(--red-soft)}
       }).join('');
       // keep the open/closed state Spencer chose across re-renders (OK used to collapse the room)
       var isOpen = S.roomOpen[r.id] != null ? S.roomOpen[r.id] : !!(cnt.fix || cnt.nc);
-      return '<details class="room" data-room-id="' + r.id + '"' + (isOpen ? ' open' : '') + '><summary>' + esc(r.label) + '<em>' + (cnt.ok + cnt.fix + cnt.nc + cnt.na) + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items + '</details>';
+      var answered = cnt.ok + cnt.fix + cnt.nc + cnt.na, left = r.items.length - answered;
+      return '<details class="room' + (left ? '' : ' all') + '" data-room-id="' + r.id + '"' + (isOpen ? ' open' : '') + '><summary><span>' + (left ? '' : '✓ ') + esc(r.label) + '</span><em>' + answered + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items +
+        '<div class="room-foot">' + (left ? '<button class="btn sm" data-act="room-rest-ok" data-room="' + r.id + '">Mark the other ' + left + ' OK + next room</button>'
+          : '<button class="btn sm" data-act="room-next" data-room="' + r.id + '">Next room ↓</button>') + '</div></details>';
     }).join('');
-    return roomPicker(d) + '<div style="margin-bottom:8px;font-weight:600">' + tot.fix + ' to fix · ' + tot.nc + ' not checked · ' + tot.ok + ' OK</div>' + rooms;
+    return roomPicker(d) + '<div class="cl-tot">' + tot.fix + ' to fix · ' + tot.nc + ' not checked · ' + tot.ok + ' OK</div>' + rooms;
+  }
+  /** "37 / 92 answered · 4 fix" for the sticky Tech Prep footer. */
+  function clCountText(d) {
+    var n = 0, done = 0, fix = 0, cl = d.checklist || {};
+    roomInstances(d).forEach(function (r) { var st = cl[r.id] || {}; r.items.forEach(function (it, ii) { n++; var e = st[ii]; if (e && e.s) { done++; if (e.s === 'fix') fix++; } }); });
+    return '<b>' + done + ' / ' + n + '</b> answered · ' + fix + ' fix';
   }
 
   /** "Rooms in this unit": a chip per non-repeating room; off rooms leave the list (tech_prep.rooms_off). */
@@ -1363,10 +1418,6 @@ tr.miss td{background:var(--red-soft)}
       (croom[el.dataset.ii] = croom[el.dataset.ii] || {}).note = el.value;
     } else if (el.dataset.dmg) {
       d.damages[+el.dataset.dmg][el.dataset.col] = el.value;
-    } else if (el.dataset.tm) {
-      d.pmi_timer = d.pmi_timer || {};
-      if (el.value) d.pmi_timer[el.dataset.tm] = new Date(el.value).toISOString();
-      var tot = $('#pmi-total'); if (tot) tot.textContent = timerHours(d.pmi_timer);
     } else if (el.dataset.mc) {
       var mc = d.changes[+el.dataset.mc], col = el.dataset.col;
       mc[col] = col === 'hours' ? (el.value === '' ? null : Number(el.value)) : el.value;
@@ -1455,10 +1506,6 @@ tr.miss td{background:var(--red-soft)}
         return;
       }
       S.missing = null;
-      if ((key === 'scope' || key === 'techprep') && ownsTimer(key, d, t) && endsWalk(key, d, t) && timerRunning(d.pmi_timer)) {
-        d.pmi_timer.end = new Date().toISOString();
-        lsSet(timerKey(), null);
-      }
     }
     if (S.view === 'new') return createTurn(d);
     var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false;
@@ -1470,7 +1517,6 @@ tr.miss td{background:var(--red-soft)}
       t.af_wo_number = d.af_wo || null; t.move_out_date = d.move_out_date || null; t.move_in_date = d.move_in_date || null;
       t.steps = E.mergeScope(t.steps, t.scope, cat(), techHours(t));
       billTech(t);
-      moveTimerToTechPrep(t);
     } else if (key === 'techprep') {
       firstTechSubmit = final && !d.submitted_at && !d.email_sent_at;
       if (final) d.submitted_at = d.submitted_at || new Date().toISOString();
@@ -1531,13 +1577,9 @@ tr.miss td{background:var(--red-soft)}
     t.scope.submitted_at = new Date().toISOString();
     t.steps = E.stepsFromScope(t.scope, cat(), 0);
     billTech(t);
-    moveTimerToTechPrep(t);
     prepTurn(t);
     var btn = $('[data-act="form-submit"]'); if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
     saveNow(t).then(function (saved) {
-      var tm = pmiTimerOf(t);
-      lsSet('p03timer:new', null);
-      if (timerRunning(tm)) lsSet('p03timer:' + saved.id, tm.start); // Spencer-alone walk keeps running into Tech Prep
       S.turns.push(prepTurn(saved)); // same path as the boot load: lays out dates so the gantt + calendar show now
       S.formDirty = false; S.form = null; S.formKey = null;
       toast('Turn created. Here is the recommended schedule.');
@@ -1549,27 +1591,20 @@ tr.miss td{background:var(--red-soft)}
   var setDraft = null;
   function viewSettings() {
     if (!setDraft) setDraft = clone(S.settings);
-    var vendors = {};
-    setDraft.catalog.forEach(function (c) { if (c.vendor) vendors[c.vendor] = 1; c.sizes.forEach(function (z) { if (z.vendor) vendors[z.vendor] = 1; }); });
-    Object.keys(DEFAULT_SETTINGS.contacts).forEach(function (v) { vendors[v] = 1; }); // includes Bill
-    var h = '<div class="page-head"><h1>Settings</h1><div class="sub">Durations, vendors and the message template. Changes apply to new schedules and the Recommended button.</div></div>';
+    var h = vendorLists(setDraft) + '<div class="page-head"><h1>Settings</h1><div class="sub">Durations, vendors and the message template. Changes apply to new schedules and the Recommended button.</div></div>';
     h += '<div class="sec"><h3>Trades + durations</h3><div class="help">Business days. Hours = time on site that day. Cure = no-entry days after the step.</div>' +
       setDraft.catalog.map(function (c, ci) {
         return '<div class="set-trade"><input type="color" value="' + c.color + '" data-set="color" data-ci="' + ci + '">' +
           '<div class="fields"><label class="f half"><span>Step</span><input data-set="label" data-ci="' + ci + '" value="' + esc(c.label) + '"></label>' +
-          '<label class="f half"><span>Default vendor</span><input data-set="vendor" data-ci="' + ci + '" value="' + esc(c.vendor) + '"></label></div>' +
+          '<label class="f half"><span>Default vendor</span><input list="vbl-' + esc(c.key) + '" data-set="vendor" data-ci="' + ci + '" value="' + esc(c.vendor) + '"></label></div>' +
           '<div><table class="size-t"><tr><th>Size</th><th style="width:60px">Days</th><th style="width:60px">Hours</th><th style="width:60px">Cure</th><th>Vendor (if different)</th></tr>' +
           c.sizes.map(function (z, zi) {
             function inp(k, w) { return '<td><input data-set="size-' + k + '" data-ci="' + ci + '" data-zi="' + zi + '" value="' + esc(z[k] == null ? '' : z[k]) + '"' + (w ? ' type="number" min="0" step="0.5"' : '') + '></td>'; }
             return '<tr>' + inp('label') + inp('days', 1) + inp('hours', 1) + inp('cure', 1) + inp('vendor') + '</tr>';
           }).join('') + '</table></div></div>';
       }).join('') + '</div>';
-    h += '<div class="sec"><h3>Vendor contacts</h3><div class="help">Adds Text and Email buttons to the vendor message, and fills the re-contact list when a schedule changes. Grey text = the built-in default (used when the box is empty).</div><table class="list-t"><tr><th>Vendor</th><th>Phone</th><th>Email</th></tr>' +
-      Object.keys(vendors).sort().map(function (v) {
-        var c = setDraft.contacts[v] || {}, df = DEFAULT_SETTINGS.contacts[v] || {};
-        return '<tr><td><b>' + esc(v) + '</b></td><td><input type="text" data-set="phone" data-v="' + esc(v) + '" value="' + esc(c.phone || '') + '" placeholder="' + esc(df.phone || '') + '"></td><td><input type="text" data-set="email" data-v="' + esc(v) + '" value="' + esc(c.email || '') + '" placeholder="' + esc(df.email || '') + '"></td></tr>';
-      }).join('') + '</table></div>';
-    h += '<div class="sec"><h3>Vendor message template</h3><div class="help">Placeholders: {vendor} {trade} {address} {unit} {date} {time} {length} {scope} {access}. A line whose placeholders are all empty is left out.</div>' +
+    h += vendorBookHtml();
+    h += '<div class="sec"><h3>Vendor message template</h3><div class="help">Placeholders: {contact} (vendor book contact name, else the company) {vendor} {trade} {address} {unit} {date} {time} {length} {scope} {access}. A line whose placeholders are all empty is left out.</div>' +
       '<div class="fields"><label class="f"><textarea rows="7" data-set="template">' + esc(setDraft.template) + '</textarea></label></div></div>';
     h += '<div class="sec"><h3>Cookie-cutter properties</h3><div class="help">One address per line. These default to "Spencer alone" on the scope form.</div>' +
       '<div class="fields"><label class="f"><textarea rows="8" data-set="cookie">' + esc((setDraft.cookieCutter || []).join('\n')) + '</textarea></label></div></div>';
@@ -1587,6 +1622,40 @@ tr.miss td{background:var(--red-soft)}
     return h;
   }
 
+  // ---------- V1 vendor book (Settings) ----------
+  var VB_FIELDS = [['company', 'Company', 'text'], ['trade', 'Trade', 'select'], ['contact', 'Contact name', 'text'], ['email', 'Email', 'email'], ['cell', 'Cell', 'tel']];
+  function tradeLabel(k) { var c = catBy(k); return c ? c.label : k === 'other' ? 'Other' : ''; }
+  /** One <datalist> per trade: that trade's companies first, then everyone else. Feeds the Vendor boxes. */
+  function vendorLists(src) {
+    var book = ((src || S.settings).vendors || []).filter(function (x) { return x.company; });
+    return cat().map(function (c) {
+      var mine = book.filter(function (x) { return x.trade === c.key; }), rest = book.filter(function (x) { return x.trade !== c.key; });
+      return '<datalist id="vbl-' + esc(c.key) + '">' + mine.concat(rest).map(function (x) { return '<option value="' + esc(x.company) + '">' + esc(tradeLabel(x.trade)) + '</option>'; }).join('') + '</datalist>';
+    }).join('');
+  }
+  function vendorBookHtml() {
+    setDraft.vendors = setDraft.vendors || [];
+    var order = cat().map(function (c) { return c.key; }).concat(['other', '']);
+    var idx = setDraft.vendors.map(function (x, i) { return i; }).sort(function (a, b) {
+      var A = setDraft.vendors[a], B = setDraft.vendors[b];
+      if (A._new || B._new) return (A._new ? 1 : 0) - (B._new ? 1 : 0) || a - b; // a row being added stays at the bottom until saved
+      return order.indexOf(A.trade || '') - order.indexOf(B.trade || '') || String(A.company).localeCompare(String(B.company));
+    });
+    var tradeOpts = [['', '— trade —']].concat(cat().map(function (c) { return [c.key, c.label]; })).concat([['other', 'Other']]);
+    return '<div class="sec" id="vendor-book"><h3>Vendor book</h3><div class="help">Every vendor we use. The Text and Email buttons on vendor messages, the re-contact list and the {contact} greeting come from here. The Vendor boxes on a turn suggest these companies (that trade first).</div>' +
+      '<div class="vb">' + idx.map(function (vi) {
+        var x = setDraft.vendors[vi], a = ' data-vi="' + vi + '"';
+        return '<div class="vb-card"><button class="iconbtn vb-del" data-act="vb-del"' + a + ' title="Remove from the vendor book">✕</button>' +
+          VB_FIELDS.map(function (f) {
+            var fid = ' data-set="vb-' + f[0] + '"' + a + ' data-fid="vb-' + vi + '-' + f[0] + '"';
+            if (f[2] === 'select') return '<label class="f"><span>' + f[1] + '</span><select' + fid + '>' + tradeOpts.map(function (o) {
+              return '<option value="' + o[0] + '"' + ((x.trade || '') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
+            return '<label class="f"><span>' + f[1] + '</span><input type="' + f[2] + '"' + fid + ' value="' + esc(x[f[0]] || '') + '"' +
+              (f[2] === 'tel' ? ' inputmode="tel" autocomplete="off"' : f[2] === 'email' ? ' inputmode="email" autocapitalize="off" autocomplete="off"' : '') + '></label>';
+          }).join('') + '</div>';
+      }).join('') + '</div><div style="margin-top:10px"><button class="btn sm" data-act="vb-add">+ Add vendor</button></div></div>';
+  }
+
   function settingsChange(el) {
     var k = el.dataset.set, ci = +el.dataset.ci, zi = +el.dataset.zi, v = el.value;
     if (k === 'color' || k === 'label' || k === 'vendor') setDraft.catalog[ci][k] = v;
@@ -1595,6 +1664,7 @@ tr.miss td{background:var(--red-soft)}
       if (f === 'label' || f === 'vendor') { if (v) z[f] = v; else delete z[f]; }
       else { if (v === '') delete z[f]; else z[f] = Number(v); }
     } else if (k === 'phone' || k === 'email') { var c = setDraft.contacts[el.dataset.v] = setDraft.contacts[el.dataset.v] || {}; c[k] = v.trim(); }
+    else if (k.indexOf('vb-') === 0) { setDraft.vendors[+el.dataset.vi][k.slice(3)] = k === 'vb-trade' ? v : v.trim(); }
     else if (k === 'template') setDraft.template = v;
     else if (k === 'cookie') setDraft.cookieCutter = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
     else if (k.indexOf('tp-') === 0) {
@@ -1637,12 +1707,18 @@ tr.miss td{background:var(--red-soft)}
       }, function (er) { toast(er.message, true); });
       return;
     }
+    if (a === 'vb-add') { setDraft.vendors.push({ company: '', trade: '', contact: '', email: '', cell: '', _new: true }); render();
+      var nv = document.querySelector('[data-fid="vb-' + (setDraft.vendors.length - 1) + '-company"]'); if (nv) { nv.scrollIntoView({ block: 'center' }); nv.focus(); } return; }
+    if (a === 'vb-del') { var dv = setDraft.vendors[+el.dataset.vi];
+      if (!dv.company || confirm('Remove ' + dv.company + ' from the vendor book?')) { setDraft.vendors.splice(+el.dataset.vi, 1); render(); } return; }
     if (a === 'settings-save') {
+      setDraft.vendors = (setDraft.vendors || []).filter(function (x) { return x.company || x.contact || x.email || x.cell; })
+        .map(function (x) { return { company: x.company || '', trade: x.trade || '', contact: x.contact || '', email: x.email || '', cell: x.cell || '' }; });
       S.settings = mergeSettings(setDraft);
       call('apiSaveSettings', S.settings).then(function () { setDraft = null; toast('Settings saved'); render(); }, function (er) { toast(er.message, true); });
       return;
     }
-    if (a === 'settings-reset') { if (confirm('Reset durations, vendors and template to the defaults?')) { setDraft = clone(DEFAULT_SETTINGS); setDraft.contacts = S.settings.contacts; render(); } return; }
+    if (a === 'settings-reset') { if (confirm('Reset durations, default vendors and the template to the defaults? (The vendor book is kept.)')) { setDraft = clone(DEFAULT_SETTINGS); setDraft.contacts = S.settings.contacts; setDraft.vendors = clone(S.settings.vendors); render(); } return; }
     if (a === 'form-save') { submitForm(false); return; }
     if (a === 'form-submit') { submitForm(true); return; }
     if (a === 'list-add') { e.preventDefault(); var L = S.form[el.dataset.list] = S.form[el.dataset.list] || []; L.push({}); markDirty(); render(); return; }
@@ -1654,6 +1730,22 @@ tr.miss td{background:var(--red-soft)}
       if (it.s !== 'fix') delete it.charge; // charge only applies to Fix lines
       S.roomOpen[el.dataset.room] = true; // the room Spencer just answered in stays open, whatever the toggle events did
       markDirty(); render(); return;
+    }
+    if (a === 'room-rest-ok' || a === 'room-next') { // phone flow: finish a room in one tap, then open the next one
+      var rr = el.dataset.room, inst = roomInstances(S.form), ri = -1;
+      inst.forEach(function (x, k) { if (x.id === rr) ri = k; });
+      if (a === 'room-rest-ok') {
+        var clr = S.form.checklist = S.form.checklist || {}, rm = clr[rr] = clr[rr] || {};
+        inst[ri].items.forEach(function (x, k) { var e = rm[k] = rm[k] || {}; if (!e.s) e.s = 'ok'; });
+        markDirty();
+      }
+      S.roomOpen[rr] = false;
+      var nx = inst[ri + 1];
+      if (nx) S.roomOpen[nx.id] = true;
+      render();
+      var ne = nx && document.querySelector('[data-room-id="' + nx.id + '"]') || document.querySelector('[data-room-id="' + rr + '"]');
+      if (ne) ne.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
     if (a === 'room-toggle') {
       var rid = el.dataset.rid, off = S.form.rooms_off = S.form.rooms_off || [], oi = off.indexOf(rid);
@@ -1686,7 +1778,6 @@ tr.miss td{background:var(--red-soft)}
       var ni = document.querySelector('[data-fid="cin-' + el.dataset.room + '-' + el.dataset.ii + '"]'); if (ni) ni.focus();
       return;
     }
-    if (a === 'timer-start') { startTimer(); return; }
     if (a === 'goto-apply') { // works from the board card too (no current turn there)
       e.stopPropagation();
       if (S.view === 'turn' && S.turnId === el.dataset.id) {
@@ -1706,6 +1797,11 @@ tr.miss td{background:var(--red-soft)}
     }
     if (a === 'copy-msg') { copyText($('#msgtext').value).then(function (ok) { if (ok) toast('Copied. Paste it into a text or email.'); else { $('#msgtext').select(); toast('Press Ctrl/Cmd+C to copy', true); } }); return; }
     if (!t) return;
+    if (a === 'wo-desc') {
+      if (S.formDirty) { toast('Save your changes first, so the description includes them.', true); return; }
+      openWoDescription(t); return;
+    }
+    if (a === 'copy-wo') { copyText($('#wotext').value).then(function (ok) { if (ok) toast('Copied. Paste it into the WO description in AppFolio.'); else { $('#wotext').select(); toast('Copy blocked: the text is selected, copy it by hand.', true); } }); return; }
     if (a === 'resend-email') {
       if (S.formDirty) { toast('Save your changes first, then resend.', true); return; }
       if (confirm('Send the Tech Prep email again?')) sendTechPrepEmail(t);
@@ -1783,7 +1879,7 @@ tr.miss td{background:var(--red-soft)}
     var el = e.target;
     if (el.dataset.mc && el.dataset.col === 'hours') { formChange(el); return; } // live preview while typing hours
     if (el.dataset.dmg) { formChange(el); return; } // keep the text even if a tap re-renders before blur
-    if (el.dataset.fp || el.dataset.list || el.dataset.cin || el.dataset.mc || el.dataset.tm || (el.dataset.trade && el.dataset.tf === 'note')) markDirty();
+    if (el.dataset.fp || el.dataset.list || el.dataset.cin || el.dataset.mc || (el.dataset.trade && el.dataset.tf === 'note')) markDirty();
   });
   // <details> toggle does not bubble: capture it to remember each checklist room's open/closed state
   document.addEventListener('toggle', function (e) { var r = e.target && e.target.dataset && e.target.dataset.roomId; if (r) S.roomOpen[r] = e.target.open; }, true);

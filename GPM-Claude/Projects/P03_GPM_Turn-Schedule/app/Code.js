@@ -130,6 +130,20 @@ function apiSendTechPrepEmail(turnId) {
 }
 
 /**
+ * V1 (2026-11-11): the AppFolio WO description for Spencer's "Copy for AppFolio WO" button. Built from the
+ * SAVED Tech Prep (same builder as the email), so it is identical to the email's top block. Sends nothing.
+ */
+function apiWoDescription(turnId) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
+  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
+  var turn = rows[0];
+  if (!turn.tech_prep) throw new Error('Tech Prep is not saved yet, so there is no WO description.');
+  var settings = cachedSettings_();
+  var d = describeTechPrep(turn, CHECK_ROOMS_SERVER, settings);
+  return { subject: d.subject, paste: d.paste, wo: turn.af_wo_number || '' };
+}
+
+/**
  * Emails the move-out scope change + schedule impact (text builder: Describe.js). Called once by the
  * client right after "Apply to schedule". Stamps move_out_check.impact.email_sent_at.
  */
