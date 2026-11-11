@@ -876,7 +876,7 @@ tr.miss td{background:var(--red-soft)}
       }
       if (key !== 'scope' && !S.form.done_date) S.form.done_date = today();
       if (key === 'techprep') {
-        S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; S.form.rekey = S.form.rekey || 'OK as is';
+        S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; 
         var dtp = techProp(t.property_label); // walks:true tech fills it; Spencer when he walks alone
         S.form.done_by = S.form.done_by || (spencerAlone(t.scope.walk_type) ? 'Spencer' : dtp && dtp.walks ? dtp.tech : 'Riley');
       }

@@ -37,14 +37,14 @@ t('full chain: cure, holiday, appliances+tech share a day', () => {
   const r = E.layout(steps, '2026-11-20', cat);
   const by = Object.fromEntries(r.steps.map(s => [s.key, s.start + '..' + s.end]));
   assert.equal(by.tub, '2026-11-23..2026-11-23');
-  assert.equal(by.flooring, '2026-11-25..2026-11-25');           // 11/24 = cure day
-  assert.equal(by.drywall, '2026-11-27..2026-11-30');            // skips Thanksgiving + weekend
-  assert.equal(by.appliances, '2026-12-01..2026-12-01');
-  assert.equal(by.tech, '2026-12-01..2026-12-01');               // same day as appliances
-  assert.equal(by.paint, '2026-12-02..2026-12-02');
-  assert.equal(by.clean, '2026-12-03..2026-12-03');
-  assert.equal(by.carpetclean, '2026-12-04..2026-12-04');
-  assert.equal(r.rentReady, '2026-12-04');
+  assert.equal(by.flooring, '2026-11-24..2026-11-24');           // resurface sits overnight: no cure day
+  assert.equal(by.drywall, '2026-11-25..2026-11-27');            // skips Thanksgiving
+  assert.equal(by.appliances, '2026-11-30..2026-11-30');
+  assert.equal(by.tech, '2026-11-30..2026-11-30');               // same day as appliances
+  assert.equal(by.paint, '2026-12-01..2026-12-01');
+  assert.equal(by.clean, '2026-12-02..2026-12-02');
+  assert.equal(by.carpetclean, '2026-12-03..2026-12-03');
+  assert.equal(r.rentReady, '2026-12-03');  // rent ready = last day of work
   assert.deepEqual(r.warnings, []);
 });
 

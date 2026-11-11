@@ -7,7 +7,7 @@
  * - First build step = next business day after move-out.
  * - Business days exclude weekends + 6 vendor holidays (New Year's, Memorial, July 4, Labor, Thanksgiving, Christmas).
  * - Only Appliances + Tech may share a day (Tech starts the same day when it directly follows Appliances).
- * - Tub resurface has a 1-day cure (24h no entry) before the next step.
+ * - A size can carry cure days (no entry) before the next step. Tub resurface: none, it sits overnight (Matt 2026-11-11).
  * - Rent ready = the last day of work. It should be at least 1 business day before move-in.
  * - A step whose date Spencer set by hand is "pinned"; later unpinned steps flow after it.
  */
@@ -159,7 +159,7 @@ var Engine = (function () {
       var pair = [a.key, b.key].sort().join('+');
       if (pair === 'appliances+tech') continue;
       if (a.start <= b.end && b.start <= a.end) warnings.push(a.label + ' and ' + b.label + ' overlap (' + fmt(maxIso(a.start, b.start)) + '). Only Appliances + Tech may share a day.');
-      else if (a.cure && b.start > a.end && b.start <= addBiz(a.end, a.cure)) warnings.push(b.label + ' is inside the ' + a.label + ' cure time (no entry for 24h).');
+      else if (a.cure && b.start > a.end && b.start <= addBiz(a.end, a.cure)) warnings.push(b.label + ' is inside the ' + a.label + ' cure time (no entry).');
     }
     // order check vs locked order
     if (catalog) {

@@ -15,7 +15,7 @@ var DEFAULT_SETTINGS = {
     { key: 'preclean', label: 'Pre-clean (grease / smoke)', vendor: 'GR Cleaning Co / Up & Up', color: '#8E8A3A',
       sizes: [{ id: 'std', label: 'Pre-clean', days: 1 }] },
     { key: 'tub', label: 'Tub', vendor: '', color: '#3E73A8',
-      sizes: [{ id: 'resurface', label: 'Resurface (1 day + 24h no entry)', days: 1, cure: 1, vendor: 'Surface Tech' },
+      sizes: [{ id: 'resurface', label: 'Resurface (sits overnight)', days: 1, vendor: 'Surface Tech' },
               { id: 'replace', label: 'Replace', days: 1, vendor: 'Grand River Plumbing' }] },
     { key: 'flooring', label: 'Flooring', vendor: 'Eastpointe Interiors', color: '#9C5B34',
       sizes: [{ id: 'lvp', label: 'LVP / vinyl', days: 1 }, { id: 'carpet', label: 'Carpet', days: 1 },
@@ -68,7 +68,7 @@ var DEFAULT_SETTINGS = {
   ],
   // Properties Spencer walks alone (Matt 2026-11-06; 2340 Michael, 2935 Oak Valley, 2700 Clyde Park added 2026-11-10).
   // A tech-property match (below) wins over this list.
-  cookieCutter: ['900 Leonard St NW', '90 Wealthy St SE', '5943 8th Ave', '1960 Burton St SE',
+  cookieCutter: ['900 Leonard St NW', '90 Wealthy St SE', '1960 Burton St SE',
     '100 Commerce Ave SW', '730 Leonard St NW', '445 Knapp St NE',
     '2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW'],
   // Tech by property (Matt 2026-11-09/10). walks:false = the tech never inspects, Spencer walks alone
@@ -172,18 +172,9 @@ var FORMS = {
           { id: 'window', type: 'text', label: 'Window', placeholder: 'e.g. left of bed' },
           { id: 'size', type: 'text', label: 'Size', placeholder: 'e.g. 35x64' }] }
       ]},
-      { title: 'Locks + keys', help: 'From the checklist: entry lock replaced or re-keyed, 2 GPM entry keys (2 key min), mailbox key, 1 garage remote per door. Counts are what is LEFT IN THE UNIT; the tech recounts on build day.', fields: [
-        { id: 'rekey', type: 'select', label: 'Entry lock', options: ['OK as is', 'Re-key', 'Replace'], half: true },
-        { id: 'lock_type', type: 'text', label: 'Lock type / brand', half: true, showIf: 'rekey!=OK as is' },
-        { id: 'rekey_parts', type: 'text', label: 'Lock parts to order', showIf: 'rekey!=OK as is' },
-        { id: 'keys_entry', type: 'number', label: '# entry keys left in unit', half: true },
-        { id: 'keys_mailbox', type: 'number', label: '# mailbox keys left in unit', half: true },
-        { id: 'remotes_garage', type: 'number', label: '# garage remotes left (1 per door)', half: true },
-        { id: 'keys_other', type: 'text', label: 'Other keys / fobs', half: true },
-        { id: 'keys_charge', type: 'checkbox', label: 'Charge tenant for missing keys / remotes' }
-      ]},
+      // "Locks + keys" removed 2026-11-11 (Matt): every unit is re-keyed, so nothing to record. Old saved values still print.
       { title: 'Other', fields: [
-        { id: 'left_behind', type: 'textarea', label: 'Items left behind' },
+        // "Items left behind" removed 2026-11-11: Tech Prep happens before move-out.
         { id: 'photos_on_wo', type: 'checkbox', label: 'Parts-to-match photos are on the Unit Turn WO' },
         { id: 'notes', type: 'textarea', label: 'Notes for Jason' }
       ]}
