@@ -12,10 +12,11 @@ This deployment uses the LIVE tables + automation@'s calendar: archive the TEST 
    trades show no note box; picking a size on Tub makes its note box appear. *Round 5:* Pre-clean is NOT a trade, it is
    a Type under "Other vendors". Damages: + Add damage → it is a card (Damage / Room / Charge tenant), not a table row.
    "Hole in hall wall", Hall, Charge tenant. WO # `TEST`, move-out today, Tech Basic. **Create turn + build schedule**.
-2. **Turn header on a form tab.** Open the Tech Prep tab. *See:* the header shrinks to unit + tabs and stays stuck at
-   the top while you scroll; no green rent-ready bar over the Submit button (it shows on Schedule only).
+2. **Turn header on a form tab.** Open the Tech Prep tab. *See:* one slim top row; the header shrinks to unit + tabs and scrolls away (nothing pinned) at
+   the top; Submit / Save buttons are at the END of the form, not pinned; no green rent-ready bar on form tabs.
+   *Holidays:* Calendar shows only New Year's, Memorial, July 4, Labor, Thanksgiving, Christmas (no Veterans Day today).
 3. **Checklist (V1).** *See:* Filled by = Wesley. Each line = name with ✎ on the right, then 4 equal buttons
-   OK / Fix / Not checked / N/A. Exterior ends with **Porch light**. Footer shows "0 / N answered · 0 fix" and updates
+   OK / Fix / Not checked / N/A. Exterior ends with **Porch light**. The count above the buttons at the end of the form shows "0 / N answered · 0 fix" and updates
    as you tap. Kitchen: tap OK on 2 lines (room stays open, round 5), Fix "Disposal" + Charge tenant + note "Disposal
    jammed". Tap **Mark the other N OK + next room**: Kitchen closes with ✓ and green, the next room opens.
    *Round 5:* Rooms chips: tap Basement off → it leaves the list (asks first if it has answers).

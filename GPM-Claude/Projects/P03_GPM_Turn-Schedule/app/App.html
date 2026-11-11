@@ -75,15 +75,20 @@ tr.miss td{background:var(--red-soft)}
 .cl-tot{margin-bottom:8px;font-weight:600}
 .foot-count{font-size:13px;color:var(--muted);flex-basis:100%}
 .foot-count b{color:var(--green)}
+/* Matt 11/11: form buttons at the end of the form, not pinned to the bottom of the screen (all screen sizes) */
+.form-foot{position:static}
 /* ---------- V1 phone-first forms (Spencer + techs fill these on a phone during the walk) ---------- */
 @media (max-width:760px){
   html,body{font-size:15px}
-  .topbar{position:static}
-  .brand{font-size:17px}
-  .nav button{padding:9px 12px}
-  main{padding:10px 10px 90px}
-  /* compact turn header on the form tabs: unit + tabs only, stuck to the top */
-  .turn-head.is-form{position:sticky;top:0;z-index:25;margin:-10px -10px 12px;padding:8px 10px 0;box-shadow:0 2px 8px rgba(31,42,34,.08)}
+  /* one slim top row (Matt 11/11: no tall green bar, nothing pinned while scrolling) */
+  .topbar{position:static;flex-wrap:nowrap;gap:4px;padding:6px 8px}
+  .brand{font-size:0;gap:0}
+  .nav{order:0;flex:1 1 auto;flex-basis:auto;gap:0}
+  .nav button{padding:8px 9px;font-size:14px}
+  .topbar .btn.primary.sm{min-height:36px;padding:6px 10px}
+  main{padding:8px 6px 30px}
+  /* compact turn header on the form tabs: unit + tabs only, scrolls away with the page */
+  .turn-head.is-form{position:static;margin:0 0 8px;padding:4px 4px 0;box-shadow:none}
   .turn-head.is-form .th-dates,.turn-head.is-form .prog,.turn-head.is-form .th-row>.btn{display:none}
   .turn-head.is-form .th-unit{font-size:19px}
   .turn-head.is-form .th-prop{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 30px)}
@@ -92,7 +97,7 @@ tr.miss td{background:var(--red-soft)}
   .form .page-head{margin-bottom:6px}
   .form .page-head h1{font-size:23px}
   .form-who{font-size:13px;margin:0 0 10px}
-  .sec{padding:14px 12px;border-radius:12px}
+  .sec{padding:12px 8px;border-radius:12px}
   .sec h3{font-size:18px}
   /* 16px inputs: iOS zooms the page on focus below 16px */
   .f input,.f select,.f textarea,.list-t input,.list-t select,.dmg-in input,.trade-row select,.trade-row input,.ci .note input,.modal textarea{font-size:16px;min-height:44px}
@@ -104,9 +109,10 @@ tr.miss td{background:var(--red-soft)}
   .iconbtn{width:40px;height:40px}
   /* checklist: line name on top, four equal answer buttons under it */
   .room{border-radius:12px}
-  .room summary{padding:14px 12px;font-size:16px}
+  .room summary{padding:14px 8px;font-size:16px}
+  .room-foot{padding:10px 6px}
   /* row 1: line name + note pencil · row 2: the four answers · row 3: Charge tenant (Fix only) · then the note */
-  .ci{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px;align-items:center}
+  .ci{grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:10px 6px;align-items:center}
   .ci>span:first-child{font-size:15px;font-weight:600;grid-column:1;grid-row:1}
   .ci-ctl{display:contents}
   .ci-ctl .ci-pen{grid-column:2;grid-row:1}
@@ -114,7 +120,7 @@ tr.miss td{background:var(--red-soft)}
   .ci-ctl .ci-chg{grid-column:1/-1;grid-row:3;justify-self:start}
   .ci .note{grid-row:4}
   .tri{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;border-radius:10px}
-  .tri button{min-height:46px;font-size:14px;padding:6px 2px}
+  .tri button{min-height:52px;font-size:15px;padding:6px 2px}
   .ci-pen,.ci-chg{min-height:42px;padding:8px 14px;font-size:14px}
   .ci:has(.ci-chg) .ci-pen{display:none}
   .form,.sec,.fields,.f,.room{min-width:0;max-width:100%}
@@ -139,8 +145,8 @@ tr.miss td{background:var(--red-soft)}
   .trade-row.off input[data-tf="note"]{display:none} /* note box only once a size is picked */
   .trade-row{grid-template-columns:12px minmax(0,1fr)}
   .mc{padding:10px 48px 10px 10px}
-  /* sticky submit bar with full-width buttons */
-  .form-foot{position:sticky;bottom:0;z-index:20;margin:10px -10px 0;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));gap:8px;box-shadow:0 -2px 10px rgba(31,42,34,.08)}
+  /* buttons sit at the END of the form (not pinned to the screen) */
+  .form-foot{margin:10px 0 0;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));gap:8px;box-shadow:none}
   .form-foot .btn{flex:1 1 auto}
   .form-foot .btn.primary{flex-basis:100%;order:-1;font-size:16px;min-height:50px}
   .form-foot .foot-count{order:-2}

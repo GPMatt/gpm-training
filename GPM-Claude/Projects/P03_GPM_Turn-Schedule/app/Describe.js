@@ -224,19 +224,20 @@ function buildTechPrepMail(turn, settings, testTo) {
 
 // ---------- Move-out scope change email (apiSendMoveOutEmail in Code.js) ----------
 
-// Business days = weekdays minus Fed bank holidays. Copy of holidays()/isBiz()/bizDiff() in Engine.html;
+// Business days = weekdays minus the 6 vendor holidays. Copy of holidays()/isBiz()/bizDiff() in Engine.html;
 // describe.test.js compares bizDiffServer_ with Engine.bizDiff over two years so they can't drift.
 function isoUtc_(d) { return d.toISOString().slice(0, 10); }
 function parseUtc_(s) { var p = String(s).slice(0, 10).split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); }
 function holidaysServer_(y) {
+  // Same 6 vendor holidays + weekend rule as holidays() in Engine.html (Sat -> Fri, Sun -> Mon).
   var nth = function (m, wd, n) {
     if (n > 0) { var f = new Date(Date.UTC(y, m, 1)).getUTCDay(); return new Date(Date.UTC(y, m, 1 + ((wd - f + 7) % 7) + 7 * (n - 1))); }
     var l = new Date(Date.UTC(y, m + 1, 0)); return new Date(Date.UTC(y, m, l.getUTCDate() - ((l.getUTCDay() - wd + 7) % 7)));
   };
-  var fixed = function (m, day) { var d = new Date(Date.UTC(y, m, day)); return d.getUTCDay() === 0 ? new Date(Date.UTC(y, m, day + 1)) : d; };
+  var obs = function (d) { var w = d.getUTCDay(); return new Date(d.getTime() + (w === 6 ? -1 : w === 0 ? 1 : 0) * 86400000); };
   var set = {};
-  [fixed(0, 1), nth(0, 1, 3), nth(1, 1, 3), nth(4, 1, -1), fixed(5, 19), fixed(6, 4), nth(8, 1, 1), nth(9, 1, 2), fixed(10, 11), nth(10, 4, 4), fixed(11, 25)]
-    .forEach(function (d) { if (d.getUTCDay() !== 6) set[isoUtc_(d)] = true; });
+  [new Date(Date.UTC(y, 0, 1)), new Date(Date.UTC(y + 1, 0, 1)), nth(4, 1, -1), new Date(Date.UTC(y, 6, 4)), nth(8, 1, 1), nth(10, 4, 4), new Date(Date.UTC(y, 11, 25))]
+    .forEach(function (d) { var o = obs(d); if (o.getUTCFullYear() === y) set[isoUtc_(o)] = true; });
   return set;
 }
 function isBizServer_(s) { var d = parseUtc_(s), w = d.getUTCDay(); return w !== 0 && w !== 6 && !holidaysServer_(d.getUTCFullYear())[s]; }

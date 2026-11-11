@@ -8,12 +8,17 @@ const cat = D.catalog;
 let n = 0;
 function t(name, fn) { fn(); n++; console.log('ok  ' + name); }
 
-t('fed holidays', () => {
+t('vendor holidays (6 standard, Sat -> Fri, Sun -> Mon)', () => {
   assert.equal(E.holidayName('2026-11-26'), 'Thanksgiving');
-  assert.equal(E.holidayName('2026-11-11'), 'Veterans Day');
+  assert.equal(E.holidayName('2026-11-11'), '');           // Veterans Day: vendors work
+  assert.equal(E.holidayName('2026-10-12'), '');           // Columbus Day: vendors work
+  assert.equal(E.holidayName('2027-01-18'), '');           // MLK Day: vendors work
+  assert.equal(E.holidayName('2027-06-18'), '');           // Juneteenth: not a vendor holiday
   assert.equal(E.holidayName('2026-12-25'), 'Christmas');
-  assert.equal(E.holidayName('2027-06-18'), '');           // Juneteenth 2027 is a Saturday: not observed Friday
+  assert.equal(E.holidayName('2026-07-03'), 'Independence Day'); // July 4 2026 is a Saturday -> Friday
   assert.equal(E.holidayName('2027-07-05'), 'Independence Day'); // Sunday -> Monday
+  assert.equal(E.holidayName('2027-12-31'), "New Year's Day");   // Jan 1 2028 is a Saturday -> Fri Dec 31
+  assert.equal(E.holidayName('2027-12-24'), 'Christmas');        // Dec 25 2027 is a Saturday -> Friday
   assert.equal(E.holidayName('2026-05-25'), 'Memorial Day');
   assert.equal(E.isBiz('2026-11-26'), false);
   assert.equal(E.isBiz('2026-11-28'), false); // Saturday
