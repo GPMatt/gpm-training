@@ -182,8 +182,15 @@ function apiSendMoveOutEmail(turnId, mode) {
   var applied = mode === 'applied', impact = applied ? mo.impact : mo.pending_impact;
   if (!impact) throw new Error(applied ? 'Apply the scope changes to the schedule first, then send.' : 'No scope change preview saved on this turn.');
   var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
-  var others = (impact.moved || []).some(function (m) { return m.was_confirmed; })
-    ? sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,steps,archived') : [];
+  var others = [];
+  if ((impact.moved || []).some(function (m) { return m.was_confirmed; })) {
+    try {
+      others = sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,steps,archived');
+    } catch (e) {
+      console.error('Move-out email: other open turns could not be read: ' + e.message);
+      others = { error: e.message || String(e) };
+    }
+  }
   var mail = buildMoveOutMail(turn, impact, applied, others, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
   var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
   if (mail.cc.length) msg.cc = mail.cc.join(',');

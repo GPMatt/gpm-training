@@ -357,6 +357,30 @@ t('(E3d) recipients: To Jason + Spencer, cc Matt, at a Bill and a Wesley propert
     .forEach(f => assert.equal(D[f], undefined, f));
 });
 
+t('(E3e) other open turns unreadable: email STILL sends, section says why, error logged', () => {
+  const C = { console: { error: msg => C.logged.push(msg) }, logged: [] };
+  vm.createContext(C);
+  vm.runInContext(read('Describe.js') + '\n' + read('Code.js'), C);
+  const turn = moveOutTurn(), sent = [], patches = [];
+  C.PropertiesService = { getScriptProperties: () => ({ getProperty: k => k === 'EMAIL_TEST_TO' ? '' : 'x' }) };
+  C.MailApp = { sendEmail: m => sent.push(m) };
+  C.sb_ = (method, p, body) => {
+    if (method === 'patch') { patches.push(body); return [turn]; }
+    if (p.indexOf('p03_turn_settings') === 0) return [{ value: eng.S }];
+    if (p.indexOf('p03_turns?archived=eq.false') === 0) throw new Error('Database error 503: timeout');
+    return [JSON.parse(JSON.stringify(turn))];
+  };
+  const r = C.apiSendMoveOutEmail('x', 'applied');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, 'jason@greenpropertymgt.com,spencer@greenpropertymgt.com');
+  assert.equal(sent[0].cc, 'matt@greenpropertymgt.com');
+  assert.equal(sent[0].body, EXPECTED_APPLIED.split('\n\nSame vendors on other open turns')[0] +
+    '\n\nSame vendors on other open turns: could not be read (Database error 503: timeout)');
+  assert.equal(patches[0].move_out_check.impact.email_sent_at, r.sentAt);
+  assert.equal(C.logged.length, 1);
+  assert.ok(C.logged[0].includes('Database error 503: timeout'));
+});
+
 t('(m4) bizDiffServer_ + fmtDay_ match Engine over 2026-2027', () => {
   for (let a = '2026-01-01'; a < '2027-12-31'; a = eng.E.addDays(a, 5)) {
     for (const k of [-9, -1, 1, 3, 12]) {

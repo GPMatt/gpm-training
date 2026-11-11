@@ -311,7 +311,8 @@ function sameVendorLines_(turn, moved, otherTurns) {
 /**
  * Run 2 (2026-11-11): the ONE move-out email (replaces schedule changed / NOT applied alert / conflict review).
  * impact = move_out_check.impact (applied = true) or move_out_check.pending_impact (applied = false);
- * otherTurns = open p03_turns rows (id, property_label, unit_label, steps), only read when a confirmed vendor moved.
+ * otherTurns = open p03_turns rows (id, property_label, unit_label, steps), only read when a confirmed vendor moved;
+ * or {error: message} when they could not be read (the email still goes, the section says so).
  */
 function describeMoveOutMail(turn, impact, applied, otherTurns, settings) {
   var mo = turn.move_out_check || {}, imp = impact || {};
@@ -327,7 +328,9 @@ function describeMoveOutMail(turn, impact, applied, otherTurns, settings) {
   else blocks.push(applied ? 'No confirmed vendors moved.' : 'No confirmed vendors would move.');
   var other = moved.filter(function (m) { return !m.was_confirmed; }).map(movedLine_);
   if (applied && other.length) blocks.push('Other dates that moved:\n' + other.join('\n'));
-  if (confirmed.length) {
+  if (confirmed.length && otherTurns && otherTurns.error) {
+    blocks.push('Same vendors on other open turns: could not be read (' + otherTurns.error + ')');
+  } else if (confirmed.length) {
     var rows = sameVendorLines_(turn, confirmed, otherTurns);
     blocks.push('Same vendors on other open turns (within ' + REVIEW_WINDOW_BIZ_DAYS + ' business days):\n' + (rows.length ? rows.join('\n') : 'None found'));
   }
