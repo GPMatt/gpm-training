@@ -135,16 +135,23 @@ function apiSendTechPrepEmail(turnId) {
   return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
 }
 
-/** Emails Jason the turn's schedule (text built in the app, same as the old Copy button). Honours EMAIL_TEST_TO. */
+/**
+ * Emails Jason + Spencer the turn's schedule (text built in the app, same as the old Copy button). Honours EMAIL_TEST_TO.
+ * Stamps scope.schedule_emailed_at (Run 2: the client sends it once on the first PMI Scope submit).
+ */
 function apiEmailSchedule(turnId, text) {
-  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=id,property_label,unit_label');
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=id,property_label,unit_label,scope');
   if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
   if (!String(text || '').trim()) throw new Error('The schedule is empty.');
   var mail = buildScheduleMail(rows[0], String(text).slice(0, 20000), emailTestTo_());
   var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
   if (mail.cc.length) msg.cc = mail.cc.join(',');
   MailApp.sendEmail(msg);
-  return { to: msg.to, subject: mail.subject };
+  var sentAt = new Date().toISOString();
+  var scope = rows[0].scope || {};
+  scope.schedule_emailed_at = sentAt;
+  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(rows[0].id), { scope: scope });
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
 }
 
 /**
@@ -162,66 +169,40 @@ function apiWoDescription(turnId) {
 }
 
 /**
- * Emails the move-out scope change + schedule impact (text builder: Describe.js). Called once by the
- * client right after "Apply to schedule". Stamps move_out_check.impact.email_sent_at.
+ * Run 2 (2026-11-11): the ONE move-out email (text builder: describeMoveOutMail in Describe.js). To Jason + Spencer,
+ * cc Matt. mode 'applied' = after Apply (move_out_check.impact, stamps impact.email_sent_at); 'pending' = submitted
+ * without Apply (move_out_check.pending_impact, stamps pending_impact.alert_sent_at). No mode: 'applied' if impact exists.
  */
-function apiSendMoveOutEmail(turnId) {
+function apiSendMoveOutEmail(turnId, mode) {
   var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
   if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
   var turn = rows[0];
-  if (!turn.move_out_check || !turn.move_out_check.impact) throw new Error('Apply the scope changes to the schedule first, then send.');
+  var mo = turn.move_out_check || {};
+  if (mode !== 'applied' && mode !== 'pending') mode = mo.impact ? 'applied' : 'pending';
+  var applied = mode === 'applied', impact = applied ? mo.impact : mo.pending_impact;
+  if (!impact) throw new Error(applied ? 'Apply the scope changes to the schedule first, then send.' : 'No scope change preview saved on this turn.');
   var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
-  var mail = buildMoveOutMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
-  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
-  if (mail.cc.length) msg.cc = mail.cc.join(',');
-  MailApp.sendEmail(msg);
-  var sentAt = new Date().toISOString();
-  var mo = turn.move_out_check;
-  mo.impact.email_sent_at = sentAt;
-  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt,
-    review: sendConflictReview_(turn, mo.impact, true, settingsRows.length ? settingsRows[0].value : {}) };
-}
-
-/**
- * Optional alert when a "No" move-out check is submitted WITHOUT Apply (text builder: Describe.js).
- * Reads move_out_check.pending_impact (the client's preview), stamps pending_impact.alert_sent_at.
- */
-function apiSendMoveOutAlert(turnId) {
-  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=*');
-  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
-  var turn = rows[0];
-  if (!turn.move_out_check || !turn.move_out_check.pending_impact) throw new Error('No scope change preview saved on this turn.');
-  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
-  var mail = buildMoveOutAlertMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
-  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
-  if (mail.cc.length) msg.cc = mail.cc.join(',');
-  MailApp.sendEmail(msg);
-  var sentAt = new Date().toISOString();
-  var mo = turn.move_out_check;
-  mo.pending_impact.alert_sent_at = sentAt;
-  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt,
-    review: sendConflictReview_(turn, mo.pending_impact, false, settingsRows.length ? settingsRows[0].value : {}) };
-}
-
-/**
- * R4.5: separate email to Matt when confirmed vendors move, listing the same vendors' bookings on other
- * open turns. Returns {sentAt}, null when nothing confirmed moved, or {error} (the main email already went).
- */
-function sendConflictReview_(turn, impact, applied, settings) {
-  try {
-    if (!((impact && impact.moved) || []).some(function (m) { return m.was_confirmed; })) return null;
-    var others = sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,steps,archived');
-    var mail = buildConflictReviewMail(turn, impact, applied, others, settings, emailTestTo_());
-    if (!mail) return null;
-    MailApp.sendEmail({ to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html });
-    return { sentAt: new Date().toISOString() };
-  } catch (e) {
-    console.error('Conflict review email failed: ' + e.message);
-    return { error: e.message };
+  var others = [];
+  if ((impact.moved || []).some(function (m) { return m.was_confirmed; })) {
+    try {
+      others = sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,steps,archived');
+    } catch (e) {
+      console.error('Move-out email: other open turns could not be read: ' + e.message);
+      others = { error: e.message || String(e) };
+    }
   }
+  var mail = buildMoveOutMail(turn, impact, applied, others, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
+  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
+  if (mail.cc.length) msg.cc = mail.cc.join(',');
+  MailApp.sendEmail(msg);
+  var sentAt = new Date().toISOString();
+  if (applied) impact.email_sent_at = sentAt; else impact.alert_sent_at = sentAt;
+  sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
+  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
 }
+
+/** Old clients: the NOT applied alert is now the merged move-out email in 'pending' mode. */
+function apiSendMoveOutAlert(turnId) { return apiSendMoveOutEmail(turnId, 'pending'); }
 
 function emailTestTo_() {
   return cleanTestTo(PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO'));

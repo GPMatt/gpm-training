@@ -1,6 +1,6 @@
 /**
- * Tech Prep -> AppFolio work-order description email (pure functions, no GAS services).
- * Called by apiSendTechPrepEmail in Code.js. Tested by app-test/describe.test.js.
+ * Email builders (pure functions, no GAS services): Tech Prep WO description, schedule, move-out, calendar events.
+ * Called by the api* functions in Code.js. Tested by app-test/describe.test.js.
  */
 
 // Server copy of CHECK_ROOMS in Config.html. Keep identical: describe.test.js fails if they drift.
@@ -15,39 +15,17 @@ var CHECK_ROOMS_SERVER = [
   { id: 'bed', label: 'Bedroom', repeat: 'bedrooms', items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Smoke detector', 'Closet door latches', 'Closet hardware'] }
 ];
 
-var DEFAULT_BILL_PROPERTIES = ['2340 Michael Ave SW', '2935 Oak Valley Ave SW', '2700 Clyde Park Ave SW', '2860 Taft Ave SW', '3608 Havana Ave SW'];
 var REQUIRED_ENTRY_KEYS = 2;
 
-// Same matcher as isCookieCutter() in App.html: house number + street name only.
-function addrKey_(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 2).join(' '); }
-
-/**
- * R4.2: the tech assigned to a property, from settings.techProperties = [{tech, email, walks, addresses}].
- * Without techProperties: defaults (Bill + Wesley), Bill's addresses from old settings.billProperties if present.
- */
-function techForProperty(addr, settings) {
-  var list = settings && settings.techProperties;
-  if (!list) list = [
-    { tech: 'Bill', email: 'bill@greenpropertymgt.com', walks: false, addresses: (settings && settings.billProperties) || DEFAULT_BILL_PROPERTIES },
-    { tech: 'Wesley', email: 'wesley@greenpropertymgt.com', walks: true, addresses: ['547 Cherry St SE'] }
-  ];
-  var a = addrKey_(addr);
-  if (!a) return null;
-  return list.filter(function (t) { return t && hasVal_(t.email) && (t.addresses || []).some(function (c) { return addrKey_(c) === a; }); })[0] || null;
-}
+// Run 2 (2026-11-11): app emails go only to Jason + Spencer (+ Matt on cc for the move-out email). Never a tech or vendor.
+var TEAM_TO = ['jason@greenpropertymgt.com', 'spencer@greenpropertymgt.com'];
+var MOVE_OUT_CC = ['matt@greenpropertymgt.com'];
 
 /** Wraps real recipients for the EMAIL_TEST_TO switch: only testTo, no cc, plus a note naming the real ones. */
 function applyTestTo_(to, cc, testTo) {
   testTo = String(testTo || '').trim();
   if (!testTo) return { to: to, cc: cc, testNote: '' };
   return { to: [testTo], cc: [], testNote: 'TEST: real recipients would be To: ' + to.join(', ') + (cc.length ? '; Cc: ' + cc.join(', ') : '') };
-}
-
-/** Real recipients, or (when testTo is set) only testTo plus a note naming the real ones. Used by every turn email. */
-function techPrepRecipients(turn, settings, testTo) {
-  var tech = techForProperty(turn.property_label, settings);
-  var to = ['spencer@greenpropertymgt.com', tech ? String(tech.email).trim().toLowerCase() : 'riley@greenpropertymgt.com'];
-  return applyTestTo_(to, ['jason@greenpropertymgt.com'], testTo);
 }
 
 /** EMAIL_TEST_TO cleanup: strips whitespace + trailing punctuation; '' = off; throws when not an email. */
@@ -214,9 +192,9 @@ function describeTechPrep(turn, rooms, settings) {
   return { subject: subject, text: text, html: textToHtml_(text), paste: top.join('\n\n') };
 }
 
-/** "Email schedule to Jason" (2026-11-11): the schedule text the old Copy button put on the clipboard. */
+/** "Email schedule to Jason + Spencer": the schedule text the old Copy button put on the clipboard. */
 function buildScheduleMail(turn, text, testTo) {
-  var r = applyTestTo_(['jason@greenpropertymgt.com'], [], testTo);
+  var r = applyTestTo_(TEAM_TO, [], testTo);
   var body = (r.testNote ? r.testNote + '\n\n' : '') + String(text || '').trim();
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + 'Turn schedule: ' + placeOf_(turn), text: body, html: textToHtml_(body) };
 }
@@ -224,7 +202,7 @@ function buildScheduleMail(turn, text, testTo) {
 /** Everything apiSendTechPrepEmail sends: recipients + subject/body, test mode applied. */
 function buildTechPrepMail(turn, settings, testTo) {
   var d = describeTechPrep(turn, CHECK_ROOMS_SERVER, settings);
-  var r = techPrepRecipients(turn, settings, testTo);
+  var r = applyTestTo_(TEAM_TO, [], testTo);
   var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
 }
@@ -262,10 +240,18 @@ function fmtDay_(s) {
 }
 
 function rentReadyLine_(a, b) {
-  if (!hasVal_(a) || !hasVal_(b)) return 'Scope changed at move-out. Rent ready is now ' + fmtDay_(b) + '.';
-  if (a === b) return 'Scope changed at move-out. Rent ready stays ' + fmtDay_(a) + '.';
+  if (!hasVal_(a) || !hasVal_(b)) return 'Rent ready is now ' + fmtDay_(b) + '.';
+  if (a === b) return 'Rent ready stays ' + fmtDay_(a) + '.';
   var n = bizDiffServer_(a, b);
-  return 'Scope changed at move-out. Rent ready moves ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
+  return 'Rent ready moves ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
+    ' (' + (n < 0 ? '-' : '+') + plural_(Math.abs(n), 'business day', 'business days') + ').';
+}
+
+function wouldRentReadyLine_(a, b) {
+  if (!hasVal_(a) || !hasVal_(b)) return 'If applied, rent ready would be ' + fmtDay_(b) + '.';
+  if (a === b) return 'If applied, rent ready would stay ' + fmtDay_(a) + '.';
+  var n = bizDiffServer_(a, b);
+  return 'If applied, rent ready would move ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
     ' (' + (n < 0 ? '-' : '+') + plural_(Math.abs(n), 'business day', 'business days') + ').';
 }
 
@@ -283,74 +269,11 @@ function changeLine_(c, catalog) {
   return '- ' + line + (note ? ' - ' + note : '');
 }
 
-function movedLine_(m, named) {
-  // The Tech step's vendor is a person: never name them in Spencer's emails. named === true (Matt's review) shows it.
-  var vendor = named !== true && (m.key === 'tech' || /riley/i.test(m.vendor || '')) ? '' : String(m.vendor || '').trim();
+/** One moved step, vendor named (techs included: the email goes to Jason, Spencer and Matt only). */
+function movedLine_(m) {
+  var vendor = String(m.vendor || '').trim();
   return '- ' + m.label + (vendor ? ' - ' + vendor : '') + ': ' + fmtDay_(m.before) + ' -> ' + (m.after === null ? 'removed' : fmtDay_(m.after));
 }
-
-/** turn = p03_turns row with move_out_check.impact; settings = p03_turn_settings value (catalog gives trade/size labels). */
-function describeMoveOut(turn, settings) {
-  var mo = turn.move_out_check || {}, imp = mo.impact || {};
-  var catalog = (settings && settings.catalog) || [];
-  var moved = imp.moved || [];
-  var confirmed = moved.filter(function (m) { return m.was_confirmed; }).map(movedLine_);
-  var other = moved.filter(function (m) { return !m.was_confirmed; }).map(movedLine_);
-  var blocks = [rentReadyLine_(imp.rr_before, imp.rr_after)];
-  var changes = (mo.changes || []).map(function (c) { return changeLine_(c, catalog); });
-  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
-  blocks.push('Vendors to re-contact (were confirmed):\n' + (confirmed.length ? confirmed.join('\n') : 'No confirmed vendors moved.'));
-  if (other.length) blocks.push('Other dates that moved:\n' + other.join('\n'));
-  var text = blocks.join('\n\n');
-  var subject = 'Turn schedule changed: ' + [turn.property_label, turn.unit_label].filter(hasVal_).join(' ') +
-    (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
-  return { subject: subject, text: text, html: textToHtml_(text) };
-}
-
-/** Everything apiSendMoveOutEmail sends; same recipients + test switch as the Tech Prep email. */
-function buildMoveOutMail(turn, settings, testTo) {
-  var d = describeMoveOut(turn, settings);
-  var r = techPrepRecipients(turn, settings, testTo);
-  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
-  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
-}
-
-// ---------- Move-out alert: scope changed, NOT applied (apiSendMoveOutAlert in Code.js) ----------
-
-function wouldRentReadyLine_(a, b) {
-  if (!hasVal_(a) || !hasVal_(b)) return 'If applied, rent ready would be ' + fmtDay_(b) + '.';
-  if (a === b) return 'If applied, rent ready would stay ' + fmtDay_(a) + '.';
-  var n = bizDiffServer_(a, b);
-  return 'If applied, rent ready would move ' + (n < 0 ? 'earlier, ' : '') + 'from ' + fmtDay_(a) + ' to ' + fmtDay_(b) +
-    ' (' + (n < 0 ? '-' : '+') + plural_(Math.abs(n), 'business day', 'business days') + ').';
-}
-
-/** turn = p03_turns row with move_out_check.pending_impact (the client's preview, saved at submit). */
-function describeMoveOutAlert(turn, settings) {
-  var mo = turn.move_out_check || {}, imp = mo.pending_impact || {};
-  var catalog = (settings && settings.catalog) || [];
-  var who = mo.done_by === 'Spencer' ? 'Spencer submitted the move-out check' : 'The move-out check was submitted';
-  var blocks = [who + ': the scope changed, but the schedule has NOT been updated yet. Open the turn and tap Apply to schedule.',
-    wouldRentReadyLine_(imp.rr_before, imp.rr_after)];
-  var changes = (mo.changes || []).map(function (c) { return changeLine_(c, catalog); });
-  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
-  var confirmed = (imp.moved || []).filter(function (m) { return m.was_confirmed; }).map(movedLine_);
-  blocks.push(confirmed.length ? 'Confirmed vendors that would need a new date:\n' + confirmed.join('\n') : 'No confirmed vendors would move.');
-  var text = blocks.join('\n\n');
-  var subject = 'Turn scope changed, NOT applied: ' + [turn.property_label, turn.unit_label].filter(hasVal_).join(' ') +
-    (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
-  return { subject: subject, text: text, html: textToHtml_(text) };
-}
-
-/** Everything apiSendMoveOutAlert sends; same recipients + test switch as the other emails. */
-function buildMoveOutAlertMail(turn, settings, testTo) {
-  var d = describeMoveOutAlert(turn, settings);
-  var r = techPrepRecipients(turn, settings, testTo);
-  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
-  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
-}
-
-// ---------- R4.5 Conflict review email to Matt (sent by apiSendMoveOutEmail + apiSendMoveOutAlert) ----------
 
 var STATUS_LABEL_SERVER = { open: 'Not booked', booked: 'Confirmed', done: 'Done', resched: 'Reschedule' };
 var REVIEW_WINDOW_BIZ_DAYS = 15;
@@ -363,18 +286,8 @@ function withinBiz_(a, b, n) {
   return Math.abs(bizDiffServer_(a, b)) <= n;
 }
 
-/**
- * turn = the changed turn; impact = move_out_check.impact (applied) or .pending_impact (not applied);
- * otherTurns = open p03_turns rows (id, property_label, unit_label, steps). Returns null when no confirmed vendor moved.
- */
-function describeConflictReview(turn, impact, applied, otherTurns, settings) {
-  var moved = ((impact && impact.moved) || []).filter(function (m) { return m.was_confirmed; });
-  if (!moved.length) return null;
-  var catalog = (settings && settings.catalog) || [];
-  var changes = ((turn.move_out_check && turn.move_out_check.changes) || []).map(function (c) { return changeLine_(c, catalog); });
-  var blocks = [(applied ? rentReadyLine_ : wouldRentReadyLine_)(impact.rr_before, impact.rr_after)];
-  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
-  blocks.push((applied ? 'Vendors to re-contact (were confirmed):' : 'Confirmed vendors that would need a new date:') + '\n' + moved.map(function (m) { return movedLine_(m, true); }).join('\n'));
+/** The moved confirmed vendors' steps on other open turns within 15 business days of the old or new date, sorted by date. */
+function sameVendorLines_(turn, moved, otherTurns) {
   var seen = {}, rows = [];
   moved.forEach(function (m) {
     var v = String(m.vendor || '').trim().toLowerCase();
@@ -386,22 +299,51 @@ function describeConflictReview(turn, impact, applied, otherTurns, settings) {
         if (seen[id] || String(s.vendor || '').trim().toLowerCase() !== v) return;
         if (!withinBiz_(s.start, m.before, REVIEW_WINDOW_BIZ_DAYS) && !withinBiz_(s.start, m.after, REVIEW_WINDOW_BIZ_DAYS)) return;
         seen[id] = true;
-        var who = String(m.vendor).trim(); // Matt-only email: real names, tech included
+        var who = String(m.vendor).trim();
         rows.push({ sort: s.start + '|' + who + '|' + placeOf_(o), line: '- ' + who + ': ' + fmtDay_(s.start) + ' ' + s.label + ' at ' + placeOf_(o) + ' (' + (STATUS_LABEL_SERVER[s.status] || s.status || '') + ')' });
       });
     });
   });
   rows.sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
-  blocks.push('Same vendors on other open turns:\n' + (rows.length ? rows.map(function (r) { return r.line; }).join('\n') : 'None found'));
-  var text = blocks.join('\n\n');
-  return { subject: 'Turn conflict review: ' + placeOf_(turn), text: text, html: textToHtml_(text) };
+  return rows.map(function (r) { return r.line; });
 }
 
-/** Matt only, no cc; EMAIL_TEST_TO applies. null when no confirmed vendor moved. */
-function buildConflictReviewMail(turn, impact, applied, otherTurns, settings, testTo) {
-  var d = describeConflictReview(turn, impact, applied, otherTurns, settings);
-  if (!d) return null;
-  var r = applyTestTo_(['matt@greenpropertymgt.com'], [], testTo);
+/**
+ * Run 2 (2026-11-11): the ONE move-out email (replaces schedule changed / NOT applied alert / conflict review).
+ * impact = move_out_check.impact (applied = true) or move_out_check.pending_impact (applied = false);
+ * otherTurns = open p03_turns rows (id, property_label, unit_label, steps), only read when a confirmed vendor moved;
+ * or {error: message} when they could not be read (the email still goes, the section says so).
+ */
+function describeMoveOutMail(turn, impact, applied, otherTurns, settings) {
+  var mo = turn.move_out_check || {}, imp = impact || {};
+  var catalog = (settings && settings.catalog) || [];
+  var moved = imp.moved || [];
+  var confirmed = moved.filter(function (m) { return m.was_confirmed; });
+  var blocks = [applied ? 'Scope changed at move-out; the schedule has been updated.'
+    : 'Scope changed at move-out; the schedule has NOT been updated yet. Open the turn and tap Apply to schedule.',
+    (applied ? rentReadyLine_ : wouldRentReadyLine_)(imp.rr_before, imp.rr_after)];
+  var changes = (mo.changes || []).map(function (c) { return changeLine_(c, catalog); });
+  if (changes.length) blocks.push('Changes:\n' + changes.join('\n'));
+  if (confirmed.length) blocks.push((applied ? 'Confirmed vendors whose date moved:' : 'Confirmed vendors whose date would move:') + '\n' + confirmed.map(movedLine_).join('\n'));
+  else blocks.push(applied ? 'No confirmed vendors moved.' : 'No confirmed vendors would move.');
+  var other = moved.filter(function (m) { return !m.was_confirmed; }).map(movedLine_);
+  if (applied && other.length) blocks.push('Other dates that moved:\n' + other.join('\n'));
+  if (confirmed.length && otherTurns && otherTurns.error) {
+    blocks.push('Same vendors on other open turns: could not be read (' + otherTurns.error + ')');
+  } else if (confirmed.length) {
+    var rows = sameVendorLines_(turn, confirmed, otherTurns);
+    blocks.push('Same vendors on other open turns (within ' + REVIEW_WINDOW_BIZ_DAYS + ' business days):\n' + (rows.length ? rows.join('\n') : 'None found'));
+  }
+  var text = blocks.join('\n\n');
+  var subject = (applied ? 'Turn schedule changed: ' : 'Turn scope changed, NOT applied: ') + placeOf_(turn) +
+    (hasVal_(turn.af_wo_number) ? ' (WO ' + turn.af_wo_number + ')' : '');
+  return { subject: subject, text: text, html: textToHtml_(text) };
+}
+
+/** Everything apiSendMoveOutEmail sends: To Jason + Spencer, cc Matt, test switch applied. */
+function buildMoveOutMail(turn, impact, applied, otherTurns, settings, testTo) {
+  var d = describeMoveOutMail(turn, impact, applied, otherTurns, settings);
+  var r = applyTestTo_(TEAM_TO, MOVE_OUT_CC, testTo);
   var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
   return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
 }
