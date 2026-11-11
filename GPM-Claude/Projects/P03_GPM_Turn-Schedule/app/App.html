@@ -279,6 +279,17 @@ tr.miss td{background:var(--red-soft)}
     if (!saved) return s;
     Object.keys(saved).forEach(function (k) { s[k] = saved[k]; });
     if (!s.catalog || !s.catalog.length) s.catalog = clone(DEFAULT_SETTINGS.catalog);
+    // sizes added to the defaults later (e.g. Paint "Redo trim", 2026-11-11) also show up in saved settings
+    DEFAULT_SETTINGS.catalog.forEach(function (dc) {
+      var sc = null; s.catalog.forEach(function (c) { if (c.key === dc.key) sc = c; });
+      if (!sc) return;
+      dc.sizes.forEach(function (z, zi) {
+        if (sc.sizes.some(function (x) { return x.id === z.id; })) return;
+        var after = zi > 0 ? dc.sizes[zi - 1].id : null, at = sc.sizes.length;
+        sc.sizes.forEach(function (x, xi) { if (x.id === after) at = xi + 1; });
+        sc.sizes.splice(at, 0, clone(z));
+      });
+    });
     s.contacts = s.contacts || {};
     // pre-2026-11-10 settings: billProperties = Bill's addresses; techProperties did not exist yet
     if (!saved.techProperties && saved.billProperties) {
@@ -305,15 +316,46 @@ tr.miss td{background:var(--red-soft)}
   function prepTurn(t) {
     t.scope = t.scope || {};
     t.steps = t.steps || [];
+    fixTechProperty(t);
     recompute(t);
     return t;
+  }
+
+  /** Turn techs are Riley, Bill and Wesley only (Matt 2026-11-11). At Bill's / Wesley's addresses the walk type and an
+   *  unconfirmed Tech step always follow the property, whichever app version created the turn (the old live
+   *  version knew nothing about tech properties and filled in Cookie cutter + Riley). Spencer's own vendor picks stay. */
+  function fixTechProperty(t) {
+    var tp = techProp(t.property_label); if (!tp) return;
+    var want = techWalk(tp);
+    if (t.scope.walk_type !== want) t.scope.walk_type = want;
+    t.steps.forEach(function (s) {
+      if (s.key === 'tech' && (s.status === 'open' || !s.status) && (!s.vendorEdited || s.vendor === 'Riley')) s.vendor = tp.tech;
+    });
+  }
+
+  // Eastpointe measures 1 week before the install day (Matt 2026-11-11). Auto unless Spencer set the day himself.
+  var EASTPOINTE_SIZES = ['lvp', 'carpet', 'both'];
+  function measureDay(install) {
+    var d = E.addDays(install, -7);
+    while (!E.isBiz(d)) d = E.addDays(d, -1);
+    return d;
+  }
+  function setMeasure(t) {
+    t.steps.forEach(function (s) {
+      if (s.key !== 'flooring' || EASTPOINTE_SIZES.indexOf(s.size) < 0) { delete s.measure; delete s.measurePinned; return; }
+      if (!s.measurePinned) s.measure = s.start ? measureDay(s.start) : '';
+    });
   }
 
   function techHours(t) { return t.tech_prep && Number(t.tech_prep.tech_hours) || 0; }
 
   function recompute(t) {
     var r = E.layout(t.steps, t.move_out_date, cat());
+    setMeasure(t);
     t._warnings = r.warnings;
+    t.steps.forEach(function (s) {
+      if (s.measure && s.start && E.bizDiff(s.measure, s.start) < 5) t._warnings.push('Flooring measure (' + E.fmt(s.measure) + ') is less than a week before the install (' + E.fmt(s.start) + ').');
+    });
     t._first = r.firstBuildDay;
     t.rent_ready_date = r.rentReady;
     t.stage = stageOf(t);
@@ -563,7 +605,7 @@ tr.miss td{background:var(--red-soft)}
     var h = '<div class="toolbar">' +
       '<button class="btn sm" data-act="recommended" title="Clear the dates you set by hand and lay out the best schedule in the standard order">↺ Recommended schedule</button>' +
       '<button class="btn sm" data-act="undo"' + (S.undo.length ? '' : ' disabled') + '>Undo</button>' +
-      '<button class="btn sm" data-act="copy-all">Copy whole schedule</button>' +
+      '<button class="btn sm" data-act="email-schedule">✉ Email schedule to Jason</button>' +
       (t.stage === 'ready' ? '<button class="btn sm" data-act="unready">Reopen turn</button>'
         : '<button class="btn sm" data-act="mark-ready">Mark rent ready</button>') +
       '<button class="btn sm ghost danger" data-act="archive" data-id="' + t.id + '">Archive</button>' +
@@ -659,6 +701,7 @@ tr.miss td{background:var(--red-soft)}
       '<label class="f w-time"><span>Time</span>' + timeSelect('data-ed="time" data-i="' + i + '" data-fid="t' + i + '"', s.time || '') + '</label>' +
       '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
       '<label class="f w-num"><span>Hours</span><input type="number" min="0.5" step="0.5" data-ed="hours" data-i="' + i + '" data-fid="h' + i + '" value="' + esc(s.hours) + '"></label>' +
+      (s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0 ? '<label class="f w-date"><span>Measure day' + (s.measurePinned ? ' (set by you)' : ' (1 wk before)') + '</span><input type="date" data-ed="measure" data-i="' + i + '" data-fid="ms' + i + '" value="' + esc(s.measure || '') + '"></label>' : '') +
       '<label class="f grow"><span>Scope note (goes in the message)</span><input type="text" data-ed="note" data-i="' + i + '" data-fid="o' + i + '" value="' + esc(s.note) + '"></label>' +
       '<div class="f"><span>&nbsp;</span><button class="btn sm primary" data-act="message" data-i="' + i + '">✉ Vendor message</button></div>' +
       (contact.phone || contact.email ? '<div class="f"><span>&nbsp;</span><span style="font-size:12px;color:var(--muted);padding-top:8px">' + esc([contact.phone, contact.email].filter(Boolean).join(' · ')) + '</span></div>' : '') +
@@ -670,16 +713,39 @@ tr.miss td{background:var(--red-soft)}
       vendor: (s.vendor || '').split(' / ')[0], contact: contactOf(s.vendor).contact || (s.vendor || '').split(' / ')[0], trade: s.label.toLowerCase() + (s.sizeLabel ? ' (' + s.sizeLabel.replace(/\s*\(.*\)/, '').toLowerCase() + ')' : ''),
       address: shortProp(t), unit: t.unit_label ? 'Unit ' + t.unit_label : '',
       date: E.fmt(s.start), time: E.fmtTime(s.time), length: E.lengthText(s),
-      scope: s.note || '', access: t.scope.access || ''
+      scope: s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0 ? eastpointeOrder(t, s) : s.note || '', access: t.scope.access || ''
     });
   }
 
+  /** The Eastpointe order form's answers as text (from the Scope's "Flooring order" questions + the turn). */
+  function eastpointeOrder(t, s) {
+    var d = t.scope || {}, L = [];
+    function yn(label, v) { if (v) L.push(label + ': ' + v); }
+    L.push('');
+    if (s.measure) L.push('Measure: ' + E.fmt(s.measure));
+    L.push('Community: ' + propTitle(t) + (t.unit_label ? ' · Unit ' + t.unit_label : ''));
+    if (d.ep_style) L.push('Style of unit: ' + d.ep_style);
+    L.push('Vacant at install. Furniture: No');
+    if (s.size === 'carpet' || s.size === 'both') {
+      L.push('CARPET: ' + (d.ep_carpet_extent || '?') + (d.ep_carpet_extent === 'Partial' && d.ep_carpet_area ? ' (' + d.ep_carpet_area + ')' : ''));
+      yn('  Pad', d.ep_pad); yn('  Rip', d.ep_carpet_rip); if (d.ep_carpet_rip === 'Yes') yn('  Haul', d.ep_carpet_haul);
+    }
+    if (s.size === 'lvp' || s.size === 'both') {
+      L.push('VINYL: ' + (d.ep_vinyl_type || '?') + (d.ep_vinyl_rooms ? ' · rooms: ' + d.ep_vinyl_rooms : ''));
+      yn('  Rip', d.ep_vinyl_rip); yn('  Shoe molding', d.ep_shoe); yn('  Cove base', d.ep_cove); yn('  R&R toilet', d.ep_toilet);
+      yn('  Move appliances', d.ep_move_appl); yn('  Sub floor', d.ep_subfloor); yn('  Floor prep', d.ep_prep);
+    }
+    if (d.ep_notes || s.note) L.push('Special instructions: ' + [d.ep_notes, s.note].filter(Boolean).join(' · '));
+    if (t.af_wo_number) L.push('P.O. #: ' + t.af_wo_number);
+    return L.join('\n');
+  }
+
   function scheduleText(t) {
-    var lines = [shortProp(t) + (t.unit_label ? ' Unit ' + t.unit_label : '') + ' turn schedule',
+    var lines = [propTitle(t) + (unitSub(t) ? ' · ' + unitSub(t) : '') + ' turn schedule', t.property_label + (t.af_wo_number ? ' · WO ' + t.af_wo_number : ''),
       'Move-out: ' + E.fmt(t.move_out_date) + ' · Rent ready: ' + E.fmt(t.rent_ready_date) + (t.move_in_date ? ' · Move-in: ' + E.fmt(t.move_in_date) : ''), ''];
     t.steps.forEach(function (s, i) {
       lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
-        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']');
+        (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']' + (s.measure ? ' · measure ' + E.fmt(s.measure) : ''));
     });
     return lines.join('\n');
   }
@@ -786,6 +852,7 @@ tr.miss td{background:var(--red-soft)}
     else if (field === 'days') s.days = Math.max(1, Math.min(20, parseInt(value, 10) || 1));
     else if (field === 'hours') { s.hours = Math.max(0.5, Number(value) || 8); s.hoursEdited = true; if (s.hours > 8 * s.days) s.days = Math.ceil(s.hours / 8); }
     else if (field === 'time') s.time = value;
+    else if (field === 'measure') { s.measurePinned = !!value; s.measure = value; } // empty = back to 1 week before install
     else if (field === 'vendor') { s.vendor = value; s.vendorEdited = true; }
     else if (field === 'note') { s.note = value; syncTrade(t, s); }
     else if (field === 'size') {
@@ -827,6 +894,7 @@ tr.miss td{background:var(--red-soft)}
           add(d, { cls: s.status, text: lab + ' · ' + s.label + (k === 0 && s.time ? ' ' + E.fmtTime(s.time) : '') + (s.days > 1 ? ' (' + (k + 1) + '/' + s.days + ')' : ''), id: t.id, c: color(s.key) });
         });
       });
+      t.steps.forEach(function (s) { if (s.measure) add(E.rollBiz(s.measure), { cls: 'visit', text: lab + ' · Flooring measure', id: t.id, c: color('flooring') }); });
       if (tech && tech.end) add(tech.end, { cls: 'visit', text: lab + ' · Quality check (before clean)', id: t.id, c: '#1E4632' });
       if (t.rent_ready_date) add(t.rent_ready_date, { cls: 'mark', text: '★ ' + lab + ' rent ready', id: t.id });
       if (t.move_in_date) add(E.rollBiz(t.move_in_date), { cls: 'mark', text: '⌂ ' + lab + ' move-in', id: t.id });
@@ -878,7 +946,7 @@ tr.miss td{background:var(--red-soft)}
       if (key === 'techprep') {
         S.form.bedrooms = S.form.bedrooms || '2'; S.form.bathrooms = S.form.bathrooms || '1'; 
         var dtp = techProp(t.property_label); // walks:true tech fills it; Spencer when he walks alone
-        S.form.done_by = S.form.done_by || (spencerAlone(t.scope.walk_type) ? 'Spencer' : dtp && dtp.walks ? dtp.tech : 'Riley');
+        S.form.done_by = S.form.done_by || (dtp ? (dtp.walks ? dtp.tech : 'Spencer') : spencerAlone(t.scope.walk_type) ? 'Spencer' : 'Riley');
       }
       S.formDirty = false; S.gate = null; S.alertOn = true; // alert checkbox: checked by default
       S.roomOpen = {}; S.roomCut = null; S.missing = null;
@@ -918,8 +986,15 @@ tr.miss td{background:var(--red-soft)}
     });
   }
 
+  /** Field condition. 'a=b', 'a!=b', 'a' (truthy), 'trade:<key>[:size,size]' (that trade picked on the Scope),
+   *  several joined with '&' (all must hold). */
   function showIf(cond, d) {
     if (!cond) return true;
+    if (cond.indexOf('&') > 0) return cond.split('&').every(function (c) { return showIf(c, d); });
+    if (cond.indexOf('trade:') === 0) {
+      var tp = cond.split(':'), sz = d.trades && d.trades[tp[1]] && d.trades[tp[1]].size;
+      return !!sz && (!tp[2] || tp[2].split(',').indexOf(sz) >= 0);
+    }
     if (cond.indexOf('!=') > 0) { var q = cond.split('!='); return !!d[q[0]] && d[q[0]] !== q[1]; }
     var p = cond.split('=');
     return p.length > 1 ? d[p[0]] === p[1] : !!d[p[0]];
@@ -935,6 +1010,7 @@ tr.miss td{background:var(--red-soft)}
       if (added.length) h += '<div class="panel"><h3>Added at move-out (the tech\'s list, ' + esc(techName(t)) + ')</h3>' + added.map(function (x) { return '<div>• ' + esc(x) + '</div>'; }).join('') + '</div>';
     }
     F.sections.forEach(function (sec) {
+      if (!sec.fields.some(function (f) { return showIf(f.showIf, d); })) return; // every field hidden: no empty section
       var secReq = sec.fields.some(function (f) { return f.required && (f.type === 'ncreview' || f.type === 'damages'); }); // custom required blocks: * on the title
       h += '<div class="sec"><h3>' + esc(sec.title) + (secReq ? ' <b class="req">*</b>' : '') + '</h3>' + (sec.help ? '<div class="help">' + esc(sec.help) + '</div>' : '') + '<div class="fields">';
       sec.fields.forEach(function (f) { if (showIf(f.showIf, d)) h += fieldHtml(f, d, t); });
@@ -1905,7 +1981,11 @@ tr.miss td{background:var(--red-soft)}
       if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('hl'); setTimeout(function () { row.classList.remove('hl'); }, 1600); }
       return;
     }
-    if (a === 'copy-all') { copyText(scheduleText(t)).then(function (ok) { toast(ok ? 'Schedule copied' : 'Copy blocked by the browser', !ok); }); return; }
+    if (a === 'email-schedule') {
+      el.disabled = true; toast('Sending the schedule to Jason…');
+      call('apiEmailSchedule', t.id, scheduleText(t)).then(function (r) { toast('Schedule emailed to ' + r.to); render(); }, function (er) { el.disabled = false; toast('Not sent: ' + er.message, true); });
+      return;
+    }
     if (a === 'mark-ready') { if (!confirm('Mark this unit rent ready?')) return; t.stage = 'ready'; queueSave(t); render(); return; }
     if (a === 'unready') { t.stage = 'scheduling'; t.stage = stageOf(t); queueSave(t); render(); return; }
     if (a === 'project-status') { t.scope.project_status = el.dataset.v; queueSave(t); render(); return; }

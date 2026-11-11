@@ -169,3 +169,12 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
   vendor's jobs across units by day). Desktop first (Spencer + Jason at a computer). Interactive: tap a step to edit
   (date, vendor, status), filters (property / vendor / trade / status), conflict flags (vendor double-booked, order
   broken). Real units from Jason's sheet, scope + dates only, no tenant notes. Private artifact until Matt shares it.
+- (11/11) Paint "Redo trim" = 2 days. New default sizes now merge into saved Settings automatically.
+- (11/11) Eastpointe: Scope asks the order-form questions only when Flooring is LVP / carpet / both (carpet: full/partial
+  + area, pad, rip, haul; vinyl: plank/sheet, rooms, rip, shoe molding, cove base, R&R toilet, move appliances, sub floor,
+  floor prep; style of unit; special instructions). Measure day = 1 week before install (last business day on/before
+  install - 7 days), auto unless Spencer sets it; never auto-shortened. Shown on the step, both calendars and the vendor
+  message, which carries the order text. Filled PDF = not yet.
+- (11/11) Turn techs = Riley, Bill, Wesley only (the sheet's Tech column is WO coverage). At Bill / Wesley addresses the
+  walk type + unconfirmed Tech step self-correct on load (turns created on old live @3 had Cookie cutter + Riley).
+- (11/11) "Copy whole schedule" -> "Email schedule to Jason" (same text, EMAIL_TEST_TO honoured).

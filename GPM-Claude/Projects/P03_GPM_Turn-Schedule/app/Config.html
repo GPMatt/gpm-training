@@ -29,7 +29,8 @@ var DEFAULT_SETTINGS = {
               { id: 'first', label: 'First-time property (2-3 days)', days: 3 }] },
     { key: 'paint', label: 'Paint', vendor: 'Trevor', color: '#2C8C82',
       sizes: [{ id: 'full', label: 'Full paint', days: 1 }, { id: 'touchup', label: 'Touch-up (4 hours)', days: 1, hours: 4 },
-              { id: 'color', label: 'Color change (2 days)', days: 2 }, { id: 'newhome', label: 'New home (3 days)', days: 3 }] },
+              { id: 'color', label: 'Color change (2 days)', days: 2 }, { id: 'trim', label: 'Redo trim (2 days)', days: 2 },
+              { id: 'newhome', label: 'New home (3 days)', days: 3 }] }, // Redo trim added 2026-11-11 (Matt)
     { key: 'clean', label: 'Clean', vendor: 'GR Cleaning Co / Up & Up', color: '#C9962B',
       sizes: [{ id: 'std', label: 'Standard', days: 1 }, { id: 'heavy', label: 'Heavy (2 days)', days: 2 }] },
     { key: 'surface', label: 'Stainless + stovetop', vendor: 'Surface Experts', color: '#56707D',
@@ -118,6 +119,26 @@ var FORMS = {
       ]},
       { title: 'Trades', help: 'Pick a size, or leave it Not needed. Full paint is the default. The schedule is built from these.', fields: [
         { id: 'trades', type: 'trades' }
+      ]},
+      // Eastpointe order form (Matt 2026-11-11), only when Flooring is LVP / carpet. Install date, community, unit, access,
+      // WO # (P.O.) come from the turn. Eastpointe measures 1 week before install (Flooring step on the schedule).
+      { title: 'Flooring order (Eastpointe)', help: 'Fills Eastpointe\'s order form. Install date, unit, access and WO # come from the turn. They measure 1 week before the install day.', fields: [
+        { id: 'ep_style', type: 'text', label: 'Style of unit / floor plan', placeholder: 'e.g. 2 bed / 1 bath, plan B', showIf: 'trade:flooring:lvp,carpet,both' },
+        { id: 'ep_carpet_extent', type: 'select', label: 'Carpet', options: ['Full unit', 'Partial'], required: true, half: true, showIf: 'trade:flooring:carpet,both' },
+        { id: 'ep_carpet_area', type: 'text', label: 'Carpet area to be done', placeholder: 'e.g. both bedrooms + hall', required: true, showIf: 'trade:flooring:carpet,both&ep_carpet_extent=Partial' },
+        { id: 'ep_pad', type: 'select', label: 'New pad', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:carpet,both' },
+        { id: 'ep_carpet_rip', type: 'select', label: 'Rip out old carpet', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:carpet,both' },
+        { id: 'ep_carpet_haul', type: 'select', label: 'Haul old carpet away', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:carpet,both&ep_carpet_rip=Yes' },
+        { id: 'ep_vinyl_type', type: 'select', label: 'Vinyl', options: ['Plank', 'Sheet vinyl'], required: true, half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_vinyl_rooms', type: 'text', label: 'Vinyl rooms to be done', placeholder: 'e.g. kitchen, bath, living room', required: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_vinyl_rip', type: 'select', label: 'Rip out old floor', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_shoe', type: 'select', label: 'Shoe molding', options: ['New', 'R&R (reuse)', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_cove', type: 'select', label: 'Cove base', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_toilet', type: 'select', label: 'R&R toilet', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_move_appl', type: 'select', label: 'Move appliances', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_subfloor', type: 'select', label: 'Sub floor (over wood)', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_prep', type: 'select', label: 'Floor prep (over cement or minor repair)', options: ['Yes', 'No'], half: true, showIf: 'trade:flooring:lvp,both' },
+        { id: 'ep_notes', type: 'textarea', label: 'Special instructions for Eastpointe', showIf: 'trade:flooring:lvp,carpet,both' }
       ]},
       { title: 'Project', fields: [
         { id: 'project', type: 'checkbox', label: 'Possible value-add project (Jason prices it)' },

@@ -135,6 +135,18 @@ function apiSendTechPrepEmail(turnId) {
   return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
 }
 
+/** Emails Jason the turn's schedule (text built in the app, same as the old Copy button). Honours EMAIL_TEST_TO. */
+function apiEmailSchedule(turnId, text) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=id,property_label,unit_label');
+  if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
+  if (!String(text || '').trim()) throw new Error('The schedule is empty.');
+  var mail = buildScheduleMail(rows[0], String(text).slice(0, 20000), emailTestTo_());
+  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
+  if (mail.cc.length) msg.cc = mail.cc.join(',');
+  MailApp.sendEmail(msg);
+  return { to: msg.to, subject: mail.subject };
+}
+
 /**
  * V1 (2026-11-11): the AppFolio WO description for Spencer's "Copy for AppFolio WO" button. Built from the
  * SAVED Tech Prep (same builder as the email), so it is identical to the email's top block. Sends nothing.

@@ -214,6 +214,13 @@ function describeTechPrep(turn, rooms, settings) {
   return { subject: subject, text: text, html: textToHtml_(text), paste: top.join('\n\n') };
 }
 
+/** "Email schedule to Jason" (2026-11-11): the schedule text the old Copy button put on the clipboard. */
+function buildScheduleMail(turn, text, testTo) {
+  var r = applyTestTo_(['jason@greenpropertymgt.com'], [], testTo);
+  var body = (r.testNote ? r.testNote + '\n\n' : '') + String(text || '').trim();
+  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + 'Turn schedule: ' + placeOf_(turn), text: body, html: textToHtml_(body) };
+}
+
 /** Everything apiSendTechPrepEmail sends: recipients + subject/body, test mode applied. */
 function buildTechPrepMail(turn, settings, testTo) {
   var d = describeTechPrep(turn, CHECK_ROOMS_SERVER, settings);
@@ -434,6 +441,11 @@ function calendarEvents(turn, appUrl) {
       ev.allDay = true; ev.start = s.start; ev.end = addDaysIso_(end, 1);
     }
     out.push(ev);
+  });
+  (turn.steps || []).forEach(function (s, i) { // Eastpointe measure day (1 week before the flooring install)
+    if (!hasVal_(s.measure)) return;
+    out.push({ key: '_measure' + i, title: 'Flooring measure · ' + (hasVal_(s.vendor) ? String(s.vendor).trim() : 'Eastpointe') + ' · ' + place,
+      description: info('Install ' + fmtDay_(s.start)), allDay: true, start: s.measure, end: addDaysIso_(s.measure, 1) });
   });
   if (hasVal_(turn.rent_ready_date)) {
     out.push({ key: '_rentready', title: 'Rent ready · ' + place, description: info('', true), allDay: true,

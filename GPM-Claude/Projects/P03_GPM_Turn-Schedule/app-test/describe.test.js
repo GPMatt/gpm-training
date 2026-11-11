@@ -535,4 +535,20 @@ t('(V1) Porch light is the LAST Exterior item (answers are stored by index)', ()
   assert.equal(ext.indexOf('Garage / storage room for items left behind'), 4);
 });
 
+t('(11/11) Eastpointe measure day becomes its own calendar event', () => {
+  const ev = plain(D.calendarEvents({ property_label: '900 Leonard St NW', unit_label: '108', rent_ready_date: '2026-12-10',
+    steps: [{ key: 'flooring', label: 'Flooring', vendor: 'Eastpointe Interiors', start: '2026-12-02', end: '2026-12-02', status: 'booked', measure: '2026-11-25' }] }, ''));
+  const m = ev.find(e => e.key.indexOf('_measure') === 0);
+  assert.equal(m.title, 'Flooring measure · Eastpointe Interiors · 900 Leonard St NW 108');
+  assert.equal(m.start, '2026-11-25');
+});
+
+t('(11/11) schedule email goes to Jason, test switch respected', () => {
+  const r = plain(D.buildScheduleMail({ property_label: '900 Leonard St NW', unit_label: '108' }, 'line 1', ''));
+  assert.deepEqual(r.to, ['jason@greenpropertymgt.com']);
+  assert.equal(r.subject, 'Turn schedule: 900 Leonard St NW 108');
+  const tst = plain(D.buildScheduleMail({ property_label: 'x' }, 'line 1', 'matt@greenpropertymgt.com'));
+  assert.deepEqual(tst.to, ['matt@greenpropertymgt.com']); assert.ok(tst.subject.startsWith('[TEST] '));
+});
+
 console.log(n + ' tests passed');

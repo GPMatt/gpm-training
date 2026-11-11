@@ -69,6 +69,7 @@ const mock = `<script>
     apiBoot: function(){ if (!db.turns) { db.turns = seed(); persist(); }
       return {user:'spencer@greenpropertymgt.com', settings:db.settings, turns:JSON.parse(JSON.stringify(db.turns.filter(function(t){return !t.archived;})))}; },
     apiSendTechPrepEmail: function(id){ return mail(id, 'tp'); },
+    apiEmailSchedule: function(id, text){ return {to:'matt@greenpropertymgt.com (test)', subject:'Turn schedule', text:text}; },
     apiTurn: function(id){ return JSON.parse(JSON.stringify(db.turns.filter(function(x){return x.id===id;})[0]||null)); },
     apiWoDescription: function(id){ var t = db.turns.filter(function(x){return x.id===id;})[0]; var lines=[]; Object.keys((t.tech_prep||{}).checklist||{}).forEach(function(r){ var st=t.tech_prep.checklist[r]; Object.keys(st).forEach(function(i){ if(st[i].s==='fix') lines.push(r+': '+(st[i].note||'item '+i)+(st[i].charge?' (Charge Tenant)':'')+'.'); }); }); return {subject:'x', paste: lines.join(String.fromCharCode(10))||'No repairs found at the PMI.', wo: t.af_wo_number||''}; },
     apiSendMoveOutEmail: function(id){ return mail(id, 'mo'); },
