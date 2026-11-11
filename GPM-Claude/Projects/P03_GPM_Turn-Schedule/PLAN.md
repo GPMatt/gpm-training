@@ -178,3 +178,75 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
 - (11/11) Turn techs = Riley, Bill, Wesley only (the sheet's Tech column is WO coverage). At Bill / Wesley addresses the
   walk type + unconfirmed Tech step self-correct on load (turns created on old live @3 had Cookie cutter + Riley).
 - (11/11) "Copy whole schedule" -> "Email schedule to Jason" (same text, EMAIL_TEST_TO honoured).
+
+---
+
+# Run 2 (General, 2026-11-11): email rewire, room close fix, iPad layout
+
+## Goal
+Rewire the app's emails so only Matt, Jason and Spencer get them, at the right moments. Jason gets the schedule as soon
+as the PMI Scope builds it, so he can book vendors by hand before the move-out. Everything after the move-out comes in
+ONE email. Techs and vendors get nothing from the app, and every vendor-messaging button goes. Fix Tech Prep rooms
+folding shut when they are not finished. Lay out all three forms for an iPad held in landscape. The phone layout stays as it is.
+
+## Acceptance criteria
+E1. **Tech Prep email** (first final submit + Resend button): To Jason + Spencer ONLY. No tech (Riley/Bill/Wesley) ever,
+    at any property. Content unchanged.
+E2. **Schedule email**: the FIRST final submit of the PMI Scope (new turn or existing) automatically emails the schedule
+    to Jason + Spencer. Same text as today's "Email schedule to Jason". The time it was sent is saved on the turn
+    (`scope.schedule_emailed_at`), so later Scope saves don't send it again. The button stays for re-sends, relabelled
+    "Email schedule to Jason + Spencer".
+E3. **One move-out email** replaces the three old ones (schedule changed / NOT applied alert / conflict review): To Jason +
+    Spencer, cc Matt. It is sent when the Move-out form is submitted with scope changes, and again when Apply is tapped.
+    It says APPLIED or NOT APPLIED (tap Apply) at the top, then gives: rent ready old -> new, the changes, the confirmed
+    vendors whose date moved, and the same vendors' jobs on other open turns within 15 business days. Vendors are named,
+    techs included. One send per event: the submit sends once, and Apply sends once.
+    No changes (scope matches) = no email.
+E4. **No tech/vendor messaging**: remove "✉ Vendor message" (per step, modal with Copy / Text / Email), the
+    "Vendors to re-contact" list, "✉ Message with new date", and the "See who" link. Steps still turn red "Reschedule"
+    when a confirmed date moves, and the banner still says how many steps need rescheduling. Status buttons stay.
+    The AppFolio WO copy button stays.
+E5. EMAIL_TEST_TO (matt@) is still honoured by every email; the switch stays ON.
+R1. **Tech Prep rooms**: a room closes by itself ONLY at the moment its last line gets an answer (any mix of
+    OK / Fix / Not checked / N/A). It does not auto-open the next room. Save draft, reopening the tab, or the app re-reading
+    the turn never folds a room that is unfinished or that Spencer left open. "Mark the other N OK + next room" works
+    as today.
+T1. **iPad landscape** (wider than 900px): Tech Prep shows the room list on the left (each room with answered/total, a
+    fix count and ✓ when done) and the selected room's lines on the right. Tapping a room on the left shows it. PMI Scope
+    and Move-out use the width (two columns of sections/fields) with tablet-sized tap targets. No sideways scrolling.
+    Phones (760px and under) look exactly as they do on @14.
+X1. Engine + describe tests pass (updated for the new recipients/emails); the local preview renders; old turns open.
+
+## Live surface (impactful)
+- LIVE deploy @3 (AKfycbxSZ...): `clasp deploy -i` = Matt only.
+- TEST deploy @14 (AKfycbw_6...): the General may update it (`clasp push -f && clasp deploy -i <TEST id>`). Tester
+  turns are TEST-labelled and get archived after.
+- Supabase p03_turns / p03_turn_settings (shared by both deploys): tester writes TEST turns only.
+- automation@ mail: EMAIL_TEST_TO stays matt@; turning it off = Matt only.
+
+## Parts
+- **P1 · worker A (UI)**: `app/App.html`, `app/Index.html`. R1, T1, E4, client side of E2 (auto-call after first scope
+  submit, record schedule_emailed_at, button relabel), client side of E3 (call one `apiSendMoveOutEmail` on submit-with-
+  changes and on Apply; drop the separate alert/conflict calls + alert checkbox). Verify: preview at 1180x820 + 390x844.
+- **P2 · worker B (server)**: `app/Code.js`, `app/Describe.js`, `app-test/describe.test.js`. E1, E2 recipients, E3 merged
+  builder + `apiSendMoveOutEmail(turnId)` reading applied `impact` or `pending_impact`; old `apiSendMoveOutAlert` removed or made a thin alias.
+  Verify: describe tests assert recipients + merged text.
+- **P3 · worker C (tester)** after P1+P2 merge and the TEST deploy: checks every criterion against the local preview + the
+  TEST deploy (emails land in Matt's inbox with [TEST]); then adds a round-7 section to TEST_SCRIPT.md for Matt
+  (phone + iPad), on top of the pending round-6 items.
+
+## Out of scope
+- Anything to vendors/techs (texts, booking), RingCentral, AppFolio writes, Turn Board mock, Eastpointe PDF, the
+  other UNDONE items from the 2026-11-11 handoff (they stay queued).
+
+## Decision log
+- 2026-11-11 Emails go only to Matt / Jason / Spencer; techs + vendors get nothing; Jason schedules by hand (Matt).
+- 2026-11-11 Tech Prep email -> Jason + Spencer only (Matt).
+- 2026-11-11 Schedule email auto on first Scope submit -> Jason + Spencer; this is Jason's pre-move-out booking email (Matt).
+- 2026-11-11 Post-move-out: one merged email (change + not-applied + conflict review) to Jason + Spencer, cc Matt (Matt).
+- 2026-11-11 Remove vendor message buttons AND the re-contact list (Matt).
+- 2026-11-11 Room closes only when complete, no auto-advance; Tech Prep is the only room form (Matt).
+- 2026-11-11 iPad landscape, rooms list + items side by side; all three forms tablet-designed (Matt).
+- 2026-11-11 Ship = one combined test pass (round 6 + this), then LIVE with Matt's OK (Matt).
+
+## Noticed (not done)
