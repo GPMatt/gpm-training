@@ -252,4 +252,11 @@ X1. Engine + describe tests pass (updated for the new recipients/emails); the lo
 - 2026-11-11 Move-out email still sends if other open turns can't be read; the section then says why (General).
 - 2026-11-11 Server P2 done (worker B, 3d8b6e0): describe 23 + engine 17 pass; awaiting tester.
 
+- 2026-11-11 Eastpointe order text moves into the schedule email (its only way out was the removed vendor message) (General).
+- 2026-11-11 UI P1 merged (cc43a50); TEST deploy updated to @15; LIVE @3 untouched. Tester started.
 ## Noticed (not done)
+- Settings "Vendor message template" editor + E.vendorMessage + settings.template are now unused (keep or remove?).
+- Wide desktop browsers (>900px) also get the iPad layout; the iPad room list isn't pinned (scrolls away on long rooms).
+- Turns created before run 2 have no schedule_emailed_at: their next Scope submit sends the schedule email once.
+- Move-out preview/Apply confirm still say "re-contact" (warnings only). README, Config.html vendor-book comment and
+  the PLAN R4 notes still describe tech routing / the separate conflict email.
