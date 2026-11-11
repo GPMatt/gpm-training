@@ -1,0 +1,403 @@
+<title>GPM Turn Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky control bar (view toggle + filters), then either unit lanes (scope in order, left to right)
+   or a vendor x weekday grid. A side panel edits one step. Tokens match the GPM Turns app (cream + dark green). */
+:root{
+  --bg:#F4EEDF; --paper:#FFFCF5; --sunk:#EDE5D0; --line:#E2D8C0; --line-2:#D3C7A9;
+  --ink:#1F2A22; --muted:#6B675A; --green:#1E4632; --green-2:#2D6347; --green-soft:#DCE8DD; --on-green:#F4EEDF;
+  --warn:#8A5A12; --warn-bg:#F6E7C8; --bad:#A3402E; --bad-bg:#F5DED6;
+  --display:Fraunces,Georgia,serif; --body:Inter,system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151B17; --paper:#1D2520; --sunk:#232C26; --line:#334036; --line-2:#3F4D42;
+  --ink:#E7EBE3; --muted:#9CA695; --green:#8FCCA4; --green-2:#A9DBB9; --green-soft:#223429; --on-green:#13201A;
+  --warn:#E5C56B; --warn-bg:#352D16; --bad:#F2A0AE; --bad-bg:#3B1E24; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151B17; --paper:#1D2520; --sunk:#232C26; --line:#334036; --line-2:#3F4D42;
+  --ink:#E7EBE3; --muted:#9CA695; --green:#8FCCA4; --green-2:#A9DBB9; --green-soft:#223429; --on-green:#13201A;
+  --warn:#E5C56B; --warn-bg:#352D16; --bad:#F2A0AE; --bad-bg:#3B1E24; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--body);margin:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1400px;margin:0 auto;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:14px}
+h1,h2,h3{font-family:var(--display);font-weight:650;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1{font-size:28px}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--green-2)}
+.lede{color:var(--muted);max-width:75ch;margin:4px 0 0}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+/* control bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.toggle{display:inline-flex;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;background:var(--paper)}
+.toggle button{border:0;background:none;padding:8px 16px;font-weight:600;color:var(--muted)}
+.toggle button[aria-pressed="true"]{background:var(--green);color:var(--on-green)}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:0}
+.filters select,.filters input{border:1px solid var(--line-2);background:var(--paper);border-radius:8px;padding:7px 9px;min-width:0;max-width:100%}
+.filters input{width:170px}
+.chipf{border:1px solid var(--line-2);background:var(--paper);border-radius:99px;padding:6px 11px;font-weight:600;font-size:13px;color:var(--muted)}
+.chipf[aria-pressed="true"]{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.stats{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.stats b{font:650 18px var(--display);color:var(--ink);margin-right:4px;font-variant-numeric:tabular-nums}
+.stats .bad b{color:var(--bad)}
+/* legend */
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;gap:5px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.st{font:600 10.5px var(--mono);text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.st.open{background:var(--sunk);color:var(--muted);border:1px dashed var(--line-2)}
+.st.booked{background:var(--warn-bg);color:var(--warn)}
+.st.done{background:var(--green-soft);color:var(--green)}
+/* by unit */
+.group{display:grid;gap:8px}
+.group h2{font-size:18px;display:flex;gap:10px;align-items:baseline}
+.group h2 small{font:500 12px var(--body);color:var(--muted)}
+.unit{display:grid;grid-template-columns:230px minmax(0,1fr);gap:12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px}
+.unit.flagged{border-color:var(--bad)}
+.u-head{display:grid;gap:3px;align-content:start;min-width:0}
+.u-title{font:650 17px var(--display);overflow-wrap:anywhere}
+.u-sub{font-size:13px;color:var(--muted)}
+.u-dates{display:grid;grid-template-columns:auto 1fr;gap:1px 8px;font-size:12px;margin-top:4px;font-variant-numeric:tabular-nums}
+.u-dates span{color:var(--muted)}
+.u-dates b.rr{color:var(--green)}
+.u-flags{display:grid;gap:3px;margin-top:6px}
+.flag{font-size:12px;font-weight:600;color:var(--bad);background:var(--bad-bg);border-radius:6px;padding:3px 7px}
+.lane{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding-bottom:4px;min-width:0}
+.step{position:relative;flex:0 0 132px;border:1px solid var(--line);border-top:4px solid var(--c);border-radius:9px;background:var(--paper);padding:7px 8px;text-align:left;display:grid;gap:3px;align-content:start}
+.step+.arrow{align-self:center;color:var(--line-2);padding:0 3px;font-size:13px}
+.step:hover{border-color:var(--line-2);border-top-color:var(--c)}
+.step.open{background:repeating-linear-gradient(135deg,var(--paper) 0 7px,var(--sunk) 7px 9px)}
+.step.bad{box-shadow:0 0 0 2px var(--bad)}
+.step.dim{opacity:.35}
+.s-trade{font-weight:700;font-size:12.5px}
+.s-date{font:500 12px var(--mono);font-variant-numeric:tabular-nums}
+.s-vendor{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s-note{font-size:11px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.s-dot{position:absolute;top:5px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--bad)}
+/* by vendor */
+.vgrid-wrap{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.vgrid{display:grid;min-width:980px}
+.vh{position:sticky;top:0;background:var(--sunk);font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.vh.today{color:var(--green);background:var(--green-soft)}
+.vh.hol{color:var(--warn)}
+.vname{padding:9px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);display:grid;gap:2px;align-content:start;position:sticky;left:0;background:var(--paper);z-index:1}
+.vname b{font-size:13.5px}
+.vname span{font-size:11.5px;color:var(--muted)}
+.vcell{border-bottom:1px solid var(--line);border-right:1px solid var(--sunk);padding:5px;display:grid;gap:4px;align-content:start;min-height:52px}
+.vcell.over{background:var(--bad-bg)}
+.vcell.wait{background:repeating-linear-gradient(135deg,var(--paper) 0 7px,var(--sunk) 7px 9px)}
+.job{border:0;border-left:4px solid var(--c);background:var(--sunk);border-radius:6px;padding:4px 6px;text-align:left;font-size:12px;display:grid;gap:1px}
+.job b{font-weight:600;overflow-wrap:anywhere}
+.job span{font-size:11px;color:var(--muted)}
+.job.done{opacity:.6}
+.over-n{font:600 10.5px var(--mono);color:var(--bad);text-transform:uppercase}
+.weeknav{display:flex;gap:8px;align-items:center}
+.weeknav button{border:1px solid var(--line-2);background:var(--paper);border-radius:8px;padding:6px 11px;font-weight:600}
+.weeknav b{font-family:var(--display);font-size:16px;min-width:190px}
+/* side panel */
+.panel-bg{position:fixed;inset:0;background:rgba(20,26,22,.35);z-index:20}
+.panel{position:fixed;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--paper);z-index:21;border-left:1px solid var(--line);padding:calc(18px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) 18px 18px;display:grid;gap:12px;align-content:start;overflow-y:auto;box-shadow:-12px 0 30px rgba(0,0,0,.12)}
+.panel .bar-c{height:6px;border-radius:3px;background:var(--c)}
+.panel label{display:grid;gap:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.panel select,.panel input{border:1px solid var(--line-2);background:var(--bg);border-radius:8px;padding:9px 10px;font-size:15px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-2);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:var(--paper);padding:9px 4px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"].open{background:var(--sunk);color:var(--ink)}
+.seg button[aria-pressed="true"].booked{background:var(--warn-bg);color:var(--warn)}
+.seg button[aria-pressed="true"].done{background:var(--green);color:var(--on-green)}
+.p-other{font-size:13px;display:grid;gap:4px}
+.p-other div{background:var(--sunk);border-radius:6px;padding:5px 8px}
+.btns{display:flex;gap:8px}
+.btn{border:1px solid var(--line-2);background:var(--paper);border-radius:9px;padding:9px 14px;font-weight:600}
+.btn.primary{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.note-src{font-size:12px;color:var(--muted);background:var(--sunk);border-radius:8px;padding:8px 10px}
+.empty{padding:30px;text-align:center;color:var(--muted);background:var(--paper);border:1px dashed var(--line-2);border-radius:12px}
+.foot{font-size:12px;color:var(--muted)}
+@media (max-width:760px){
+  .unit{grid-template-columns:minmax(0,1fr)}
+  .filters input{width:100%}
+  h1{font-size:23px}
+  .bar{position:static}
+}
+@media (prefers-reduced-motion:no-preference){.step,.job{transition:box-shadow .12s,border-color .12s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">P03 turn schedule · mock for Spencer + Jason · data from Jason's Apartment Turn Schedule, 11/11</div>
+    <h1>GPM Turn Board</h1>
+    <p class="lede">Every open turn's scope as a schedule. <b>By unit</b> lays out each unit's steps in the locked order with date, vendor and status. <b>By vendor</b> shows each vendor's week across all units, so double-bookings and jobs still waiting for a date stand out. Tap any step to change it. Edits stay in this page only.</p>
+  </header>
+
+  <div class="bar" role="toolbar" aria-label="View and filters">
+    <div class="toggle" role="group" aria-label="View">
+      <button id="v-unit" aria-pressed="true" data-view="unit">By unit</button>
+      <button id="v-vendor" aria-pressed="false" data-view="vendor">By vendor</button>
+    </div>
+    <div class="filters">
+      <select id="f-group" aria-label="Property group"></select>
+      <select id="f-vendor" aria-label="Vendor"></select>
+      <select id="f-trade" aria-label="Trade"></select>
+      <select id="f-status" aria-label="Status">
+        <option value="">Any status</option><option value="open">Not booked</option><option value="booked">Confirmed</option><option value="done">Done</option>
+      </select>
+      <input id="f-q" type="search" placeholder="Find a unit" aria-label="Find a unit">
+      <button id="f-flags" class="chipf" aria-pressed="false">Flagged only</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <main id="main"></main>
+  <p class="foot">Flags: a step out of the locked order (only Appliances + Tech may share a day), a step after the rent-ready date, or a vendor over their jobs per day. Cleaner codes J, M, S, A are copied from the sheet as written.</p>
+</div>
+<div id="panel-root"></div>
+
+<script>
+(function () {
+  'use strict';
+  var TODAY = '2026-11-11';
+  // Locked order + colors (same as the app's catalog).
+  var TRADES = [
+    ['trash', 'Trash-out', '#7A6A58'], ['tub', 'Tub', '#3E73A8'], ['flooring', 'Flooring', '#9C5B34'], ['drywall', 'Drywall / plaster', '#77736A'],
+    ['appliances', 'Appliances', '#6B4E8F'], ['tech', 'Tech', '#2D6347'], ['paint', 'Paint', '#2C8C82'], ['clean', 'Clean', '#C9962B'],
+    ['surface', 'Stainless + stovetop', '#56707D'], ['carpetclean', 'Carpet cleaning', '#A8566F']];
+  var T = {}; TRADES.forEach(function (t, i) { T[t[0]] = { label: t[1], color: t[2], order: i }; });
+  // Vendor book (as in the app) + jobs per day before a day is flagged.
+  var VENDORS = [
+    ['Surface Tech', 'tub', 2], ['Eastpointe Interiors', 'flooring', 2], ['Matt Luschas', 'drywall', 1], ['Appliance vendor (TBD)', 'appliances', 3],
+    ['Wesley', 'tech', 1], ['Riley', 'tech', 1], ['Bill', 'tech', 1], ['Trevor', 'paint', 1],
+    ['Cleaner J', 'clean', 1], ['Cleaner M', 'clean', 1], ['Cleaner S', 'clean', 1], ['Up & Up', 'clean', 1],
+    ['Surface Experts', 'surface', 4], ['Carpet cleaner (TBD)', 'carpetclean', 2]];
+  var CAP = {}, VTRADE = {}; VENDORS.forEach(function (v) { CAP[v[0]] = v[2]; VTRADE[v[0]] = v[1]; });
+
+  // Units from Jason's sheet (scope + dates only). Dates without a year: Nov/Dec = 2026, Jan/Feb = 2027.
+  // s = [trade, date or '', vendor, note]; status comes from the date (past = done, future = confirmed, none = not booked)
+  // unless the sheet said "done".
+  var RAW = [
+    ['Oakwood Manor · Mon & Thu', [
+      ['The Oakwood', '3M', '11-01', '11-14', [['tub', '11-09', 'Surface Tech', 'Tub and kitchen sink'], ['drywall', '', 'Matt Luschas', 'Bath wall by medicine cabinet + tub/shower'],
+        ['tech', '11-02', 'Wesley', ''], ['paint', '11-03', 'Trevor', 'Full paint, ceilings too'], ['clean', '11-12', 'Cleaner M', '']]]]],
+    ['Victory on Leonard', [
+      ['Victory on Leonard', '201', '11-01', '11-09', [['tech', 'done', 'Riley', ''], ['paint', '11-03', 'Trevor', 'Full paint'], ['clean', '11-06', 'Cleaner J', 'Sweep the balcony'], ['surface', '11-06', 'Surface Experts', 'Stove']]],
+      ['Victory on Leonard', '101', '11-01', '11-09', [['tech', 'done', 'Riley', ''], ['paint', '11-04', 'Trevor', 'Touch up'], ['clean', '11-07', 'Cleaner J', 'Sweep the balcony'], ['surface', '11-10', 'Surface Experts', 'Stove']]],
+      ['Victory on Leonard', '322', '11-01', '11-10', [['tech', 'done', 'Riley', ''], ['paint', '11-04', 'Trevor', 'Full paint'], ['clean', '11-09', 'Cleaner J', 'Very dirty + greasy'], ['surface', '11-06', 'Surface Experts', 'Stove']]],
+      ['Victory on Leonard', '222', '11-01', '11-12', [['tech', 'done', 'Riley', ''], ['paint', '11-03', 'Trevor', 'Full paint'], ['clean', '11-10', 'Cleaner J', 'Very dirty + greasy'], ['surface', '11-19', 'Surface Experts', 'Stove, DW, fridge']]],
+      ['Victory on Leonard', '314', '11-01', '11-12', [['tech', 'done', 'Riley', ''], ['paint', '11-03', 'Trevor', 'Touch up'], ['clean', '11-10', 'Cleaner J', 'Very dirty + greasy'], ['surface', '11-11', 'Surface Experts', 'Stove']]],
+      ['Victory on Leonard', '109', '11-01', '11-13', [['tech', 'done', 'Riley', ''], ['paint', '11-03', 'Trevor', 'Touch up'], ['clean', '11-11', 'Cleaner J', 'Sweep the balcony'], ['surface', '11-11', 'Surface Experts', 'Stove']]],
+      ['Victory on Leonard', '319', '12-01', '12-11', [['tech', 'done', 'Riley', ''], ['paint', '11-12', 'Trevor', 'Full paint'], ['clean', '11-17', 'Cleaner J', '']]]]],
+    ['Mike / Laura owners', [
+      ['Lafayette Ave - Lafayette', '33 Apt 7', '11-01', '11-14', [['tub', '', 'Surface Tech', 'Touch up chips at the drain'], ['drywall', '', 'Matt Luschas', 'Skim coat ceiling cracks, all rooms'],
+        ['paint', '11-02', 'Trevor', 'Full paint'], ['clean', '11-03', 'Cleaner J', '']]],
+      ['Grand Central Lofts', '318', '12-01', '12-12', [['appliances', '', 'Appliance vendor (TBD)', 'Order butter cover for the fridge'], ['drywall', '', 'Matt Luschas', 'Pin + nail holes'],
+        ['paint', '', 'Trevor', 'Full paint, confirm color scheme'], ['clean', '', 'Cleaner J', '']]],
+      ['Grand Central Lofts', '316', '12-23', '01-09', [['appliances', '', 'Appliance vendor (TBD)', 'New stove burner'], ['drywall', '', 'Matt Luschas', 'Plaster / brick spot'],
+        ['paint', '', 'Trevor', 'Aggressive touch up'], ['clean', '', 'Cleaner J', '']]],
+      ['Gold Ave - Gold', '28 Apt 1', '12-01', '12-12', [['drywall', '', 'Matt Luschas', 'Small spot, bath ceiling'], ['paint', '', 'Trevor', 'Full paint (age)'], ['clean', '', 'Cleaner J', '']]],
+      ['Gold Ave - Gold', '30 Apt 1', '12-01', '12-12', [['paint', '', 'Trevor', 'Touch up'], ['clean', '', 'Cleaner J', '']]],
+      ['Half Century Apartments', 'Apt 9', '12-12', '12-22', [['appliances', '', 'Appliance vendor (TBD)', 'Light rust'], ['drywall', '', 'Matt Luschas', 'Kitchen by the radiator'],
+        ['paint', '', 'Trevor', 'Touch up'], ['clean', '', 'Cleaner J', 'Deep clean, grout'], ['carpetclean', '', 'Carpet cleaner (TBD)', 'Back bedroom']]],
+      ['Fremont Ave - BDP', '1015 #2', '01-01', '01-08', [['tech', '01-04', 'Riley', ''], ['paint', '01-05', 'Trevor', 'Touch up as needed'], ['clean', '01-06', 'Cleaner S', 'Back lit area']]],
+      ['Eaglebrook Apartments', '5993B', '12-01', '', [['paint', '', 'Trevor', 'Full paint'], ['clean', '', 'Cleaner J', '']]],
+      ['Wealthy and Sheldon', 'Sheldon 103', '12-01', '', [['paint', '', 'Trevor', 'Touch up'], ['clean', '', 'Cleaner J', '']]]]],
+    ['Pinery Group (Bill)', [
+      ['Pinery Woods Apartments', '2231-10', '11-07', '', [['appliances', '', 'Appliance vendor (TBD)', 'Hood vent'], ['tech', '', 'Bill', 'Missing door handle'],
+        ['paint', '11-09', 'Trevor', 'Full paint, color change'], ['clean', '11-12', 'Cleaner J', '']]],
+      ['Pinery Woods Apartments', '2361-1', '10-31', '', [['tech', '', 'Bill', 'Replace rusty lights'], ['paint', '11-10', 'Trevor', 'Full paint, color change'], ['clean', '11-13', 'Cleaner J', '']]],
+      ['Pinery Woods Apartments', '2361-4', '12-01', '', [['paint', '', 'Trevor', 'Full paint'], ['clean', '', 'Cleaner J', '']]],
+      ['Oak Valley Apartments', '2839-105', '08-14', '', [['flooring', '10-26', 'Eastpointe Interiors', ''], ['tech', '11-13', 'Bill', ''], ['paint', '11-11', 'Trevor', 'Full paint, color change'], ['clean', '11-16', 'Cleaner J', '']]],
+      ['Oak Valley Apartments', '2880-302', '12-01', '', [['drywall', '', 'Matt Luschas', 'Ceiling replace'], ['flooring', '12-15', 'Eastpointe Interiors', 'Needs LVT'],
+        ['appliances', '', 'Appliance vendor (TBD)', 'Replace stove / hood'], ['paint', '', 'Trevor', 'Full paint, color change'], ['clean', '', 'Cleaner J', '']]],
+      ['Oak Valley Apartments', '2935-107', '12-01', '', [['paint', '', 'Trevor', 'Full paint, color change'], ['clean', '', 'Cleaner J', '']]]]]
+  ];
+  function iso(md) { if (!md) return ''; var m = +md.slice(0, 2); return (m <= 2 ? '2027-' : '2026-') + md; }
+  var UNITS = [], GROUPS = [];
+  RAW.forEach(function (g) {
+    GROUPS.push(g[0]);
+    g[1].forEach(function (u, ui) {
+      var steps = u[4].map(function (s, si) {
+        var done = s[1] === 'done', d = done ? '' : iso(s[1]);
+        return { id: g[0] + ui + '-' + si, trade: s[0], date: d, vendor: s[2], note: s[3], status: done ? 'done' : !d ? 'open' : d < TODAY ? 'done' : 'booked' };
+      }).sort(function (a, b) { return T[a.trade].order - T[b.trade].order; });
+      UNITS.push({ id: 'u' + UNITS.length, group: g[0], prop: u[0], unit: u[1], moveOut: iso(u[2]), rentReady: iso(u[3]), steps: steps });
+    });
+  });
+
+  // ---------- dates ----------
+  function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function isoOf(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function fmt(s) { if (!s) return ''; var d = parse(s); return DOW[d.getDay()] + ' ' + (d.getMonth() + 1) + '/' + d.getDate(); }
+  var HOL = { '2026-11-26': 'Thanksgiving', '2026-12-25': 'Christmas', '2027-01-01': "New Year's" };
+  function monday(s) { var d = parse(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoOf(d); }
+  function addDays(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return isoOf(d); }
+
+  // ---------- flags ----------
+  function load() { // vendor -> date -> [{u, s}]
+    var m = {};
+    UNITS.forEach(function (u) { u.steps.forEach(function (s) { if (!s.date) return; ((m[s.vendor] = m[s.vendor] || {})[s.date] = m[s.vendor][s.date] || []).push({ u: u, s: s }); }); });
+    return m;
+  }
+  function flagsFor(u, L) {
+    var out = [], bad = {};
+    var dated = u.steps.filter(function (s) { return s.date; });
+    for (var i = 0; i < dated.length; i++) for (var j = i + 1; j < dated.length; j++) {
+      var a = dated[i], b = dated[j]; // a comes first in the locked order
+      var share = a.trade === 'appliances' && b.trade === 'tech';
+      if (b.date < a.date || (b.date === a.date && !share)) {
+        out.push(T[b.trade].label + ' (' + fmt(b.date) + ') is ' + (b.date === a.date ? 'the same day as ' : 'before ') + T[a.trade].label + ' (' + fmt(a.date) + ')');
+        bad[b.id] = bad[a.id] = 1;
+      }
+    }
+    if (u.rentReady) dated.forEach(function (s) { if (s.date > u.rentReady) { out.push(T[s.trade].label + ' (' + fmt(s.date) + ') is after rent ready (' + fmt(u.rentReady) + ')'); bad[s.id] = 1; } });
+    dated.forEach(function (s) {
+      var n = ((L[s.vendor] || {})[s.date] || []).length;
+      if (s.status !== 'done' && n > (CAP[s.vendor] || 1)) { out.push(s.vendor + ' has ' + n + ' jobs on ' + fmt(s.date) + ' (' + (CAP[s.vendor] || 1) + ' per day)'); bad[s.id] = 1; }
+    });
+    return { list: out, bad: bad };
+  }
+
+  // ---------- state ----------
+  var V = { view: 'unit', group: '', vendor: '', trade: '', status: '', q: '', flags: false, week: monday(TODAY) };
+  try { var saved = JSON.parse(localStorage.getItem('turnBoardView') || 'null'); if (saved && saved.view) V.view = saved.view; } catch (e) { /* storage blocked */ }
+  function remember() { try { localStorage.setItem('turnBoardView', JSON.stringify({ view: V.view })); } catch (e) { /* ignore */ } }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  function stepMatch(s) { return (!V.vendor || s.vendor === V.vendor) && (!V.trade || s.trade === V.trade) && (!V.status || s.status === V.status); }
+  function unitMatch(u, F) {
+    if (V.group && u.group !== V.group) return false;
+    if (V.q && (u.prop + ' ' + u.unit).toLowerCase().indexOf(V.q.toLowerCase()) < 0) return false;
+    if (V.flags && !F.list.length) return false;
+    if ((V.vendor || V.trade || V.status) && !u.steps.some(stepMatch)) return false;
+    return true;
+  }
+
+  function fillFilters() {
+    $('f-group').innerHTML = '<option value="">All properties</option>' + GROUPS.map(function (g) { return '<option>' + esc(g) + '</option>'; }).join('');
+    $('f-vendor').innerHTML = '<option value="">All vendors</option>' + VENDORS.map(function (v) { return '<option>' + esc(v[0]) + '</option>'; }).join('');
+    $('f-trade').innerHTML = '<option value="">All trades</option>' + TRADES.map(function (t) { return '<option value="' + t[0] + '">' + esc(t[1]) + '</option>'; }).join('');
+    $('legend').innerHTML = TRADES.map(function (t) { return '<span style="--c:' + t[2] + '"><i></i>' + esc(t[1]) + '</span>'; }).join('') +
+      '<span><b class="st open">Not booked</b></span><span><b class="st booked">Confirmed</b></span><span><b class="st done">Done</b></span>';
+  }
+
+  function render() {
+    $('v-unit').setAttribute('aria-pressed', V.view === 'unit'); $('v-vendor').setAttribute('aria-pressed', V.view === 'vendor');
+    $('f-flags').setAttribute('aria-pressed', V.flags);
+    var L = load(), F = {}, shown = UNITS.filter(function (u) { F[u.id] = flagsFor(u, L); return unitMatch(u, F[u.id]); });
+    var open = 0, flagged = 0;
+    shown.forEach(function (u) { open += u.steps.filter(function (s) { return s.status === 'open'; }).length; if (F[u.id].list.length) flagged++; });
+    $('stats').innerHTML = '<span><b>' + shown.length + '</b>units</span><span><b>' + open + '</b>steps not booked</span><span class="bad"><b>' + flagged + '</b>units flagged</span>';
+    $('main').innerHTML = V.view === 'unit' ? byUnit(shown, F, L) : byVendor(shown);
+  }
+
+  function byUnit(shown, F, L) {
+    if (!shown.length) return '<div class="empty">No units match these filters.</div>';
+    return GROUPS.map(function (g) {
+      var us = shown.filter(function (u) { return u.group === g; });
+      if (!us.length) return '';
+      return '<section class="group"><h2>' + esc(g) + ' <small>' + us.length + ' unit' + (us.length === 1 ? '' : 's') + '</small></h2>' + us.map(function (u) {
+        var f = F[u.id], lane = [];
+        u.steps.forEach(function (s, i) {
+          var n = s.date ? ((L[s.vendor] || {})[s.date] || []).length : 0;
+          lane.push('<button class="step ' + s.status + (f.bad[s.id] ? ' bad' : '') + ((V.vendor || V.trade || V.status) && !stepMatch(s) ? ' dim' : '') + '" style="--c:' + T[s.trade].color + '" data-u="' + u.id + '" data-s="' + s.id + '">' +
+            (f.bad[s.id] ? '<span class="s-dot" title="Flagged"></span>' : '') +
+            '<span class="s-trade">' + esc(T[s.trade].label) + '</span>' +
+            '<span class="s-date">' + (s.date ? fmt(s.date) : s.status === 'done' ? 'done' : 'needs a date') + '</span>' +
+            '<span class="s-vendor">' + esc(s.vendor) + (n > 1 ? ' · ' + n + ' that day' : '') + '</span>' +
+            '<span class="st ' + s.status + '">' + { open: 'Not booked', booked: 'Confirmed', done: 'Done' }[s.status] + '</span>' +
+            (s.note ? '<span class="s-note">' + esc(s.note) + '</span>' : '') + '</button>');
+          if (i < u.steps.length - 1) lane.push('<span class="arrow" aria-hidden="true">›</span>');
+        });
+        return '<article class="unit' + (f.list.length ? ' flagged' : '') + '"><div class="u-head"><div class="u-title">' + esc(u.prop) + '</div><div class="u-sub">Unit ' + esc(u.unit) + '</div>' +
+          '<div class="u-dates"><span>Move-out</span><b>' + (fmt(u.moveOut) || '—') + '</b><span>Rent ready</span><b class="rr">' + (fmt(u.rentReady) || 'not set') + '</b></div>' +
+          (f.list.length ? '<div class="u-flags">' + f.list.map(function (x) { return '<div class="flag">⚠ ' + esc(x) + '</div>'; }).join('') + '</div>' : '') +
+          '</div><div class="lane">' + lane.join('') + '</div></article>';
+      }).join('') + '</section>';
+    }).join('');
+  }
+
+  function byVendor(shown) {
+    var days = [];
+    for (var i = 0; i < 14; i++) { var d = addDays(V.week, i); var w = parse(d).getDay(); if (w > 0 && w < 6) days.push(d); }
+    var ids = {}; shown.forEach(function (u) { ids[u.id] = 1; });
+    var vendors = VENDORS.filter(function (v) { return (!V.vendor || v[0] === V.vendor) && (!V.trade || v[1] === V.trade); });
+    var cols = '200px 150px repeat(' + days.length + ', minmax(84px,1fr))';
+    var h = '<div class="weeknav"><button data-week="-7" aria-label="Previous week">‹</button><b>' + fmt(days[0]) + ' – ' + fmt(days[days.length - 1]) + '</b><button data-week="7" aria-label="Next week">›</button><button data-week="0">This week</button></div>';
+    h += '<div class="vgrid-wrap"><div class="vgrid" style="grid-template-columns:' + cols + '"><div class="vh">Vendor</div><div class="vh">Needs a date</div>' +
+      days.map(function (d) { return '<div class="vh' + (d === TODAY ? ' today' : '') + (HOL[d] ? ' hol' : '') + '">' + fmt(d) + (HOL[d] ? ' · ' + HOL[d] : '') + '</div>'; }).join('');
+    vendors.forEach(function (v) {
+      var jobs = []; UNITS.forEach(function (u) { if (!ids[u.id]) return; u.steps.forEach(function (s) { if (s.vendor === v[0] && (!V.status || s.status === V.status)) jobs.push({ u: u, s: s }); }); });
+      var wait = jobs.filter(function (j) { return !j.s.date && j.s.status === 'open'; });
+      h += '<div class="vname"><b>' + esc(v[0]) + '</b><span>' + esc(T[v[1]].label) + ' · up to ' + v[2] + ' a day</span></div>';
+      h += '<div class="vcell' + (wait.length ? ' wait' : '') + '">' + wait.map(job).join('') + '</div>';
+      days.forEach(function (d) {
+        var on = jobs.filter(function (j) { return j.s.date === d; }), over = on.filter(function (j) { return j.s.status !== 'done'; }).length > v[2];
+        h += '<div class="vcell' + (over ? ' over' : '') + '">' + (over ? '<span class="over-n">' + on.length + ' jobs · max ' + v[2] + '</span>' : '') + on.map(job).join('') + '</div>';
+      });
+    });
+    return h + '</div></div>';
+  }
+  function job(j) {
+    return '<button class="job ' + j.s.status + '" style="--c:' + T[j.s.trade].color + '" data-u="' + j.u.id + '" data-s="' + j.s.id + '"><b>' + esc(j.u.prop.replace(/ Apartments$/, '') + ' ' + j.u.unit) + '</b><span>' +
+      esc(T[j.s.trade].label) + (j.s.status === 'done' ? ' · done' : j.s.status === 'booked' ? ' · confirmed' : '') + '</span></button>';
+  }
+
+  // ---------- edit panel ----------
+  var edit = null;
+  function openPanel(uid, sid) {
+    var u = UNITS.filter(function (x) { return x.id === uid; })[0], s = u.steps.filter(function (x) { return x.id === sid; })[0];
+    edit = { u: u, s: s, date: s.date, vendor: s.vendor, status: s.status };
+    paintPanel();
+  }
+  function paintPanel() {
+    var e = edit, s = e.s, u = e.u;
+    var opts = VENDORS.filter(function (v) { return v[1] === s.trade; }).map(function (v) { return v[0]; });
+    if (opts.indexOf(e.vendor) < 0) opts.unshift(e.vendor);
+    var L = load(), same = e.date ? ((L[e.vendor] || {})[e.date] || []).filter(function (j) { return j.s !== s; }) : [];
+    $('panel-root').innerHTML = '<div class="panel-bg" data-close="1"></div><aside class="panel" role="dialog" aria-label="Edit step" style="--c:' + T[s.trade].color + '">' +
+      '<div class="bar-c"></div><div><div class="eyebrow">' + esc(u.prop) + ' · Unit ' + esc(u.unit) + '</div><h3 style="font-size:22px">' + esc(T[s.trade].label) + '</h3></div>' +
+      (s.note ? '<div class="note-src">Scope: ' + esc(s.note) + '</div>' : '') +
+      '<label for="p-date">Day<input id="p-date" type="date" value="' + esc(e.date) + '"></label>' +
+      '<label for="p-vendor">Vendor<select id="p-vendor">' + opts.map(function (o) { return '<option' + (o === e.vendor ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Status<div class="seg" role="group">' + [['open', 'Not booked'], ['booked', 'Confirmed'], ['done', 'Done']].map(function (x) {
+        return '<button class="' + x[0] + '" data-status="' + x[0] + '" aria-pressed="' + (e.status === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div></label>' +
+      '<div class="p-other"><b>' + esc(e.vendor) + (e.date ? ' on ' + fmt(e.date) : '') + '</b>' + (e.date ? (same.length ? same.map(function (j) {
+        return '<div>' + esc(j.u.prop + ' ' + j.u.unit) + ' · ' + esc(T[j.s.trade].label) + '</div>'; }).join('') : '<div>No other jobs that day.</div>') : '<div>Pick a day to see their other jobs.</div>') + '</div>' +
+      '<div class="u-dates"><span>Move-out</span><b>' + (fmt(u.moveOut) || '—') + '</b><span>Rent ready</span><b class="rr">' + (fmt(u.rentReady) || 'not set') + '</b></div>' +
+      '<div class="btns"><button class="btn primary" id="p-save">Save step</button><button class="btn" data-close="1">Cancel</button></div></aside>';
+    var de = $('p-date'); if (de) de.focus();
+  }
+  function closePanel() { edit = null; $('panel-root').innerHTML = ''; }
+
+  // ---------- events ----------
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest('[data-view],[data-u],[data-week],[data-close],[data-status],#p-save,#f-flags');
+    if (!t) return;
+    if (t.dataset.view) { V.view = t.dataset.view; remember(); render(); return; }
+    if (t.id === 'f-flags') { V.flags = !V.flags; render(); return; }
+    if (t.dataset.week) { V.week = t.dataset.week === '0' ? monday(TODAY) : addDays(V.week, +t.dataset.week); render(); return; }
+    if (t.dataset.u) { openPanel(t.dataset.u, t.dataset.s); return; }
+    if (t.dataset.close) { closePanel(); return; }
+    if (t.dataset.status) { edit.status = t.dataset.status; paintPanel(); return; }
+    if (t.id === 'p-save') {
+      edit.s.date = edit.date; edit.s.vendor = edit.vendor;
+      edit.s.status = edit.status === 'booked' && !edit.date ? 'open' : edit.status;
+      closePanel(); render();
+    }
+  });
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t.id === 'p-date') { edit.date = t.value; if (t.value && edit.status === 'open') edit.status = 'booked'; paintPanel(); return; }
+    if (t.id === 'p-vendor') { edit.vendor = t.value; paintPanel(); return; }
+    if (t.id === 'f-group') V.group = t.value; else if (t.id === 'f-vendor') V.vendor = t.value; else if (t.id === 'f-trade') V.trade = t.value; else if (t.id === 'f-status') V.status = t.value; else return;
+    render();
+  });
+  $('f-q').addEventListener('input', function () { V.q = this.value; render(); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && edit) closePanel(); });
+
+  fillFilters(); render();
+})();
+</script>
