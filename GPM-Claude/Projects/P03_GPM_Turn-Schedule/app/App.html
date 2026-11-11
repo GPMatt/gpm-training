@@ -736,7 +736,33 @@ tr.miss td{background:var(--red-soft)}
       lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
         (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']' + (s.measure ? ' · measure ' + E.fmt(s.measure) : ''));
     });
+    // Jason books Eastpointe by hand from this email: their order form answers go after the steps
+    t.steps.forEach(function (s) {
+      if (s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0) lines.push('', 'Eastpointe order (' + s.label + '):', eastpointeOrder(t, s));
+    });
     return lines.join('\n');
+  }
+
+  /** The Eastpointe order form's answers as text (from the Scope's "Flooring order" questions + the turn). */
+  function eastpointeOrder(t, s) {
+    var d = t.scope || {}, L = [];
+    function yn(label, v) { if (v) L.push(label + ': ' + v); }
+    if (s.measure) L.push('Measure: ' + E.fmt(s.measure));
+    L.push('Community: ' + propTitle(t) + (t.unit_label ? ' · Unit ' + t.unit_label : ''));
+    if (d.ep_style) L.push('Style of unit: ' + d.ep_style);
+    L.push('Vacant at install. Furniture: No');
+    if (s.size === 'carpet' || s.size === 'both') {
+      L.push('CARPET: ' + (d.ep_carpet_extent || '?') + (d.ep_carpet_extent === 'Partial' && d.ep_carpet_area ? ' (' + d.ep_carpet_area + ')' : ''));
+      yn('  Pad', d.ep_pad); yn('  Rip', d.ep_carpet_rip); if (d.ep_carpet_rip === 'Yes') yn('  Haul', d.ep_carpet_haul);
+    }
+    if (s.size === 'lvp' || s.size === 'both') {
+      L.push('VINYL: ' + (d.ep_vinyl_type || '?') + (d.ep_vinyl_rooms ? ' · rooms: ' + d.ep_vinyl_rooms : ''));
+      yn('  Rip', d.ep_vinyl_rip); yn('  Shoe molding', d.ep_shoe); yn('  Cove base', d.ep_cove); yn('  R&R toilet', d.ep_toilet);
+      yn('  Move appliances', d.ep_move_appl); yn('  Sub floor', d.ep_subfloor); yn('  Floor prep', d.ep_prep);
+    }
+    if (d.ep_notes || s.note) L.push('Special instructions: ' + [d.ep_notes, s.note].filter(Boolean).join(' · '));
+    if (t.af_wo_number) L.push('P.O. #: ' + t.af_wo_number);
+    return L.join('\n');
   }
 
   function vkey(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
