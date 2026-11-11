@@ -260,3 +260,4 @@ X1. Engine + describe tests pass (updated for the new recipients/emails); the lo
 - Turns created before run 2 have no schedule_emailed_at: their next Scope submit sends the schedule email once.
 - Move-out preview/Apply confirm still say "re-contact" (warnings only). README, Config.html vendor-book comment and
   the PLAN R4 notes still describe tech routing / the separate conflict email.
+- 2026-11-11: P3 tester: E1-E5, R1, T1, X1 all PASS (node vm + Playwright at 1180x820 / 820x1180 / 390x844); TEST_SCRIPT.md round 6 additions + round 7 merged. Minor: R1 state is per session (a re-opened finished room refolds after switching turns / refresh); iPad portrait (761-900px) keeps small desktop inputs; resubmit after undo-Apply sends a second NOT-applied email. Next: Matt's phone + iPad pass on TEST @15, then LIVE with his OK.
