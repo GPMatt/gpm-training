@@ -71,6 +71,12 @@ function apiSaveTurn(turn) {
   return withCalendar_(out[0]);
 }
 
+/** One turn, fresh from Supabase (the client re-reads it when a tab opens, so edits from another phone show up). */
+function apiTurn(id) {
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(id || '') + '&select=*');
+  return rows.length ? rows[0] : null;
+}
+
 function apiArchiveTurn(id, archived) {
   return withCalendar_(sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(id),
     { archived: archived !== false, updated_by: userEmail_(), updated_at: new Date().toISOString() })[0]);

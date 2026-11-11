@@ -75,11 +75,22 @@ tr.miss td{background:var(--red-soft)}
 .cl-tot{margin-bottom:8px;font-weight:600}
 .foot-count{font-size:13px;color:var(--muted);flex-basis:100%}
 .foot-count b{color:var(--green)}
+.th-sub{font-size:15px;font-weight:600;color:var(--ink);margin-top:2px}
+.card-unit{overflow-wrap:anywhere}
 /* Matt 11/11: form buttons at the end of the form, not pinned to the bottom of the screen (all screen sizes) */
 .form-foot{position:static}
 /* ---------- V1 phone-first forms (Spencer + techs fill these on a phone during the walk) ---------- */
 @media (max-width:760px){
-  html,body{font-size:15px}
+  html,body{font-size:15px;overflow-x:hidden;max-width:100%}
+  /* never wider than the phone: Safari sizes selects + date boxes to their longest text unless capped */
+  input,select,textarea{max-width:100%;min-width:0}
+  .f input,.f select,.f textarea{width:100%}
+  input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block}
+  .meta,.next,.th-prop,.card-prop{overflow-wrap:anywhere}
+  /* the 4 turn tabs fit the screen instead of scrolling sideways */
+  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+  .tabs button{padding:10px 2px;font-size:13px;white-space:normal;line-height:1.2;text-align:center}
+  .th-sub{font-size:14px}
   /* one slim top row (Matt 11/11: no tall green bar, nothing pinned while scrolling) */
   .topbar{position:static;flex-wrap:nowrap;gap:4px;padding:6px 8px}
   .brand{font-size:0;gap:0}
@@ -370,7 +381,41 @@ tr.miss td{background:var(--red-soft)}
   // ---------- shared bits ----------
   function unitTitle(t) { return t.unit_label ? t.unit_label : 'Whole property'; }
   function shortProp(t) { return (t.property_label || '').replace(/\s+(Grand Rapids|Wyoming|Zeeland|Grandville|Kentwood|Walker|Ada).*$/i, ''); }
-  function calLabel(t) { var p = shortProp(t).replace(/\s+(St|Ave|Dr|Rd|Blvd|Ct|Pl)\b.*$/i, ''); return p + (t.unit_label ? ' ' + t.unit_label : ''); }
+  // ---------- titles (Matt 11/11): bold = property name from the PM & Tech Assignments sheet; line 2 = the unit ----------
+  function streetKey(s) {
+    var SUF = { street: 'st', avenue: 'ave', drive: 'dr', road: 'rd', boulevard: 'blvd', court: 'ct', place: 'pl', lane: 'ln', parkway: 'pkwy', circle: 'cir' };
+    return String(s || '').split(',')[0].toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+      .split(' ').map(function (w) { return SUF[w] || w; }).join(' ');
+  }
+  var propIndex = null;
+  /** {name, type, units} for a turn's property, or null when the address is not on the sheet. */
+  function propInfo(t) {
+    if (!propIndex) {
+      propIndex = { full: {}, short: {} };
+      (typeof PROPERTY_DIRECTORY !== 'undefined' ? PROPERTY_DIRECTORY : []).forEach(function (r) {
+        var v = { name: r[1], type: r[2], units: r[3] }, k2 = addrKey(r[0]);
+        propIndex.full[streetKey(r[0])] = v;
+        propIndex.short[k2] = propIndex.short[k2] === undefined ? v : false; // false = two streets share number + name: no short match
+      });
+    }
+    return propIndex.full[streetKey(t.property_label)] || propIndex.short[addrKey(t.property_label)] || null;
+  }
+  function isHouse(t) { var p = propInfo(t); return !!p && p.type === 'Single-Family' && !t.unit_label; }
+  /** Bold title: "Victory on Leonard", "Sweet St - BDP"; the street address when the sheet does not have it. */
+  function propTitle(t) { var p = propInfo(t); return p && p.name ? p.name : shortProp(t) || 'Unnamed property'; }
+  /** Second line: unit details for multifamily ("Building 2827 · Unit 301 · 2 bed / 1 bath"); nothing for a house. */
+  function unitSub(t) {
+    if (isHouse(t)) return '';
+    var u = String(t.unit_label || '').trim(), out = [];
+    var m = u.match(/^(?:bldg\.?\s*)?(\d{3,5})[\s-]+(?:unit\s*|#)?([A-Za-z0-9]+)$/i);
+    if (m) out.push('Building ' + m[1], 'Unit ' + m[2]);
+    else if (u) out.push(/^(unit|apt|suite|#)/i.test(u) ? u : 'Unit ' + u.replace(/^#/, ''));
+    else out.push('Whole property');
+    var tp = t.tech_prep;
+    if (tp && (tp.bedrooms || tp.bathrooms)) out.push((tp.bedrooms === '0' ? 'Studio' : (tp.bedrooms || '?') + ' bed') + ' / ' + (tp.bathrooms || '?') + ' bath');
+    return out.join(' · ');
+  }
+  function calLabel(t) { if (propInfo(t)) return propTitle(t) + (t.unit_label ? ' ' + t.unit_label : ''); var p = shortProp(t).replace(/\s+(St|Ave|Dr|Rd|Blvd|Ct|Pl)\b.*$/i, ''); return p + (t.unit_label ? ' ' + t.unit_label : ''); }
 
   function bufferHtml(t, cls) {
     var b = E.buffer(t.rent_ready_date, t.move_in_date);
@@ -413,9 +458,24 @@ tr.miss td{background:var(--red-soft)}
     S.formDirty = false; S.form = null; S.formKey = null;
     S.view = view;
     if (opts && opts.turnId !== undefined) { S.turnId = opts.turnId; S.undo = []; }
+    if (view === 'turn') setTimeout(function () { refreshTurn(S.turnId); }, 0);
     if (opts && opts.tab) S.tab = opts.tab;
     render();
     window.scrollTo(0, 0);
+  }
+
+  /** Re-reads one turn from the server (another phone or tab may have saved it) and redraws when it changed.
+   *  Skipped while this page has unsaved form edits or a save in flight, so nothing typed here is lost. */
+  function refreshTurn(id) {
+    if (!id) return;
+    call('apiTurn', id).then(function (row) {
+      var t = turnById(id);
+      if (!row || !t || row.updated_at === t.updated_at) return;
+      if (S.formDirty || S.saving || S.saveMsg === 'Saving…') return;
+      var fresh = prepTurn(row);
+      S.turns = S.turns.map(function (x) { return x.id === id ? fresh : x; });
+      if (S.view === 'turn' && S.turnId === id) { S.formKey = null; render(); }
+    }, function () { /* offline or not deployed yet: keep what we have */ });
   }
 
   function render() {
@@ -458,8 +518,8 @@ tr.miss td{background:var(--red-soft)}
 
   function card(t) {
     return '<div class="card" data-open="' + t.id + '">' +
-      '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(unitTitle(t)) + '</div>' +
-      '<div class="card-prop">' + esc(shortProp(t)) + '</div></div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
+      '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(propTitle(t)) + '</div>' +
+      (unitSub(t) ? '<div class="card-prop">' + esc(unitSub(t)) + '</div>' : '') + '</div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
       conflictBanner(t, false) + pendingBanner(t) +
       '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
       '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
@@ -474,10 +534,11 @@ tr.miss td{background:var(--red-soft)}
     var t = cur();
     if (!t) return '<div class="empty"><h2>Turn not found</h2><button class="btn" data-nav="turns">Back to turns</button></div>';
     var tabs = [['schedule', 'Schedule', true], ['scope', 'Scope', true],
-      ['techprep', 'Tech Prep', t.tech_prep && t.tech_prep.submitted_at], ['moveout', 'Move-out check', t.move_out_check && t.move_out_check.submitted_at]];
+      ['techprep', 'Tech Prep', t.tech_prep && t.tech_prep.submitted_at], ['moveout', 'Move-out', t.move_out_check && t.move_out_check.submitted_at]];
     var head = '<div class="turn-head' + (S.tab === 'schedule' ? '' : ' is-form') + '"><div class="th-row">' +
       '<button class="btn sm ghost" data-nav="turns">← Turns</button>' +
-      '<div><h1 class="th-unit">' + esc(unitTitle(t)) + ' <span class="pill ' + t.stage + '" style="vertical-align:middle">' + STAGE_LABEL[t.stage] + '</span></h1>' +
+      '<div><h1 class="th-unit">' + esc(propTitle(t)) + ' <span class="pill ' + t.stage + '" style="vertical-align:middle">' + STAGE_LABEL[t.stage] + '</span></h1>' +
+      (unitSub(t) ? '<div class="th-sub">' + esc(unitSub(t)) + '</div>' : '') +
       '<div class="th-prop">' + esc(t.property_label) + (t.af_wo_number ? ' · WO ' + esc(t.af_wo_number) : '') + (t.scope.walk_type ? ' · ' + esc(t.scope.walk_type.split(' (')[0]) : '') +
       (techHours(t) ? ' · Tech ' + techHours(t) + ' h' : '') + (pmiHead(t) ? ' · ' + esc(pmiHead(t)) : '') + '</div></div>' +
       '<div class="th-dates">' +
@@ -1689,7 +1750,7 @@ tr.miss td{background:var(--red-soft)}
     var nav = e.target.closest('[data-nav]');
     if (nav) { setDraft = null; go(nav.dataset.nav); return; }
     var tab = e.target.closest('[data-tab]');
-    if (tab) { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = tab.dataset.tab; if (S.tab === 'scope') loadProps(); render(); return; }
+    if (tab) { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = tab.dataset.tab; if (S.tab === 'scope') loadProps(); render(); refreshTurn(S.turnId); return; }
     var act = e.target.closest('[data-act]');
     if (act) { handleAct(act, e); return; }
     var open = e.target.closest('[data-open]');
