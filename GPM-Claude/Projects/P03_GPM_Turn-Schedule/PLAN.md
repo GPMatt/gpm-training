@@ -159,3 +159,13 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
 - V1.5 PMI timer is OUT of V1 (UI removed; old saved times still display).
 - V1.6 Go-live: round 5 is not tested separately. Build V1 on top, ONE combined test pass on the test
   deploy, then live. EMAIL_TEST_TO stays on matt@ until Matt says go.
+
+## 2026-11-11 later (Matt)
+- Tub resurface sits OVERNIGHT only: no cure day (defaults, saved Settings and the one open resurface turn updated).
+- 5943 8th Ave off the cookie-cutter list. Tech Prep: "Locks + keys" removed (every unit is re-keyed, unsaid);
+  "Items left behind" removed (Tech Prep is before move-out).
+- Schedule mock (new): based on Jason's "Apartment Turn Schedule" (Drive 19ADPJ4X8s4wolt2RBApTmUMUu9rT3sEi6uWNACxadkE).
+  Two views with one toggle: BY UNIT (each unit's scope steps in order: date, vendor, status) and BY VENDOR (each
+  vendor's jobs across units by day). Desktop first (Spencer + Jason at a computer). Interactive: tap a step to edit
+  (date, vendor, status), filters (property / vendor / trade / status), conflict flags (vendor double-booked, order
+  broken). Real units from Jason's sheet, scope + dates only, no tenant notes. Private artifact until Matt shares it.
