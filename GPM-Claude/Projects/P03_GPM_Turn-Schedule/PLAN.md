@@ -146,3 +146,16 @@ start/end timer. Bill's properties are walked by Spencer alone, and Bill does th
 ## Noticed (not done)
 - 2340 Michael, 2935 Oak Valley, 2700 Clyde Park were taken off the cookie-cutter list on 11/6
   ("now Riley walks"). Bill's rule now makes them Spencer-alone again. Bill's rule wins in this plan.
+
+## V1 (Matt, 2026-11-11): phone-first checklists, vendor book, WO copy, go live today
+- V1.1 The three forms (PMI Scope, Tech Prep, Move-out) are rebuilt phone-first INSIDE the same app (same URL,
+  same data), styled like the checklist mock (one-tap OK / Fix / N/A / Not checked, big touch targets, sticky
+  submit). Board + gantt stay as they are.
+- V1.2 Checklist additions: PORCH LIGHT only (Exterior). Every other mock suggestion stays out.
+- V1.3 Settings gets a VENDOR BOOK: company name, trade, contact name, email, cell. It replaces the
+  "Vendor contacts" table (existing contacts seed it). Text/Email buttons + re-contact list read from it.
+- V1.4 AppFolio WO read-back by shared-WO email is SCRAPPED. The app drafts the WO description and offers
+  "Copy for AppFolio WO" to Spencer's clipboard. The Tech Prep email to the tech + Jason STAYS.
+- V1.5 PMI timer is OUT of V1 (UI removed; old saved times still display).
+- V1.6 Go-live: round 5 is not tested separately. Build V1 on top, ONE combined test pass on the test
+  deploy, then live. EMAIL_TEST_TO stays on matt@ until Matt says go.
