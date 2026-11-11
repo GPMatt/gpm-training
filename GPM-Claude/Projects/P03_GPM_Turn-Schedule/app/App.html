@@ -31,8 +31,6 @@ tr.miss td{background:var(--red-soft)}
 .dmg-in{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .dmg-in input{flex:1 1 140px;min-width:0;border:1px solid var(--line-2);border-radius:8px;padding:6px 8px;min-height:34px}
 .tp-block{border-top:1px solid var(--cream-2);padding-top:10px;margin-top:10px}
-.gate.pend label.cb{display:flex;gap:8px;align-items:center;margin-top:6px;font-weight:600;cursor:pointer}
-.gate.pend label.cb input{width:18px;height:18px;accent-color:var(--green)}
 .imp{margin-top:10px;border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;background:var(--cream)}
 .imp-h{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--muted);margin-bottom:6px}
 .imp-rr{margin-bottom:4px}
@@ -49,13 +47,6 @@ tr.miss td{background:var(--red-soft)}
 .conflict{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--red);color:#fff;font-weight:700;border-radius:10px;padding:9px 12px;margin-top:10px}
 .conflict .btn{color:var(--red)}
 .card .conflict{margin-top:0}
-.rc-list{border-color:var(--red);border-width:2px}
-.rc{border-top:1px solid var(--line);padding:10px 0;display:flex;flex-direction:column;gap:5px}
-.rc-h{display:flex;flex-direction:column}
-.rc-h span{color:var(--red);font-weight:600;font-size:13px}
-.rc-c{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
-.rc-c a{word-break:break-all}
-.rc .row{display:flex;gap:8px;flex-wrap:wrap}
 .g-bar.resched{background:var(--red)!important;color:#fff;box-shadow:0 0 0 2px var(--red-soft)}
 .g-legend i.resched{background:var(--red)}
 .step.resched{border-left-color:var(--red);background:var(--red-soft)}
@@ -114,7 +105,7 @@ tr.miss td{background:var(--red-soft)}
   .f input,.f select,.f textarea,.list-t input,.list-t select,.dmg-in input,.trade-row select,.trade-row input,.ci .note input,.modal textarea{font-size:16px;min-height:44px}
   .fields .f.half{flex:1 1 100%;min-width:0}
   .f label.cb{min-height:44px;font-size:15px}
-  .f label.cb input,.gate.pend label.cb input{width:24px;height:24px}
+  .f label.cb input{width:24px;height:24px}
   .btn{min-height:44px;padding:10px 14px}
   .btn.sm{min-height:40px}
   .iconbtn{width:40px;height:40px}
@@ -165,6 +156,37 @@ tr.miss td{background:var(--red-soft)}
   .vb{grid-template-columns:1fr}
   .modal{padding:16px 14px}
   .modal .row .btn{flex:1 1 auto}
+}
+/* ---------- Run 2 (2026-11-11): iPad landscape (wider than 900px). Phones (760 and under) and 761-900 are untouched. ---------- */
+@media (min-width:901px){
+  html,body{overflow-x:hidden}
+  .form{max-width:none}
+  /* two columns of simple fields; trade rows, lists, the checklist, changes and damages keep the full width */
+  .form .fields>label.f,.form .fields>div.f:has(>label.cb){flex:1 1 calc(50% - 6px);min-width:0}
+  /* tablet-sized tap targets */
+  .form .f input,.form .f select,.form .f textarea,.form .list-t input,.form .list-t select,.form .dmg-in input,.form .trade-row select,.form .trade-row input,.form .ci .note input{min-height:44px;font-size:16px}
+  .form .f label.cb{min-height:44px;font-size:15px}
+  .form .f label.cb input,.form .lt-cards label.cb input{width:24px;height:24px}
+  .form .btn{min-height:44px;padding:10px 16px}
+  .form .iconbtn{width:44px;height:44px}
+  .form .seg button{min-height:44px;padding:8px 14px}
+  .form .rp-chip{min-height:44px;padding:9px 14px;font-size:14px}
+  .form .tri button{min-height:44px;padding:8px 14px;font-size:14px}
+  .form .ci-pen,.form .ci-chg{min-height:44px;padding:8px 14px;font-size:14px}
+  .form .ci{padding:8px 12px}
+  .form .ci>span:first-child{font-size:15px;font-weight:600}
+  /* Tech Prep: room list left, the selected room's lines right */
+  .cl-split{display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:start}
+  .cl-nav{display:flex;flex-direction:column;gap:6px}
+  .cl-room{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:52px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:8px 12px;text-align:left;cursor:pointer;font-weight:700;font-size:15px;color:var(--ink)}
+  .cl-room em{font-style:normal;font-weight:600;font-size:12px;color:var(--muted);white-space:nowrap}
+  .cl-room em b{color:var(--red)}
+  .cl-room.all{background:var(--green-soft);color:var(--green)}
+  .cl-room.on{border-color:var(--green);box-shadow:inset 0 0 0 2px var(--green)}
+  .cl-pane .room{margin:0}
+  .room-h{padding:12px 14px;font-weight:700;font-size:16px;background:var(--cream);display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .room-h em{font-style:normal;font-weight:600;font-size:13px;color:var(--muted)}
+  .room.all .room-h{background:var(--green-soft);color:var(--green)}
 }</style>
 <script>
 (function () {
@@ -176,7 +198,7 @@ tr.miss td{background:var(--red-soft)}
     calMonth: null, calUnit: '',
     form: null, formKey: null, formDirty: false,
     undo: [], saveTimer: null, saving: 0, saveMsg: '', saveErr: false,
-    noteOpen: {}, gate: null, roomOpen: {}, roomCut: null
+    noteOpen: {}, gate: null, roomOpen: {}, roomSel: null, roomFor: null, roomCut: null
   };
 
   // ---------- utils ----------
@@ -485,8 +507,8 @@ tr.miss td{background:var(--red-soft)}
 
   function nextAction(t) {
     if (t.stage === 'ready') return 'Rent ready';
-    var rc = recontacts(t).length;
-    if (rc) return 'Re-contact ' + rc + ' vendor' + (rc === 1 ? '' : 's') + ' (schedule changed at move-out)';
+    var rc = reschedCount(t);
+    if (rc) return 'Reschedule ' + rc + ' step' + (rc === 1 ? '' : 's') + ' (schedule changed at move-out)';
     for (var i = 0; i < t.steps.length; i++) if (t.steps[i].status === 'open') return 'Book ' + t.steps[i].label + (t.steps[i].vendor ? ' (' + t.steps[i].vendor + ')' : '') + ' for ' + E.fmt(t.steps[i].start);
     var td = today();
     for (var j = 0; j < t.steps.length; j++) if (t.steps[j].status !== 'done' && t.steps[j].end >= td) return 'Next on site: ' + t.steps[j].label + ', ' + E.fmt(t.steps[j].start);
@@ -562,7 +584,7 @@ tr.miss td{background:var(--red-soft)}
     return '<div class="card" data-open="' + t.id + '">' +
       '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(propTitle(t)) + '</div>' +
       (unitSub(t) ? '<div class="card-prop">' + esc(unitSub(t)) + '</div>' : '') + '</div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
-      conflictBanner(t, false) + pendingBanner(t) +
+      conflictBanner(t) + pendingBanner(t) +
       '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
       '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
       progressHtml(t) +
@@ -588,7 +610,7 @@ tr.miss td{background:var(--red-soft)}
       '<div class="rrbox" id="rrbox"><span>Rent ready</span><b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>' + bufferHtml(t, 'em') + '</div>' +
       '<div class="kv"><span>Move-in</span><b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></div>' +
       '</div></div>' +
-      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' + conflictBanner(t, true) + pendingBanner(t) +
+      '<div style="margin-top:10px">' + progressHtml(t, true) + '</div>' + conflictBanner(t) + pendingBanner(t) +
       '<div class="tabs">' + tabs.map(function (x) {
         return '<button data-tab="' + x[0] + '" class="' + (S.tab === x[0] ? 'on' : '') + '">' + x[1] + (x[2] ? '<span class="tick">✓</span>' : '') + '</button>';
       }).join('') + '</div></div>';
@@ -605,12 +627,12 @@ tr.miss td{background:var(--red-soft)}
     var h = '<div class="toolbar">' +
       '<button class="btn sm" data-act="recommended" title="Clear the dates you set by hand and lay out the best schedule in the standard order">↺ Recommended schedule</button>' +
       '<button class="btn sm" data-act="undo"' + (S.undo.length ? '' : ' disabled') + '>Undo</button>' +
-      '<button class="btn sm" data-act="email-schedule">✉ Email schedule to Jason</button>' +
+      '<button class="btn sm" data-act="email-schedule">✉ Email schedule to Jason + Spencer</button>' +
       (t.stage === 'ready' ? '<button class="btn sm" data-act="unready">Reopen turn</button>'
         : '<button class="btn sm" data-act="mark-ready">Mark rent ready</button>') +
       '<button class="btn sm ghost danger" data-act="archive" data-id="' + t.id + '">Archive</button>' +
       '<span class="savestate" id="savestate"></span></div>';
-    h += vendorLists() + recontactHtml(t);
+    h += vendorLists();
     if (t._warnings && t._warnings.length) h += '<div class="warns">' + t._warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>';
 
     // before move-out
@@ -702,42 +724,9 @@ tr.miss td{background:var(--red-soft)}
       '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
       '<label class="f w-num"><span>Hours</span><input type="number" min="0.5" step="0.5" data-ed="hours" data-i="' + i + '" data-fid="h' + i + '" value="' + esc(s.hours) + '"></label>' +
       (s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0 ? '<label class="f w-date"><span>Measure day' + (s.measurePinned ? ' (set by you)' : ' (1 wk before)') + '</span><input type="date" data-ed="measure" data-i="' + i + '" data-fid="ms' + i + '" value="' + esc(s.measure || '') + '"></label>' : '') +
-      '<label class="f grow"><span>Scope note (goes in the message)</span><input type="text" data-ed="note" data-i="' + i + '" data-fid="o' + i + '" value="' + esc(s.note) + '"></label>' +
-      '<div class="f"><span>&nbsp;</span><button class="btn sm primary" data-act="message" data-i="' + i + '">✉ Vendor message</button></div>' +
+      '<label class="f grow"><span>Scope note</span><input type="text" data-ed="note" data-i="' + i + '" data-fid="o' + i + '" value="' + esc(s.note) + '"></label>' +
       (contact.phone || contact.email ? '<div class="f"><span>&nbsp;</span><span style="font-size:12px;color:var(--muted);padding-top:8px">' + esc([contact.phone, contact.email].filter(Boolean).join(' · ')) + '</span></div>' : '') +
       '</div></div>';
-  }
-
-  function messageFor(t, s) {
-    return E.vendorMessage(S.settings.template, {
-      vendor: (s.vendor || '').split(' / ')[0], contact: contactOf(s.vendor).contact || (s.vendor || '').split(' / ')[0], trade: s.label.toLowerCase() + (s.sizeLabel ? ' (' + s.sizeLabel.replace(/\s*\(.*\)/, '').toLowerCase() + ')' : ''),
-      address: shortProp(t), unit: t.unit_label ? 'Unit ' + t.unit_label : '',
-      date: E.fmt(s.start), time: E.fmtTime(s.time), length: E.lengthText(s),
-      scope: s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0 ? eastpointeOrder(t, s) : s.note || '', access: t.scope.access || ''
-    });
-  }
-
-  /** The Eastpointe order form's answers as text (from the Scope's "Flooring order" questions + the turn). */
-  function eastpointeOrder(t, s) {
-    var d = t.scope || {}, L = [];
-    function yn(label, v) { if (v) L.push(label + ': ' + v); }
-    L.push('');
-    if (s.measure) L.push('Measure: ' + E.fmt(s.measure));
-    L.push('Community: ' + propTitle(t) + (t.unit_label ? ' · Unit ' + t.unit_label : ''));
-    if (d.ep_style) L.push('Style of unit: ' + d.ep_style);
-    L.push('Vacant at install. Furniture: No');
-    if (s.size === 'carpet' || s.size === 'both') {
-      L.push('CARPET: ' + (d.ep_carpet_extent || '?') + (d.ep_carpet_extent === 'Partial' && d.ep_carpet_area ? ' (' + d.ep_carpet_area + ')' : ''));
-      yn('  Pad', d.ep_pad); yn('  Rip', d.ep_carpet_rip); if (d.ep_carpet_rip === 'Yes') yn('  Haul', d.ep_carpet_haul);
-    }
-    if (s.size === 'lvp' || s.size === 'both') {
-      L.push('VINYL: ' + (d.ep_vinyl_type || '?') + (d.ep_vinyl_rooms ? ' · rooms: ' + d.ep_vinyl_rooms : ''));
-      yn('  Rip', d.ep_vinyl_rip); yn('  Shoe molding', d.ep_shoe); yn('  Cove base', d.ep_cove); yn('  R&R toilet', d.ep_toilet);
-      yn('  Move appliances', d.ep_move_appl); yn('  Sub floor', d.ep_subfloor); yn('  Floor prep', d.ep_prep);
-    }
-    if (d.ep_notes || s.note) L.push('Special instructions: ' + [d.ep_notes, s.note].filter(Boolean).join(' · '));
-    if (t.af_wo_number) L.push('P.O. #: ' + t.af_wo_number);
-    return L.join('\n');
   }
 
   function scheduleText(t) {
@@ -748,29 +737,6 @@ tr.miss td{background:var(--red-soft)}
         (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']' + (s.measure ? ' · measure ' + E.fmt(s.measure) : ''));
     });
     return lines.join('\n');
-  }
-
-  function openMessage(t, i) {
-    var s = t.steps[i];
-    var contact = contactOf(s.vendor);
-    var msg = messageFor(t, s);
-    var ov = $('#overlay');
-    ov.innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal">' +
-      '<h3>' + esc(s.label) + ' · ' + esc(s.vendor || 'vendor') + '</h3>' +
-      '<div style="color:var(--muted);font-size:13px">' + esc(E.fmt(s.start)) + (s.time ? ', ' + E.fmtTime(s.time) : '') + '. Edit the draft if you like, then copy it.</div>' +
-      '<textarea id="msgtext">' + esc(msg) + '</textarea>' +
-      '<div class="row"><button class="btn primary" data-act="copy-msg">Copy message</button>' +
-      (contact.phone ? '<a class="btn" id="smslink" href="sms:' + esc(contact.phone) + '">Text ' + esc(contact.phone) + '</a>' : '') +
-      (contact.email ? '<a class="btn" id="maillink" href="mailto:' + esc(contact.email) + '">Email</a>' : '') +
-      (s.status === 'open' || s.status === 'resched' ? '<button class="btn" data-act="msg-booked" data-i="' + i + '">Vendor confirmed</button>' : '') +
-      '<div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
-    var ta = $('#msgtext');
-    function links() {
-      var body = encodeURIComponent(ta.value);
-      var sl = $('#smslink'); if (sl) sl.href = 'sms:' + contact.phone + '?&body=' + body;
-      var ml = $('#maillink'); if (ml) ml.href = 'mailto:' + contact.email + '?subject=' + encodeURIComponent(s.label + ' at ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + ', ' + E.fmt(s.start)) + '&body=' + body;
-    }
-    ta.addEventListener('input', links); links();
   }
 
   function vkey(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
@@ -820,7 +786,6 @@ tr.miss td{background:var(--red-soft)}
       (s.status === 'booked' ? '<button class="btn" data-act="bar-status" data-v="open" data-i="' + i + '">Undo confirmed</button>'
         : '<button class="btn primary" data-act="bar-status" data-v="booked" data-i="' + i + '">✓ Vendor confirmed this time</button>') +
       (s.status !== 'done' ? '<button class="btn" data-act="bar-status" data-v="done" data-i="' + i + '">Mark done</button>' : '') +
-      '<button class="btn" data-act="message" data-i="' + i + '">✉ Vendor message</button>' +
       '<div class="spacer"></div><button class="btn ghost" data-act="bar-edit" data-i="' + i + '">Edit</button></div></div></div>';
   }
 
@@ -948,8 +913,10 @@ tr.miss td{background:var(--red-soft)}
         var dtp = techProp(t.property_label); // walks:true tech fills it; Spencer when he walks alone
         S.form.done_by = S.form.done_by || (dtp ? (dtp.walks ? dtp.tech : 'Spencer') : spencerAlone(t.scope.walk_type) ? 'Spencer' : 'Riley');
       }
-      S.formDirty = false; S.gate = null; S.alertOn = true; // alert checkbox: checked by default
-      S.roomOpen = {}; S.roomCut = null; S.missing = null;
+      S.formDirty = false; S.gate = null;
+      S.roomCut = null; S.missing = null;
+      // R1: room open/closed (+ the tablet's selected room) survive Save draft, tab switches and re-reads of the same turn
+      if (S.roomFor !== t.id) { S.roomOpen = {}; S.roomSel = null; S.roomFor = t.id; }
       if (key === 'moveout') carryDamages(t, S.form);
     }
     return formHtml(key, S.form, t, false);
@@ -970,13 +937,25 @@ tr.miss td{background:var(--red-soft)}
   function pmiHead(t) { var x = pmiTimeText(t); return x ? 'PMI ' + x : ''; }
 
   // ---------- emails (server builds + sends; the client only asks) ----------
-  function sendEmail(fn, t, after) {
+  function sendEmail(fn, t, after, mode) {
     toast('Sending email…');
-    return call(fn, t.id).then(function (r) {
+    return (mode ? call(fn, t.id, mode) : call(fn, t.id)).then(function (r) {
       toast('Email sent to ' + [].concat(r && r.to || []).join(', '));
       if (after) after(r || {});
       render();
     }, function (e) { toast('Email not sent: ' + e.message, true); });
+  }
+  /** E2: the schedule email to Jason + Spencer. Sent by itself after the FIRST final PMI Scope submit (force = the button).
+   *  The server stamps scope.schedule_emailed_at; we keep it locally so the next Scope save does not wipe it. */
+  function emailSchedule(t, force, btn) {
+    if (!force && t.scope.schedule_emailed_at) return;
+    if (force) toast('Sending the schedule to Jason + Spencer…');
+    call('apiEmailSchedule', t.id, scheduleText(t)).then(function (r) {
+      t.scope.schedule_emailed_at = r && r.sentAt || new Date().toISOString();
+      if (S.form && S.formKey === 'scope:' + t.id) S.form.schedule_emailed_at = t.scope.schedule_emailed_at;
+      toast('Schedule emailed to ' + [].concat(r && r.to || []).join(', '));
+      if (force) render();
+    }, function (er) { if (btn) btn.disabled = false; toast('Schedule email not sent: ' + er.message, true); });
   }
   function sendTechPrepEmail(t) {
     return sendEmail('apiSendTechPrepEmail', t, function (r) {
@@ -1020,8 +999,8 @@ tr.miss td{background:var(--red-soft)}
     if (key === 'moveout' && unapplied(d) && (d.changes || []).some(changeComplete)) {
       var pa = d.pending_impact && d.pending_impact.alert_sent_at;
       h += '<div class="gate pend">Changes are not applied to the schedule yet. You can still submit.' +
-        (pa ? '<div>Alert email sent ' + esc(new Date(pa).toLocaleString()) + '.</div>'
-          : '<label class="cb"><input type="checkbox" data-alert="1"' + (S.alertOn ? ' checked' : '') + '> Email an alert that the schedule isn\'t updated yet</label>') + '</div>';
+        (pa ? '<div>Email to Jason + Spencer sent ' + esc(new Date(pa).toLocaleString()) + '.</div>'
+          : '<div>Submitting emails Jason + Spencer (cc Matt) that the schedule is NOT updated yet.</div>') + '</div>';
     }
     if (S.gate && S.gate.length) h += '<div class="gate"><b>Before you can submit:</b>' + S.gate.map(function (g) { return '<div>• ' + esc(g) + '</div>'; }).join('') + '</div>';
     h += '<div class="form-foot">' + (key === 'techprep' ? '<div class="foot-count" id="cl-count">' + clCountText(d) + '</div>' : '');
@@ -1134,10 +1113,26 @@ tr.miss td{background:var(--red-soft)}
     return out;
   }
 
+  /** iPad landscape / desktop (wider than 900px): Tech Prep shows a room list + one room. Phones keep the folding rooms. */
+  var WIDE = window.matchMedia ? window.matchMedia('(min-width: 901px)') : null;
+  function isWide() { return !!(WIDE && WIDE.matches); }
+  function onWideChange() { if (S.view === 'turn' && S.tab === 'techprep') render(); }
+  if (WIDE) { if (WIDE.addEventListener) WIDE.addEventListener('change', onWideChange); else if (WIDE.addListener) WIDE.addListener(onWideChange); }
+  /** Lines in a room with no answer yet. */
+  function roomLeft(d, r) {
+    var st = (d.checklist || {})[r.id] || {}, n = 0;
+    r.items.forEach(function (it, ii) { if (!(st[ii] && st[ii].s)) n++; });
+    return n;
+  }
+
   function checklistHtml(d) {
     d.checklist = d.checklist || {};
-    var tot = { fix: 0, nc: 0, ok: 0, na: 0 };
-    var rooms = roomInstances(d).map(function (r) {
+    var tot = { fix: 0, nc: 0, ok: 0, na: 0 }, wide = isWide(), nav = [], inst = roomInstances(d);
+    if (wide && !inst.some(function (r) { return r.id === S.roomSel; })) { // default: the first unfinished room
+      var first = inst.filter(function (r) { return roomLeft(d, r); })[0] || inst[0];
+      S.roomSel = first ? first.id : null;
+    }
+    var rooms = inst.map(function (r) {
       var st = d.checklist[r.id] || {};
       var cnt = { fix: 0, nc: 0, ok: 0, na: 0 };
       var items = r.items.map(function (it, ii) {
@@ -1153,13 +1148,21 @@ tr.miss td{background:var(--red-soft)}
         }).join('') + '</span></span>' +
           (showNote ? '<div class="note"><input type="text" placeholder="' + (e.s === 'fix' ? 'What to fix / part needed' : e.s === 'nc' ? 'Why not checked' : 'Note') + '" data-cin="1"' + at + ' data-fid="cin-' + r.id + '-' + ii + '" value="' + esc(e.note || '') + '"></div>' : '') + '</div>';
       }).join('');
-      // keep the open/closed state Spencer chose across re-renders (OK used to collapse the room)
-      var isOpen = S.roomOpen[r.id] != null ? S.roomOpen[r.id] : !!(cnt.fix || cnt.nc);
       var answered = cnt.ok + cnt.fix + cnt.nc + cnt.na, left = r.items.length - answered;
-      return '<details class="room' + (left ? '' : ' all') + '" data-room-id="' + r.id + '"' + (isOpen ? ' open' : '') + '><summary><span>' + (left ? '' : '✓ ') + esc(r.label) + '</span><em>' + answered + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em></summary>' + items +
-        '<div class="room-foot">' + (left ? '<button class="btn sm" data-act="room-rest-ok" data-room="' + r.id + '">Mark the other ' + left + ' OK + next room</button>'
-          : '<button class="btn sm" data-act="room-next" data-room="' + r.id + '">Next room ↓</button>') + '</div></details>';
+      // R1: Spencer's open/closed choice is kept (S.roomOpen lives as long as the turn is open, through saves and re-reads).
+      // A room he never touched: open while unfinished, closed when complete.
+      var isOpen = S.roomOpen[r.id] != null ? S.roomOpen[r.id] : left > 0;
+      var head = '<span>' + (left ? '' : '✓ ') + esc(r.label) + '</span><em>' + answered + '/' + r.items.length + ' · ' + cnt.fix + ' fix' + (cnt.nc ? ' · ' + cnt.nc + ' not checked' : '') + '</em>';
+      var foot = '<div class="room-foot">' + (left ? '<button class="btn sm" data-act="room-rest-ok" data-room="' + r.id + '">Mark the other ' + left + ' OK + next room</button>'
+          : '<button class="btn sm" data-act="room-next" data-room="' + r.id + '">Next room ↓</button>') + '</div>';
+      if (wide) {
+        nav.push('<button class="cl-room' + (left ? '' : ' all') + (r.id === S.roomSel ? ' on' : '') + '" data-act="room-sel" data-room="' + r.id + '"><span>' + (left ? '' : '✓ ') + esc(r.label) + '</span>' +
+          '<em>' + answered + '/' + r.items.length + (cnt.fix ? ' · <b>' + cnt.fix + ' fix</b>' : '') + '</em></button>');
+        return r.id === S.roomSel ? '<div class="room' + (left ? '' : ' all') + '" data-room-id="' + r.id + '"><div class="room-h">' + head + '</div>' + items + foot + '</div>' : '';
+      }
+      return '<details class="room' + (left ? '' : ' all') + '" data-room-id="' + r.id + '"' + (isOpen ? ' open' : '') + '><summary>' + head + '</summary>' + items + foot + '</details>';
     }).join('');
+    if (wide) rooms = '<div class="cl-split"><div class="cl-nav">' + nav.join('') + '</div><div class="cl-pane">' + rooms + '</div></div>';
     return roomPicker(d) + '<div class="cl-tot">' + tot.fix + ' to fix · ' + tot.nc + ' not checked · ' + tot.ok + ' OK</div>' + rooms;
   }
   /** "37 / 92 answered · 4 fix" for the sticky Tech Prep footer. */
@@ -1399,7 +1402,7 @@ tr.miss td{background:var(--red-soft)}
     if (!im) { toast('Add a complete change first.', true); return; }
     var conf = im.diff.moved.concat(im.diff.removed).filter(function (x) { return x.was_confirmed; });
     if (!confirm('Apply ' + im.changes.length + ' change' + (im.changes.length === 1 ? '' : 's') + ' to the schedule?\nRent ready ' + E.fmt(im.rrBefore) + ' → ' + E.fmt(im.rrAfter) +
-      (conf.length ? '\n' + conf.length + ' confirmed vendor(s) will need to be re-contacted.' : '') + '\nThe change email goes out after.')) return;
+      (conf.length ? '\n' + conf.length + ' confirmed vendor(s) will need to be re-contacted.' : '') + '\nThe change email to Jason + Spencer goes out after.')) return;
     // Pre-Apply snapshot: saved on the turn (Edit changes works after a reload) + on the Undo stack.
     d.pre_apply = { steps: clone(t.steps), trades: clone(t.scope.trades || {}) };
     S.undo.push(JSON.stringify({ id: t.id, apply: true }));
@@ -1426,7 +1429,7 @@ tr.miss td{background:var(--red-soft)}
         // keep the server's stamp locally, so the next save of move_out_check does not wipe it
         t.move_out_check.impact.email_sent_at = r.sentAt || new Date().toISOString();
         if (S.form && S.formKey === 'moveout:' + t.id && S.form.impact) S.form.impact.email_sent_at = t.move_out_check.impact.email_sent_at; // open form copy too, or its next save wipes it
-      });
+      }, 'applied');
     }, function () {});
   }
 
@@ -1454,13 +1457,8 @@ tr.miss td{background:var(--red-soft)}
   }
 
   // ---------- conflicted schedule ----------
-  /** Who to call back: Confirmed steps whose date moved (status 'resched') + confirmed steps removed at move-out. */
-  function recontacts(t) {
-    var out = [], im = t.move_out_check && t.move_out_check.impact, mv = {};
-    ((im && im.moved) || []).forEach(function (m, mi) { mv[m.key] = m; if (m.after === null && m.was_confirmed && !m.cleared) out.push({ cancel: true, m: m, mi: mi }); });
-    t.steps.forEach(function (s, i) { if (s.status === 'resched') out.push({ s: s, i: i, m: mv[s.key] }); });
-    return out;
-  }
+  /** Steps to reschedule: Confirmed steps whose date moved at move-out (status 'resched'). */
+  function reschedCount(t) { return t.steps.filter(function (s) { return s.status === 'resched'; }).length; }
 
   /** Scope answered No, changes not applied to the schedule (move-out check form data). */
   function unapplied(mo) { return !!mo && mo.scope_matches === 'No' && !(mo.impact && mo.impact.applied_at); }
@@ -1471,31 +1469,10 @@ tr.miss td{background:var(--red-soft)}
     return '<div class="conflict">⚠ Scope changed, not applied to schedule<button class="btn sm" data-act="goto-apply" data-id="' + t.id + '">Apply now</button></div>';
   }
 
-  function conflictBanner(t, withLink) {
-    var n = recontacts(t).length;
+  function conflictBanner(t) {
+    var n = reschedCount(t);
     if (!n) return '';
-    return '<div class="conflict">⚠ Schedule conflicted: ' + n + ' vendor' + (n === 1 ? '' : 's') + ' to re-contact' +
-      (withLink ? '<button class="btn sm" data-act="goto-recontact">See who</button>' : '') + '</div>';
-  }
-
-  function contactLine(label, val, href) {
-    if (!val) return '<div class="rc-c"><span class="muted">' + label + ': not set. Add in Settings.</span></div>';
-    return '<div class="rc-c"><span class="muted">' + label + '</span> <a class="rc-val" href="' + esc(href + val) + '">' + esc(val) + '</a>' +
-      '<button class="btn sm" data-act="copy" data-text="' + esc(val) + '">Copy</button></div>';
-  }
-
-  function recontactHtml(t) {
-    var list = recontacts(t);
-    if (!list.length) return '';
-    return '<div class="panel rc-list" id="recontact"><h3>Vendors to re-contact</h3>' + list.map(function (x) {
-      var vendor = x.cancel ? x.m.vendor : x.s.vendor, c = contactOf(vendor);
-      var what = x.cancel ? 'Cancel ' + x.m.label + ' (was ' + E.fmt(x.m.before) + ')'
-        : x.s.label + ': ' + (x.m ? E.fmt(x.m.before) + ' → ' : 'new date ') + E.fmt(x.s.start) + (x.s.time ? ', ' + E.fmtTime(x.s.time) : '');
-      return '<div class="rc"><div class="rc-h"><b>' + esc(vendor || 'No vendor set') + '</b><span>' + esc(what) + '</span></div>' +
-        contactLine('Phone', c.phone, 'tel:') + contactLine('Email', c.email, 'mailto:') +
-        '<div class="row">' + (x.cancel ? '<button class="btn sm primary" data-act="rc-cancelled" data-mi="' + x.mi + '">✓ Cancelled with vendor</button>'
-          : '<button class="btn sm primary" data-act="message" data-i="' + x.i + '">✉ Message with new date</button><button class="btn sm" data-act="status" data-v="booked" data-i="' + x.i + '">✓ Confirmed new date</button>') + '</div></div>';
-    }).join('') + '</div>';
+    return '<div class="conflict">⚠ Schedule conflicted: ' + n + ' step' + (n === 1 ? '' : 's') + ' to reschedule</div>';
   }
 
   function propLabel(p) { return p.canonical_address + (p.af_account && p.af_account !== '11' ? ' (' + p.af_account + ')' : ''); }
@@ -1651,7 +1628,7 @@ tr.miss td{background:var(--red-soft)}
       S.missing = null;
     }
     if (S.view === 'new') return createTurn(d);
-    var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false;
+    var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false, sendPending = false;
     if (key === 'scope') {
       pushUndo(t);
       t.scope = clone(d);
@@ -1677,14 +1654,13 @@ tr.miss td{background:var(--red-soft)}
         if (!tech.hoursEdited) { E.applyTechHours(tech, h); doneMsg = 'Submitted. Tech step set to ' + h + ' hours.'; }
       }
     } else if (key === 'moveout') {
-      if (final) { d.submitted_at = d.submitted_at || new Date().toISOString(); d.done_by = 'Spencer'; } // move-out is Spencer alone; the alert email reads it
-      var sendAlert = false;
+      if (final) { d.submitted_at = d.submitted_at || new Date().toISOString(); d.done_by = 'Spencer'; } // move-out is Spencer alone; the move-out email reads it
       if (final && unapplied(d)) { // scope changed but not applied: keep the preview as pending_impact
         var pim = impactOf(t, d.changes), prevAlert = d.pending_impact && d.pending_impact.alert_sent_at;
         d.pending_impact = { computed_at: new Date().toISOString(), rr_before: pim.rrBefore, rr_after: pim.rrAfter,
           moved: pim.diff.moved.concat(pim.diff.removed) };
         if (prevAlert) d.pending_impact.alert_sent_at = prevAlert;
-        sendAlert = S.alertOn && !prevAlert;
+        sendPending = !prevAlert; // E3: one NOT APPLIED email per submit-with-changes (always, no checkbox)
       } else if (final) delete d.pending_impact;
       t.move_out_check = clone(d);
     }
@@ -1695,11 +1671,12 @@ tr.miss td{background:var(--red-soft)}
       if (key === 'scope') { S.tab = 'schedule'; }
       render(); flashRR(before, t);
       if (firstTechSubmit) sendTechPrepEmail(t); // only the FIRST final submit sends; Resend is on purpose
-      if (sendAlert) sendEmail('apiSendMoveOutAlert', t, function (r) {
+      if (key === 'scope') emailSchedule(t); // E2: first final Scope submit only (scope.schedule_emailed_at)
+      if (sendPending) sendEmail('apiSendMoveOutEmail', t, function (r) {
         var at = r.sentAt || new Date().toISOString();
         t.move_out_check.pending_impact.alert_sent_at = at;
         if (S.form && S.formKey === 'moveout:' + t.id && S.form.pending_impact) S.form.pending_impact.alert_sent_at = at;
-      });
+      }, 'pending');
     }, function () {});
   }
 
@@ -1723,10 +1700,12 @@ tr.miss td{background:var(--red-soft)}
     prepTurn(t);
     var btn = $('[data-act="form-submit"]'); if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
     saveNow(t).then(function (saved) {
-      S.turns.push(prepTurn(saved)); // same path as the boot load: lays out dates so the gantt + calendar show now
+      var nt = prepTurn(saved);
+      S.turns.push(nt); // same path as the boot load: lays out dates so the gantt + calendar show now
       S.formDirty = false; S.form = null; S.formKey = null;
       toast('Turn created. Here is the recommended schedule.');
       go('turn', { turnId: saved.id, tab: 'schedule' });
+      emailSchedule(nt); // E2: the new turn's schedule goes to Jason + Spencer
     }, function () { if (btn) { btn.disabled = false; btn.textContent = 'Create turn + build schedule'; } });
   }
 
@@ -1752,7 +1731,7 @@ tr.miss td{background:var(--red-soft)}
     h += '<div class="sec"><h3>Cookie-cutter properties</h3><div class="help">One address per line. These default to "Spencer alone" on the scope form.</div>' +
       '<div class="fields"><label class="f"><textarea rows="8" data-set="cookie">' + esc((setDraft.cookieCutter || []).join('\n')) + '</textarea></label></div></div>';
     setDraft.techProperties = setDraft.techProperties || clone(DEFAULT_SETTINGS.techProperties);
-    h += '<div class="sec"><h3>Techs by property</h3><div class="help">The tech who does the tech work at these addresses (one per line): Tech step vendor, Tech Prep email. Checked before the cookie-cutter list.</div>' +
+    h += '<div class="sec"><h3>Techs by property</h3><div class="help">The tech who does the tech work at these addresses (one per line): Tech step vendor. Checked before the cookie-cutter list.</div>' +
       setDraft.techProperties.map(function (tp, ti) {
         var a = ' data-ti="' + ti + '"';
         return '<div class="fields tp-block"><label class="f half"><span>Tech</span><input data-set="tp-tech"' + a + ' value="' + esc(tp.tech) + '"></label>' +
@@ -1785,7 +1764,7 @@ tr.miss td{background:var(--red-soft)}
       return order.indexOf(A.trade || '') - order.indexOf(B.trade || '') || String(A.company).localeCompare(String(B.company));
     });
     var tradeOpts = [['', '— trade —']].concat(cat().map(function (c) { return [c.key, c.label]; })).concat([['other', 'Other']]);
-    return '<div class="sec" id="vendor-book"><h3>Vendor book</h3><div class="help">Every vendor we use. The Text and Email buttons on vendor messages, the re-contact list and the {contact} greeting come from here. The Vendor boxes on a turn suggest these companies (that trade first).</div>' +
+    return '<div class="sec" id="vendor-book"><h3>Vendor book</h3><div class="help">Every vendor we use. A step shows its vendor\'s phone and email from here, and the {contact} greeting comes from here. The Vendor boxes on a turn suggest these companies (that trade first).</div>' +
       '<div class="vb">' + idx.map(function (vi) {
         var x = setDraft.vendors[vi], a = ' data-vi="' + vi + '"';
         return '<div class="vb-card"><button class="iconbtn vb-del" data-act="vb-del"' + a + ' title="Remove from the vendor book">✕</button>' +
@@ -1808,8 +1787,8 @@ tr.miss td{background:var(--red-soft)}
       else { if (v === '') delete z[f]; else z[f] = Number(v); }
     } else if (k === 'phone' || k === 'email') { var c = setDraft.contacts[el.dataset.v] = setDraft.contacts[el.dataset.v] || {}; c[k] = v.trim(); }
     else if (k.indexOf('vb-') === 0) { setDraft.vendors[+el.dataset.vi][k.slice(3)] = k === 'vb-trade' ? v : v.trim(); }
-    else if (k === 'template') setDraft.template = v;
     else if (k === 'cookie') setDraft.cookieCutter = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+    else if (k === 'template') setDraft.template = v;
     else if (k.indexOf('tp-') === 0) {
       var tp = setDraft.techProperties[+el.dataset.ti], tf = k.slice(3);
       if (tf === 'addr') tp.addresses = v.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
@@ -1869,10 +1848,26 @@ tr.miss td{background:var(--red-soft)}
     if (a === 'ci') {
       var cl = S.form.checklist = S.form.checklist || {}; var room = cl[el.dataset.room] = cl[el.dataset.room] || {};
       var it = room[el.dataset.ii] = room[el.dataset.ii] || {};
+      var ciRoom = roomInstances(S.form).filter(function (x) { return x.id === el.dataset.room; })[0];
+      var leftBefore = ciRoom ? roomLeft(S.form, ciRoom) : 1;
       it.s = it.s === el.dataset.v ? null : el.dataset.v;
       if (it.s !== 'fix') delete it.charge; // charge only applies to Fix lines
-      S.roomOpen[el.dataset.room] = true; // the room Spencer just answered in stays open, whatever the toggle events did
-      markDirty(); render(); return;
+      // R1: the room closes only at the moment its last line gets an answer; the next room does not open.
+      // Otherwise the room Spencer just answered in stays open, whatever the toggle events did.
+      var closing = leftBefore > 0 && ciRoom && roomLeft(S.form, ciRoom) === 0;
+      S.roomOpen[el.dataset.room] = !closing;
+      S.roomSel = el.dataset.room; // tablet: a finished room stays selected (no auto-advance)
+      markDirty(); render();
+      if (closing && !isWide()) { // the room just folded: bring its header back on screen if it went above
+        var cr = document.querySelector('[data-room-id="' + el.dataset.room + '"]');
+        if (cr && cr.getBoundingClientRect().top < 0) cr.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+    if (a === 'room-sel') { // tablet room list
+      S.roomSel = el.dataset.room; render();
+      var sp = document.querySelector('.cl-split'); if (sp && sp.getBoundingClientRect().top < 0) sp.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
     if (a === 'room-rest-ok' || a === 'room-next') { // phone flow: finish a room in one tap, then open the next one
       var rr = el.dataset.room, inst = roomInstances(S.form), ri = -1;
@@ -1885,9 +1880,10 @@ tr.miss td{background:var(--red-soft)}
       S.roomOpen[rr] = false;
       var nx = inst[ri + 1];
       if (nx) S.roomOpen[nx.id] = true;
+      S.roomSel = nx ? nx.id : rr; // tablet: show the next room
       render();
-      var ne = nx && document.querySelector('[data-room-id="' + nx.id + '"]') || document.querySelector('[data-room-id="' + rr + '"]');
-      if (ne) ne.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var ne = isWide() ? document.querySelector('.cl-split') : nx && document.querySelector('[data-room-id="' + nx.id + '"]') || document.querySelector('[data-room-id="' + rr + '"]');
+      if (ne && (!isWide() || ne.getBoundingClientRect().top < 0)) ne.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
     if (a === 'room-toggle') {
@@ -1929,16 +1925,6 @@ tr.miss td{background:var(--red-soft)}
       var ip = $('#impact'); if (ip) ip.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    if (a === 'copy') {
-      copyText(el.dataset.text).then(function (ok) {
-        if (ok) { toast('Copied ' + el.dataset.text); return; }
-        var sp = el.parentNode.querySelector('.rc-val'); // fallback: select the text so a long-press copies it
-        if (sp) { var rg = document.createRange(); rg.selectNodeContents(sp); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg); }
-        toast('Copy blocked. The text is selected: copy it by hand.', true);
-      });
-      return;
-    }
-    if (a === 'copy-msg') { copyText($('#msgtext').value).then(function (ok) { if (ok) toast('Copied. Paste it into a text or email.'); else { $('#msgtext').select(); toast('Press Ctrl/Cmd+C to copy', true); } }); return; }
     if (!t) return;
     if (a === 'wo-desc') {
       if (S.formDirty) { toast('Save your changes first, so the description includes them.', true); return; }
@@ -1947,7 +1933,7 @@ tr.miss td{background:var(--red-soft)}
     if (a === 'copy-wo') { copyText($('#wotext').value).then(function (ok) { if (ok) toast('Copied. Paste it into the WO description in AppFolio.'); else { $('#wotext').select(); toast('Copy blocked: the text is selected, copy it by hand.', true); } }); return; }
     if (a === 'resend-email') {
       if (S.formDirty) { toast('Save your changes first, then resend.', true); return; }
-      if (confirm('Send the Tech Prep email again?')) sendTechPrepEmail(t);
+      if (confirm('Send the Tech Prep email to Jason + Spencer again?')) sendTechPrepEmail(t);
       return;
     }
     if (a === 'mc-add') { e.preventDefault(); (S.form.changes = S.form.changes || []).push({ type: '', trade: '', size: '', note: '', hours: null }); markDirty(); render(); return; }
@@ -1957,18 +1943,6 @@ tr.miss td{background:var(--red-soft)}
       if (confirm('Undo the Apply? Every step goes back to its date and status from before Apply (anything you re-confirmed since is undone too).')) undoApply(t);
       return;
     }
-    if (a === 'rc-cancelled') {
-      var mm = t.move_out_check.impact.moved[+el.dataset.mi]; mm.cleared = true;
-      if (S.form && S.formKey === 'moveout:' + t.id && S.form.impact) S.form.impact.moved[+el.dataset.mi].cleared = true;
-      queueSave(t); render(); toast(mm.label + ' cancellation noted'); return;
-    }
-    if (a === 'goto-recontact') {
-      if (S.tab !== 'schedule') { if (S.formDirty && !confirm('You have unsaved form changes. Leave without saving?')) return; S.formDirty = false; S.formKey = null; S.tab = 'schedule'; render(); }
-      var rcl = $('#recontact'); if (rcl) rcl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      return;
-    }
-    if (a === 'msg-booked') { pushUndo(t); t.steps[i].status = 'booked'; t.steps[i].confirmedAt = new Date().toISOString(); closeModal(); queueSave(t); render(); toast(t.steps[i].label + ' marked confirmed'); return; }
-    if (a === 'message') { openMessage(t, i); return; }
     if (a === 'bar') { openBar(t, i); return; }
     if (a === 'bar-status') {
       pushUndo(t); t.steps[i].status = el.dataset.v;
@@ -1981,11 +1955,7 @@ tr.miss td{background:var(--red-soft)}
       if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('hl'); setTimeout(function () { row.classList.remove('hl'); }, 1600); }
       return;
     }
-    if (a === 'email-schedule') {
-      el.disabled = true; toast('Sending the schedule to Jason…');
-      call('apiEmailSchedule', t.id, scheduleText(t)).then(function (r) { toast('Schedule emailed to ' + r.to); render(); }, function (er) { el.disabled = false; toast('Not sent: ' + er.message, true); });
-      return;
-    }
+    if (a === 'email-schedule') { el.disabled = true; emailSchedule(t, true, el); return; }
     if (a === 'mark-ready') { if (!confirm('Mark this unit rent ready?')) return; t.stage = 'ready'; queueSave(t); render(); return; }
     if (a === 'unready') { t.stage = 'scheduling'; t.stage = stageOf(t); queueSave(t); render(); return; }
     if (a === 'project-status') { t.scope.project_status = el.dataset.v; queueSave(t); render(); return; }
@@ -2017,7 +1987,6 @@ tr.miss td{background:var(--red-soft)}
   document.addEventListener('change', function (e) {
     var el = e.target;
     if (el.dataset.actChange === 'cal-unit') { S.calUnit = el.value; render(); return; }
-    if (el.dataset.alert) { S.alertOn = el.checked; return; }
     if (el.dataset.ed) { editStep(+el.dataset.i, el.dataset.ed, el.value); return; }
     if (el.dataset.set) { settingsChange(el); return; }
     formChange(el);
