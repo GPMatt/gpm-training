@@ -56,24 +56,24 @@ const mock = `<script>
   function mail(id, kind){
     if (localStorage.getItem('mockEmailFail')) throw new Error('Mail service unavailable (preview stub)');
     var t = db.turns.filter(function(x){return x.id===id;})[0]; if (!t) throw new Error('Turn not found');
-    var tech = ((/^(\\w+)(?:'s property| walk)/.exec(t.scope.walk_type||'')||[])[1] || 'Riley').replace(/^Cookie$/, 'Riley'), sentAt = new Date().toISOString();
+    var sentAt = new Date().toISOString();
     window.mockMailCalls = (window.mockMailCalls||[]).concat([kind+':'+id]);
     if (kind==='tp') t.tech_prep.email_sent_at = sentAt;
-    else if (kind==='alert') t.move_out_check.pending_impact.alert_sent_at = sentAt;
-    else t.move_out_check.impact.email_sent_at = sentAt;
+    else if (kind==='sched') t.scope.schedule_emailed_at = sentAt;
+    else if (kind==='pending') { if (!t.move_out_check || !t.move_out_check.pending_impact) throw new Error('No scope change preview saved on this turn.'); t.move_out_check.pending_impact.alert_sent_at = sentAt; }
+    else { if (!t.move_out_check || !t.move_out_check.impact) throw new Error('Apply the scope changes to the schedule first, then send.'); t.move_out_check.impact.email_sent_at = sentAt; }
     persist();
-    return {to:['spencer@greenpropertymgt.com', tech.toLowerCase() + '@greenpropertymgt.com'], cc:['jason@greenpropertymgt.com'],
-      subject:(kind==='tp' ? 'Turn WO description: ' : 'Turn scope changed: ') + t.property_label + ' ' + (t.unit_label||''), sentAt:sentAt};
+    return {to:['jason@greenpropertymgt.com', 'spencer@greenpropertymgt.com'], cc:kind==='pending'||kind==='applied' ? ['matt@greenpropertymgt.com'] : [],
+      subject:(kind==='tp' ? 'Turn WO description: ' : kind==='sched' ? 'Turn schedule: ' : 'Turn scope changed: ') + t.property_label + ' ' + (t.unit_label||''), sentAt:sentAt};
   }
   var api = {
     apiBoot: function(){ if (!db.turns) { db.turns = seed(); persist(); }
       return {user:'spencer@greenpropertymgt.com', settings:db.settings, turns:JSON.parse(JSON.stringify(db.turns.filter(function(t){return !t.archived;})))}; },
     apiSendTechPrepEmail: function(id){ return mail(id, 'tp'); },
-    apiEmailSchedule: function(id, text){ return {to:'matt@greenpropertymgt.com (test)', subject:'Turn schedule', text:text}; },
+    apiEmailSchedule: function(id, text){ if (!String(text||'').trim()) throw new Error('The schedule is empty.'); return mail(id, 'sched'); },
     apiTurn: function(id){ return JSON.parse(JSON.stringify(db.turns.filter(function(x){return x.id===id;})[0]||null)); },
     apiWoDescription: function(id){ var t = db.turns.filter(function(x){return x.id===id;})[0]; var lines=[]; Object.keys((t.tech_prep||{}).checklist||{}).forEach(function(r){ var st=t.tech_prep.checklist[r]; Object.keys(st).forEach(function(i){ if(st[i].s==='fix') lines.push(r+': '+(st[i].note||'item '+i)+(st[i].charge?' (Charge Tenant)':'')+'.'); }); }); return {subject:'x', paste: lines.join(String.fromCharCode(10))||'No repairs found at the PMI.', wo: t.af_wo_number||''}; },
-    apiSendMoveOutEmail: function(id){ return mail(id, 'mo'); },
-    apiSendMoveOutAlert: function(id){ return mail(id, 'alert'); },
+    apiSendMoveOutEmail: function(id, mode){ if (mode!=='pending' && mode!=='applied') throw new Error('mode must be pending or applied'); return mail(id, mode); },
     apiSaveTurn: function(t){ t = JSON.parse(JSON.stringify(t)); t.updated_at = new Date().toISOString();
       if(!t.id){ t.id = 'turn-' + Math.random().toString(36).slice(2,8); db.turns.push(t); }
       else { db.turns = db.turns.map(function(x){ return x.id===t.id ? t : x; }); }
