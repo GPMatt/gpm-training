@@ -249,4 +249,7 @@ X1. Engine + describe tests pass (updated for the new recipients/emails); the lo
 - 2026-11-11 iPad landscape, rooms list + items side by side; all three forms tablet-designed (Matt).
 - 2026-11-11 Ship = one combined test pass (round 6 + this), then LIVE with Matt's OK (Matt).
 
+- 2026-11-11 Move-out email still sends if other open turns can't be read; the section then says why (General).
+- 2026-11-11 Server P2 done (worker B, 3d8b6e0): describe 23 + engine 17 pass; awaiting tester.
+
 ## Noticed (not done)
