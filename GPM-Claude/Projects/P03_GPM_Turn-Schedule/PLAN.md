@@ -272,3 +272,4 @@ Acceptance criteria:
 - B6 Tests: engine + describe tests pass, new engine tests for B3 (new turn gets both buffers, old turn unchanged, holidays/weekends skipped).
 Decision log:
 - 2026-11-11: Matt: buffers shown as grey steps and in the schedule email; new turns only. Furnace filter size = text only (goes in Tech Prep email + WO description), no Drive write; answered, nothing built.
+- B7 Move-out check: "Copy tenant charges for the WO" button copies a plain-text block of ONLY Charge-tenant items (Scope damages, Tech Prep Fix lines, move-out tags), headed by property/unit/WO; none tagged = toast, nothing copied. (Matt 2026-11-11)
