@@ -6,12 +6,13 @@
  */
 var DEFAULT_SETTINGS = {
   version: 1,
-  // Locked order (TURN_PLAN.md). Trash-out position is provisional (Dumpster Divers, open item).
+  // Locked order (TURN_PLAN.md). Trash-out stays in the catalog so old turns with a trash step still render +
+  // schedule, but it is no longer offered as a trade (SCOPE_HIDDEN_TRADES): Matt 2026-11-11, new turns get a
+  // "Buffer: trash-out if needed" day instead (Engine.layout buffers).
   catalog: [
     { key: 'trash', label: 'Trash-out', vendor: 'Dumpster Divers', color: '#7A6A58',
       sizes: [{ id: 'std', label: 'Trash-out', days: 1 }] },
-    // Pre-clean stays in the catalog so old turns with a preclean step still render + schedule, but it is no
-    // longer offered as a trade (SCOPE_HIDDEN_TRADES): Matt 2026-11-10, it is an other-vendor item on the Scope.
+    // Pre-clean is offered as a trade again (Matt 2026-11-11; it was an other-vendor item 2026-11-10 to 11-11).
     { key: 'preclean', label: 'Pre-clean (grease / smoke)', vendor: 'GR Cleaning Co / Up & Up', color: '#8E8A3A',
       sizes: [{ id: 'std', label: 'Pre-clean', days: 1 }] },
     { key: 'tub', label: 'Tub', vendor: '', color: '#3E73A8',
@@ -88,7 +89,8 @@ var DEFAULT_SETTINGS = {
 };
 
 // Catalog trades not offered on the Scope / Add-step / move-out "Add a trade" pickers (still shown when a turn already has them).
-var SCOPE_HIDDEN_TRADES = ['preclean'];
+// Matt 2026-11-11: trash-out off the scope (buffer day instead), pre-clean back on.
+var SCOPE_HIDDEN_TRADES = ['trash'];
 
 var CHECK_ROOMS = [
   // Items match Jason's "TURN checklist 2026" (Drive 1CQD_TPlhFzpN3wyr3NTS4-0Dk6gzmSpdhwQrSywkutU) room by room.
@@ -146,7 +148,7 @@ var FORMS = {
       ]},
       { title: 'Other vendors', help: 'Outside the 11 steps. Jason books these by hand.', fields: [
         { id: 'other_vendors', type: 'list', label: 'Item', columns: [
-          { id: 'type', type: 'select', label: 'Type', options: ['Pre-clean (grease / smoke)', 'HVAC', 'Water heater', 'Plumbing', 'Electrical', 'Glass', 'Roof', 'Other'] }, // pre-clean moved here from the trades 2026-11-10
+          { id: 'type', type: 'select', label: 'Type', options: ['HVAC', 'Water heater', 'Plumbing', 'Electrical', 'Glass', 'Roof', 'Other'] }, // Pre-clean back to the trades 2026-11-11; an old saved 'Pre-clean (grease / smoke)' still shows (list selects keep saved values)
           { id: 'note', type: 'text', label: 'What is needed' }] }
       ]},
       { title: 'Pests', fields: [
@@ -172,10 +174,11 @@ var FORMS = {
       { title: 'Walk', fields: [
         { id: 'done_by', type: 'select', label: 'Filled by', options: ['Riley', 'Spencer', 'Other tech'], half: true },
         { id: 'done_date', type: 'date', label: 'Date', half: true },
+        // full = own row on the iPad two-column layout; pair = Bedrooms + Bathrooms share a row on phones too (Matt 2026-11-11)
         { id: 'tech_hours', type: 'number', label: 'How many hours do you think you will need to get it done?', required: true, min: 0.5, step: 0.5,
-          help: 'Sets the length of the Tech step on the schedule.' },
-        { id: 'bedrooms', type: 'select', label: 'Bedrooms', options: ['0', '1', '2', '3', '4'], half: true },
-        { id: 'bathrooms', type: 'select', label: 'Bathrooms', options: ['1', '2'], half: true }
+          help: 'Sets the length of the Tech step on the schedule.', full: true },
+        { id: 'bedrooms', type: 'select', label: 'Bedrooms', options: ['0', '1', '2', '3', '4'], half: true, pair: true },
+        { id: 'bathrooms', type: 'select', label: 'Bathrooms', options: ['1', '2'], half: true, pair: true }
       ]},
       { title: 'Fix list', help: 'Jason\'s TURN checklist 2026, room by room. Tap each item: OK, Fix (repair needed / missing / replace), Not checked (blocked while occupied), or N/A (unit does not have it). Tap the pencil to add a note to any line. Tag a Fix line Charge tenant when the tenant pays. Not-checked items show on Spencer\'s move-out check.', fields: [
         { id: 'checklist', type: 'checklist' },
@@ -207,6 +210,7 @@ var FORMS = {
     sections: [
       { title: 'Plan check', help: 'Look over the plan.', fields: [
         { id: 'plan_summary', type: 'plansummary' },
+        { id: 'movein_inventory', type: 'select', label: 'Have we looked at the tenant\'s move-in inventory checklist?', options: ['Yes', 'No'], full: true }, // Matt 2026-11-11, not required
         { id: 'done_date', type: 'date', label: 'Date', half: true },
         { id: 'keys_received', type: 'checkbox', label: 'Keys received', half: true, required: true }
       ]},

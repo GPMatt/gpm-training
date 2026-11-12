@@ -10,6 +10,10 @@
  * - A size can carry cure days (no entry) before the next step. Tub resurface: none, it sits overnight (Matt 2026-11-11).
  * - Rent ready = the last day of work. It should be at least 1 business day before move-in.
  * - A step whose date Spencer set by hand is "pinned"; later unpinned steps flow after it.
+ * - Buffer days (Matt 2026-11-11), only on turns flagged scope.buffers (new turns): the first business day after
+ *   move-out is held ("Buffer: trash-out if needed"), the first trade starts the business day after it, and one
+ *   business day after the last step (after any cure) is held ("Buffer: tech punch list"); rent ready = that day.
+ *   Buffers are not steps: layout returns them in result.buffers and the app draws them (no vendor, no booking).
  */
 var Engine = (function () {
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -123,15 +127,16 @@ var Engine = (function () {
   }
 
   /**
-   * Lay out dates. Mutates and returns {steps, rentReady, firstBuildDay, warnings}.
+   * Lay out dates. Mutates and returns {steps, rentReady, firstBuildDay, warnings, buffers}.
    * steps are in Spencer's chosen order (default = locked order).
+   * opts.buffers = the turn has buffer days (buffers = [{key, label, date}], start then end; [] otherwise).
    */
   function layout(steps, moveOut, catalog, opts) {
-    var reflow = opts && opts.reflow;
+    var reflow = opts && opts.reflow, withBuf = !!(opts && opts.buffers);
     var warnings = [];
-    if (!moveOut) return { steps: steps, rentReady: null, firstBuildDay: null, warnings: ['Set a move-out date to build the schedule.'] };
+    if (!moveOut) return { steps: steps, rentReady: null, firstBuildDay: null, warnings: ['Set a move-out date to build the schedule.'], buffers: [] };
     var first = nextBiz(moveOut);
-    var cursor = first, prev = null, lastEnd = null;
+    var cursor = withBuf ? nextBiz(first) : first, prev = null, lastEnd = null;
     steps.forEach(function (s) {
       var earliest = cursor;
       var shares = prev && prev.key === 'appliances' && s.key === 'tech';
@@ -139,9 +144,10 @@ var Engine = (function () {
       var start;
       if (s.pinned && s.start) {
         start = rollBiz(s.start);
+        // A pin on move-out day or later (start buffer, first build day) does not warn; before move-out does (Matt 2026-11-11).
         // reflow (move-out rebuild): a pin that now clashes with the steps before it is released and moves.
         if (reflow && (start < first || (prev && start < earliest))) { s.pinned = false; start = earliest; }
-        else if (start < first) warnings.push(s.label + ' is set before the first build day (' + fmt(first) + '). The tenant may still be in the unit.');
+        else if (start < moveOut.slice(0, 10)) warnings.push(s.label + ' starts before the move-out date (' + fmt(moveOut) + '). The tenant may still be in the unit.');
         else if (start < earliest && prev) warnings.push(s.label + ' starts before ' + prev.label + ' is finished.');
       } else {
         start = earliest;
@@ -176,15 +182,20 @@ var Engine = (function () {
     var keys = steps.map(function (s) { return s.key; });
     var tub = steps.filter(function (s) { return s.key === 'tub'; })[0];
     if (tub && tub.size === 'replace' && keys.indexOf('flooring') < 0) warnings.push('Tub is being replaced but no flooring is scheduled. A tub replacement normally means new flooring.');
-    return { steps: steps, rentReady: lastEnd || first, firstBuildDay: first, warnings: warnings };
+    var buffers = [];
+    if (withBuf) { // end buffer = the day the next step would start (cursor already skips cure days)
+      buffers = [{ key: 'buffer_start', label: 'Buffer: trash-out if needed', date: first },
+        { key: 'buffer_end', label: 'Buffer: tech punch list', date: cursor }];
+    }
+    return { steps: steps, rentReady: withBuf ? cursor : lastEnd || first, firstBuildDay: first, warnings: warnings, buffers: buffers };
   }
 
   /** Fresh recommended schedule: clears pins and the order Spencer set, keeps status/vendor/notes. */
-  function recommended(steps, moveOut, catalog) {
+  function recommended(steps, moveOut, catalog, opts) {
     var order = catalog.map(function (c) { return c.key; });
     steps.sort(function (a, b) { return order.indexOf(a.key) - order.indexOf(b.key); });
     steps.forEach(function (s) { s.pinned = false; });
-    return layout(steps, moveOut, catalog);
+    return layout(steps, moveOut, catalog, opts);
   }
 
   /** Buffer between rent ready and move-in, in business days. ok = ready at least 1 business day before. */
@@ -199,9 +210,9 @@ var Engine = (function () {
    * changes: [{type:'add'|'resize'|'remove'|'tech'|'vendor', trade, size, note, hours}]; 'vendor' has no effect.
    * Add/resize set the trade's size (add of a trade already in the list = resize); remove drops the step;
    * tech adds hours to the Tech step (made if missing). Dates rebuild from the next business day after
-   * move-out; pins that clash with the new order are released (layout reflow).
+   * move-out; pins that clash with the new order are released (layout reflow). opts.buffers as in layout.
    */
-  function applyChanges(oldSteps, changes, catalog, moveOut) {
+  function applyChanges(oldSteps, changes, catalog, moveOut, opts) {
     var steps = JSON.parse(JSON.stringify(oldSteps || []));
     var byKey = catalogByKey(catalog), order = catalog.map(function (c) { return c.key; });
     function find(k) { for (var i = 0; i < steps.length; i++) if (steps[i].key === k) return i; return -1; }
@@ -236,7 +247,7 @@ var Engine = (function () {
         t.hoursEdited = true;
       }
     }
-    return layout(steps, moveOut, catalog, { reflow: true });
+    return layout(steps, moveOut, catalog, { reflow: true, buffers: !!(opts && opts.buffers) });
   }
 
   /**

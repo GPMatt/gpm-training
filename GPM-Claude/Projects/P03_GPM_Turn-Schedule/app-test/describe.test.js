@@ -525,4 +525,17 @@ t('(E2) schedule email: To Jason + Spencer, no cc, test switch respected', () =>
   assert.equal(tst.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com\n\nline 1');
 });
 
+t('(Run 2b B8) buffer days are all-day calendar events on flagged turns only', () => {
+  const base = { property_label: '90 Wealthy St SE', unit_label: '2', move_out_date: '2026-11-25', rent_ready_date: '2026-12-01',
+    steps: [{ key: 'tech', label: 'Tech', vendor: 'Riley', start: '2026-11-30', end: '2026-11-30', status: 'open' }] };
+  const old = plain(D.calendarEvents(Object.assign({ scope: {} }, base), ''));
+  assert.deepEqual(old.map(e => e.key), ['tech', '_rentready']);
+  const ev = plain(D.calendarEvents(Object.assign({ scope: { buffers: true } }, base), ''));
+  assert.deepEqual(ev.map(e => e.key), ['tech', '_buffer_start', '_buffer_end', '_rentready']);
+  const s = ev[1], e = ev[2];
+  assert.deepEqual([s.title, s.allDay, s.start, s.end], ['Buffer: trash-out if needed – 90 Wealthy St SE 2', true, '2026-11-27', '2026-11-28']); // skips Thanksgiving
+  assert.deepEqual([e.title, e.allDay, e.start, e.end], ['Buffer: tech punch list – 90 Wealthy St SE 2', true, '2026-12-01', '2026-12-02']);
+  assert.equal(plain(D.calendarEvents(Object.assign({ scope: { buffers: true } }, base, { move_out_date: '2026-11-20' }), ''))[1].start, '2026-11-23'); // Fri -> Mon
+});
+
 console.log(n + ' tests passed');

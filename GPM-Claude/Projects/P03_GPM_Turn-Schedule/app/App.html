@@ -53,6 +53,12 @@ tr.miss td{background:var(--red-soft)}
 .seg button.on.resched{background:var(--red);color:#fff}
 .prog-seg.resched{background:var(--red)}
 .ev.resched{background:var(--red)!important;color:#fff}
+/* ---------- Run 2b: buffer days (grey, not bookable) + Tech Prep full-width field ---------- */
+.g-bar.bufday{background:#E4E1DA!important;color:#5E5A52;border:1.5px dashed #A9A399;cursor:default}
+.g-bar.bufday:hover{transform:none;box-shadow:none}
+.g-lab.bufday{color:var(--muted);font-weight:500}
+.step.bufday{border-left-color:#A9A399;background:#F1EFEA;color:#5E5A52;display:flex;gap:10px;align-items:center;padding:8px 14px}
+.ev.bufday{background:#E4E1DA;color:#5E5A52;border:1.5px dashed #A9A399}
 /* ---------- V1 2026-11-11: vendor book, WO copy, checklist flow ---------- */
 .vb{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
 .vb-card{position:relative;display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:12px 12px 12px;background:#fff}
@@ -127,6 +133,7 @@ tr.miss td{background:var(--red-soft)}
   .ci:has(.ci-chg) .ci-pen{display:none}
   .form,.sec,.fields,.f,.room{min-width:0;max-width:100%}
   .fields .f{flex-basis:100%}
+  .fields .f.half.pair{flex:1 1 calc(50% - 6px)} /* Tech Prep: Bedrooms + Bathrooms on one row */
   .rp-chip{padding:9px 13px;font-size:14px}
   /* list tables become one card per row */
   .lt-cards,.lt-cards tbody,.lt-cards tr,.lt-cards td{display:block;width:100%!important}
@@ -163,6 +170,7 @@ tr.miss td{background:var(--red-soft)}
   .form{max-width:none}
   /* two columns of simple fields; trade rows, lists, the checklist, changes and damages keep the full width */
   .form .fields>label.f,.form .fields>div.f:has(>label.cb){flex:1 1 calc(50% - 6px);min-width:0}
+  .form .fields>label.f.full{flex-basis:100%} /* own row (Tech Prep hours, move-out inventory question) */
   /* tablet-sized tap targets */
   .form .f input,.form .f select,.form .f textarea,.form .list-t input,.form .list-t select,.form .dmg-in input,.form .trade-row select,.form .trade-row input,.form .ci .note input{min-height:44px;font-size:16px}
   .form .f label.cb{min-height:44px;font-size:15px}
@@ -207,7 +215,7 @@ tr.miss td{background:var(--red-soft)}
   function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
   function today() { return E.iso(new Date()); }
   function cat() { return S.settings.catalog; }
-  /** Trade offered on the pickers (Scope trades, Add step, move-out Add a trade)? Pre-clean is not (SCOPE_HIDDEN_TRADES). */
+  /** Trade offered on the pickers (Scope trades, Add step, move-out Add a trade)? Trash-out is not (SCOPE_HIDDEN_TRADES). */
   function offered(k) { return SCOPE_HIDDEN_TRADES.indexOf(k) < 0; }
   function catBy(k) { for (var i = 0; i < cat().length; i++) if (cat()[i].key === k) return cat()[i]; return null; }
   function color(k) { var c = catBy(k); return c ? c.color : '#888'; }
@@ -259,10 +267,10 @@ tr.miss td{background:var(--red-soft)}
     });
   }
 
-  /** Time dropdown, 6:00 AM to 9:00 PM in 10-minute steps. Keeps an off-grid saved value selectable. */
+  /** Time dropdown, 8:00 AM to 5:00 PM every half hour (Matt 2026-11-11). Keeps an off-grid saved value selectable. */
   function timeSelect(attrs, val) {
     var opts = [], has = false;
-    for (var m = 6 * 60; m <= 21 * 60; m += 10) {
+    for (var m = 8 * 60; m <= 17 * 60; m += 30) {
       var v = (m / 60 < 10 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60);
       if (v === val) has = true;
       opts.push('<option value="' + v + '"' + (v === val ? ' selected' : '') + '>' + E.fmtTime(v) + '</option>');
@@ -371,8 +379,12 @@ tr.miss td{background:var(--red-soft)}
 
   function techHours(t) { return t.tech_prep && Number(t.tech_prep.tech_hours) || 0; }
 
+  /** Buffer days only on turns flagged at first build (scope.buffers, Run 2b): older turns' dates never move. */
+  function layOpts(t) { return { buffers: !!(t.scope && t.scope.buffers) }; }
+
   function recompute(t) {
-    var r = E.layout(t.steps, t.move_out_date, cat());
+    var r = E.layout(t.steps, t.move_out_date, cat(), layOpts(t));
+    t._buffers = r.buffers;
     setMeasure(t);
     t._warnings = r.warnings;
     t.steps.forEach(function (s) {
@@ -652,7 +664,8 @@ tr.miss td{background:var(--red-soft)}
       h += '<div class="empty"><h2>No build steps</h2><p>The scope has no trades picked. Add one below or edit the Scope tab.</p></div>';
     } else {
       h += gantt(t);
-      h += '<div class="steps">' + t.steps.map(function (s, i) { return stepRow(t, s, i); }).join('') + '</div>';
+      var bufs = t._buffers || [];
+      h += '<div class="steps">' + bufs.slice(0, 1).map(bufRow).join('') + t.steps.map(function (s, i) { return stepRow(t, s, i); }).join('') + bufs.slice(1).map(bufRow).join('') + '</div>';
     }
     var have = {}; t.steps.forEach(function (s) { have[s.key] = 1; });
     var missing = cat().filter(function (c) { return !have[c.key] && offered(c.key); });
@@ -674,14 +687,21 @@ tr.miss td{background:var(--red-soft)}
     var idx = {}; days.forEach(function (d, i) { idx[d] = i; });
     var mi = t.move_in_date ? E.rollBiz(t.move_in_date) : null;
     var cols = '150px repeat(' + days.length + ', minmax(92px, 1fr))';
+    var bufs = t._buffers || [], off = bufs.length ? 1 : 0; // start buffer row on top, end buffer row at the bottom
     var h = '<div class="gantt-wrap"><div class="gantt" style="grid-template-columns:' + cols + '">';
     h += '<div class="g-h" style="text-align:left;padding-left:10px">Step</div>' + days.map(function (d) {
       var dt = E.parse(d);
       var cls = d === mi ? ' mi' : d === t.rent_ready_date ? ' rr' : '';
       return '<div class="g-h' + cls + '" title="' + (d === mi ? 'Move-in' : d === t.rent_ready_date ? 'Rent ready' : '') + '">' + 'SMTWTFS'.charAt(dt.getDay()) + '<br>' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div>';
     }).join('');
+    bufs.forEach(function (bf, k) {
+      var row = k === 0 ? 2 : t.steps.length + 3;
+      h += '<div class="g-lab bufday" style="grid-row:' + row + '">' + esc(bf.label) + '</div>';
+      days.forEach(function (d, i) { h += '<div class="g-cell' + (d === mi ? ' mi' : '') + '" style="grid-row:' + row + ';grid-column:' + (i + 2) + '"></div>'; });
+      if (idx[bf.date] != null) h += '<div class="g-bar bufday" style="grid-row:' + row + ';grid-column:' + (idx[bf.date] + 2) + '/' + (idx[bf.date] + 3) + '"><span class="g-v">' + esc(bf.label.replace(/^Buffer: /, '')) + '</span><span class="g-t">buffer day</span></div>';
+    });
     t.steps.forEach(function (s, r) {
-      var row = r + 2;
+      var row = r + 2 + off;
       h += '<div class="g-lab" style="grid-row:' + row + '">' + esc(s.label) + '</div>';
       days.forEach(function (d, i) { h += '<div class="g-cell' + (d === mi ? ' mi' : '') + '" style="grid-row:' + row + ';grid-column:' + (i + 2) + '"></div>'; });
       var a = idx[s.start], b = idx[s.end];
@@ -699,6 +719,9 @@ tr.miss td{background:var(--red-soft)}
       (t.steps.some(function (s) { return s.status === 'resched'; }) ? '<span><i class="resched"></i>⚠ Reschedule</span>' : '') + '<span>Click a bar for details</span></div>';
     return h + '</div>';
   }
+
+  /** Grey buffer day row: no vendor, no booking, not movable. */
+  function bufRow(b) { return '<div class="step bufday"><b>' + esc(b.label) + '</b><span class="when">' + E.fmt(b.date) + '</span></div>'; }
 
   function stepRow(t, s, i) {
     var c = catBy(s.key) || { sizes: [] };
@@ -736,6 +759,8 @@ tr.miss td{background:var(--red-soft)}
       lines.push((i + 1) + '. ' + s.label + (s.vendor ? ' (' + s.vendor + ')' : '') + ': ' + E.fmt(s.start) + (s.days > 1 ? ' to ' + E.fmt(s.end) : '') +
         (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']' + (s.measure ? ' · measure ' + E.fmt(s.measure) : ''));
     });
+    var bufs = t._buffers || [];
+    if (bufs.length) { lines.splice(4, 0, bufs[0].label + ': ' + E.fmt(bufs[0].date)); lines.push(bufs[1].label + ': ' + E.fmt(bufs[1].date)); }
     // Jason books Eastpointe by hand from this email: their order form answers go after the steps
     t.steps.forEach(function (s) {
       if (s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0) lines.push('', 'Eastpointe order (' + s.label + '):', eastpointeOrder(t, s));
@@ -885,6 +910,7 @@ tr.miss td{background:var(--red-soft)}
           add(d, { cls: s.status, text: lab + ' · ' + s.label + (k === 0 && s.time ? ' ' + E.fmtTime(s.time) : '') + (s.days > 1 ? ' (' + (k + 1) + '/' + s.days + ')' : ''), id: t.id, c: color(s.key) });
         });
       });
+      (t._buffers || []).forEach(function (bf) { add(bf.date, { cls: 'bufday', text: lab + ' · ' + bf.label, id: t.id }); });
       t.steps.forEach(function (s) { if (s.measure) add(E.rollBiz(s.measure), { cls: 'visit', text: lab + ' · Flooring measure', id: t.id, c: color('flooring') }); });
       if (tech && tech.end) add(tech.end, { cls: 'visit', text: lab + ' · Quality check (before clean)', id: t.id, c: '#1E4632' });
       if (t.rent_ready_date) add(t.rent_ready_date, { cls: 'mark', text: '★ ' + lab + ' rent ready', id: t.id });
@@ -1034,6 +1060,7 @@ tr.miss td{background:var(--red-soft)}
     else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">' + 'Save scope + update schedule' + '</button>';
     else {
       h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (submitted ? 'Save changes' : 'Submit') + '</button>';
+      if (key === 'moveout') h += '<button class="btn" data-act="copy-charges">⧉ Copy confirmed tenant charges</button>';
       if (key === 'techprep' && submitted) h += '<button class="btn primary" data-act="wo-desc">⧉ AppFolio WO description</button><button class="btn" data-act="resend-email">Resend email</button>';
       if (submitted) h += '<span class="muted">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
       if (key === 'techprep' && d.email_sent_at) h += '<span class="muted">Email sent ' + esc(new Date(d.email_sent_at).toLocaleString()) + '</span>';
@@ -1047,7 +1074,7 @@ tr.miss td{background:var(--red-soft)}
   function fieldHtml(f, d, t) {
     var v = d[f.id];
     // cls closes the class attribute and adds data-miss, so every wrapper below can glow when this field is missing
-    var cls = 'f' + (f.half ? ' half' : '') + (S.missing && S.missing[f.id] ? ' miss' : '') + '" data-miss="' + f.id;
+    var cls = 'f' + (f.half ? ' half' : '') + (f.full ? ' full' : '') + (f.pair ? ' pair' : '') + (S.missing && S.missing[f.id] ? ' miss' : '') + '" data-miss="' + f.id;
     var dp = 'data-fp="' + f.id + '" data-fid="ff-' + f.id + '"';
     switch (f.type) {
       case 'time':
@@ -1265,6 +1292,16 @@ tr.miss td{background:var(--red-soft)}
       add({ src: 'keys', ref: 'keys', desc: 'Missing keys / remotes' + (cnt ? ' (' + cnt + ')' : ''), room: 'Keys' });
     }
   }
+  /** B7/B9 (Matt 2026-11-11): CONFIRMED tenant charges only, as plain text for the AppFolio WO; '' when none.
+   *  Confirmed = marked Charge on the move-out check's Final tenant damages (PMI / Tech Prep / keys rows carried in
+   *  there + new move-out rows). Only tagged at the PMI, or Don't charge = left out. No prices / notes. */
+  function tenantChargesText(t, d) {
+    var lines = (d.damages || []).filter(function (x) { return x.charge === true && dkey(x.desc); })
+      .map(function (x) { return '- ' + x.desc + (x.room ? ' (' + x.room + ')' : ''); });
+    if (!lines.length) return '';
+    return ['Confirmed tenant charges: ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + (t.af_wo_number ? ' · WO ' + t.af_wo_number : '')]
+      .concat(lines, ['', 'Move-in inventory checklist reviewed: ' + (d.movein_inventory || '(not answered)')]).join('\n');
+  }
   function damageUndecided(x) { return x.charge == null && (x.src !== 'moveout' || dkey(x.desc)); }
   function damagesHtml(d) {
     var rows = (d.damages || []).map(function (x, ri) {
@@ -1376,7 +1413,7 @@ tr.miss td{background:var(--red-soft)}
   function impactOf(t, changes) {
     var done = (changes || []).filter(changeComplete);
     if (!done.length) return null;
-    var r = E.applyChanges(t.steps, done, cat(), t.move_out_date);
+    var r = E.applyChanges(t.steps, done, cat(), t.move_out_date, layOpts(t));
     var tpv = techProp(t.property_label);
     if (tpv) r.steps.forEach(function (s) { if (s.key === 'tech' && !s.vendorEdited && s.status === 'open') s.vendor = tpv.tech; });
     return { result: r, diff: E.diffSteps(t.steps, r.steps), rrBefore: t.rent_ready_date, rrAfter: r.rentReady, changes: done };
@@ -1661,6 +1698,7 @@ tr.miss td{background:var(--red-soft)}
       t.property_id = d.property.id; t.property_label = d.property.label;
       t.unit_id = d.unit ? d.unit.id : null; t.unit_label = d.unit ? d.unit.label : null;
       t.af_wo_number = d.af_wo || null; t.move_out_date = d.move_out_date || null; t.move_in_date = d.move_in_date || null;
+      if (!t.steps.length) t.scope.buffers = true; // schedule first built now: buffer days (Run 2b)
       t.steps = E.mergeScope(t.steps, t.scope, cat(), techHours(t));
       billTech(t);
     } else if (key === 'techprep') {
@@ -1721,6 +1759,7 @@ tr.miss td{background:var(--red-soft)}
       scope: clone(d), steps: [], stage: 'scheduling', archived: false
     };
     t.scope.submitted_at = new Date().toISOString();
+    t.scope.buffers = true; // new turn: start + end buffer days (Run 2b)
     t.steps = E.stepsFromScope(t.scope, cat(), 0);
     billTech(t);
     prepTurn(t);
@@ -1956,6 +1995,17 @@ tr.miss td{background:var(--red-soft)}
       if (S.formDirty) { toast('Save your changes first, so the description includes them.', true); return; }
       openWoDescription(t); return;
     }
+    if (a === 'copy-charges') {
+      var ctext = tenantChargesText(t, S.formKey === 'moveout:' + t.id && S.form ? S.form : t.move_out_check || {});
+      if (!ctext) { toast('No confirmed tenant charges on this turn (mark Charge under Final tenant damages)', true); return; }
+      copyText(ctext).then(function (ok) {
+        if (ok) { toast('Tenant charges copied. Paste them into the WO in AppFolio.'); return; }
+        $('#overlay').innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal wo-modal"><h3>Confirmed tenant charges</h3>' +
+          '<textarea id="wotext" rows="10">' + esc(ctext) + '</textarea><div class="row"><div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
+        $('#wotext').select(); toast('Copy blocked: the text is selected, copy it by hand.', true);
+      });
+      return;
+    }
     if (a === 'copy-wo') { copyText($('#wotext').value).then(function (ok) { if (ok) toast('Copied. Paste it into the WO description in AppFolio.'); else { $('#wotext').select(); toast('Copy blocked: the text is selected, copy it by hand.', true); } }); return; }
     if (a === 'resend-email') {
       if (S.formDirty) { toast('Save your changes first, then resend.', true); return; }
@@ -1992,7 +2042,7 @@ tr.miss td{background:var(--red-soft)}
       t.steps = o.steps; t.scope.trades = o.trades; queueSave(t); render(); flashRR(before, t); return;
     }
     pushUndo(t);
-    if (a === 'recommended') { E.recommended(t.steps, t.move_out_date, cat()); toast('Recommended schedule laid out'); }
+    if (a === 'recommended') { E.recommended(t.steps, t.move_out_date, cat(), layOpts(t)); toast('Recommended schedule laid out'); }
     else if (a === 'status') { t.steps[i].status = el.dataset.v; if (el.dataset.v === 'booked') t.steps[i].confirmedAt = new Date().toISOString(); }
     else if (a === 'unpin') t.steps[i].pinned = false;
     else if (a === 'up' && i > 0) { var tmp = t.steps[i - 1]; t.steps[i - 1] = t.steps[i]; t.steps[i] = tmp; }
