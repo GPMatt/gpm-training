@@ -144,3 +144,82 @@ gone), step 10 (one NOT applied email, no conflict review) and step 11 (no re-co
 12. **Clean up.** Archive both TEST turns HERE: they leave the board and the calendar.
 
 Tell me what arrived and anything that looked wrong. When it passes, I deploy it to the live URL (EMAIL_TEST_TO stays on).
+
+## Round 8 (run 2b): time slots, pre-clean back, buffer days, Tech Prep layout, move-in inventory, confirmed charges
+
+Code = commit 5925abe, on the TEST link at the top once it has been pushed and deployed there. Do the phone first,
+then the **iPad** lines on the iPad held sideways. Use TEST turns only ("TEST" in the WO # box) and archive them at
+the end.
+
+**Before the deploy (2 min)**
+- [ ] 1. Open one existing real turn with steps (look only). Screenshot its Schedule tab: rent ready and every step
+  date. You need it for step 9.
+
+**Time dropdowns (B1)**
+- [ ] 2. Open a TEST turn → Schedule → tap any step's **Time**. *See:* blank, then 8 AM, 8:30 AM ... 4:30 PM, 5 PM.
+  Nothing before 8 or after 5, and no odd times like 8:10. Scope tab → **PMI time**: the same list.
+- [ ] 3. An existing turn whose step had an odd time from before (e.g. 9:10): it still shows 9:10 selected, not blank.
+
+**Trades (B2)**
+- [ ] 4. Scope → Trades: **Pre-clean (grease / smoke)** is in the list; **Trash-out is not**. Scope → Other vendors →
+  + Add item → Type: no "Pre-clean" option. Schedule → "Not needed:" buttons: + Pre-clean is there, no + Trash-out.
+  Move-out → Scope matches = No → + Add a change → Add a trade: Pre-clean is there, Trash-out is not. (Remove the
+  change.)
+- [ ] 5. An old turn that already had a Trash-out step (if one exists): it still shows Trash-out on the schedule with
+  a date, and its Scope still shows Trash-out picked. An old Other-vendors row typed "Pre-clean (grease / smoke)" still
+  shows that.
+
+**Buffer days on a NEW turn (B3, B8)**
+- [ ] 6. **+ New turn**, a TEST property, WO # `TEST-8`, **Move-out Tue Nov 24 2026**, Move-in Thu Dec 10 2026.
+  Trades: Pre-clean, Tech Basic, Full paint, Clean, Carpet cleaning (the defaults plus Pre-clean). **Create turn**.
+  *See on Schedule:* a grey **Buffer: trash-out if needed** row on **Wed Nov 25**; Pre-clean **Fri Nov 27** (Thu Nov 26
+  is Thanksgiving and gets skipped); Tech Mon Nov 30, Paint Tue Dec 1, Clean Wed Dec 2, Carpet cleaning Thu Dec 3; a
+  grey **Buffer: tech punch list** row on **Fri Dec 4**; **Rent ready Fri Dec 4**. The two grey rows have no vendor
+  box, no Confirmed buttons and no time, and tapping the grey Gantt bars does nothing. Progress says "0 of 5 done"
+  (buffers are not counted).
+- [ ] 7. *Inbox:* `[TEST] Turn schedule: ...` lists "Buffer: trash-out if needed: Wed Nov 25" above step 1 and
+  "Buffer: tech punch list: Fri Dec 4" after the last step.
+- [ ] 8. **Calendar tab** (in the app): Nov 25 and Dec 4 show grey "... · Buffer: ..." chips for this turn. **Google
+  Calendar** (automation@): an all-day event "Buffer: trash-out if needed – <address>" on Nov 25 and one called
+  "Buffer: tech punch list – <address>" on Dec 4, next to the "Rent ready" event.
+- [ ] 9. Open the existing turn from step 1. *See:* NO grey buffer rows, and rent ready and every step date are exactly
+  as in your screenshot. Its Google Calendar events: no buffer events added.
+- [ ] 10. TEST-8 → Schedule: mark Tech **Confirmed**. Move-out tab → Scope matches = No → + Add a change → New tech
+  item, "TEST outlet", 10 hours. *See preview:* the steps after Tech move later and rent ready moves later; no buffer
+  rows in the list. **Apply to schedule**. *See:* both grey buffers are still there (trash-out still Wed Nov 25, punch
+  list = the new rent ready); a red banner says "1 step to reschedule" (Tech only); the change email lists steps,
+  not buffers; in Google Calendar the punch-list event has moved to the new rent ready day.
+
+**Step before move-out warning (B10)**
+- [ ] 11. TEST-8 → Schedule → Pre-clean → Day = **Mon Nov 23** (before move-out). *See:* a warning "Pre-clean starts
+  before the move-out date (Tue Nov 24). The tenant may still be in the unit." Set it to Tue Nov 24, then Wed Nov 25:
+  no warning either time. Tap **↺ Recommended schedule** to put it back.
+- [ ] 12. Scope tab of TEST-8 → clear **Move-out date** → **Save scope + update schedule**. *See:* "Still needed:
+  Move-out date" and nothing is saved (reload: Nov 24 is still there). **+ New turn** with no move-out date → Create:
+  blocked the same way.
+
+**Tech Prep layout (B4)**
+- [ ] 13. Phone: TEST-8 → Tech Prep → Walk. *See:* the hours question on its own full-width row, and **Bedrooms and
+  Bathrooms side by side** on the next row. No sideways scroll on any tab.
+- [ ] 14. **iPad** sideways, same screen: Filled by + Date on one row, hours on its own row, Bedrooms + Bathrooms on
+  one row. Turn the iPad upright: still no sideways scroll.
+
+**Move-out check (B5, B9)**
+- [ ] 15. TEST-8 → Move-out tab. *See:* near the top, "Have we looked at the tenant's move-in inventory checklist?"
+  with — / Yes / No. Leave it blank, fill in the rest (Keys received, Scope matches, decide every damage row) and
+  **Submit**: it submits. Then set it to **Yes**, Save changes and reload: Yes is still there.
+- [ ] 16. Use a TEST turn with a Scope damage tagged Charge tenant and a Tech Prep Fix line tagged Charge tenant (add
+  them on TEST-8 if needed, then reopen Move-out). Under Final tenant damages, with nothing marked yet, tap
+  **⧉ Copy confirmed tenant charges**. *See:* the message "No confirmed tenant charges on this turn ...", and nothing
+  is copied.
+- [ ] 17. Mark the Scope damage **Charge** and the Tech Prep line **Don't charge**, + Add damage "TEST broken blind"
+  **Charge**, + Add damage "TEST owner item" **Don't charge**. Tap the copy button and paste into Notes. *See:* the
+  first line is "Confirmed tenant charges: <address> <unit> · WO TEST-8", then one "- " line for the Scope damage
+  and one for "TEST broken blind" ONLY (no Don't-charge rows, no prices). The last line is "Move-in inventory
+  checklist reviewed: Yes".
+
+**Clean up**
+- [ ] 18. Archive TEST-8 (and any other TEST turn) HERE. *See:* it leaves the board, the app calendar and Google
+  Calendar, buffer events included.
+
+Tell me what looked wrong. Pass = deploy 5925abe to the live URL (EMAIL_TEST_TO stays on).
