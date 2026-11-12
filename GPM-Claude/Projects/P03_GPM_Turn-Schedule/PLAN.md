@@ -261,3 +261,14 @@ X1. Engine + describe tests pass (updated for the new recipients/emails); the lo
 - Move-out preview/Apply confirm still say "re-contact" (warnings only). README, Config.html vendor-book comment and
   the PLAN R4 notes still describe tech routing / the separate conflict email.
 - 2026-11-11: P3 tester: E1-E5, R1, T1, X1 all PASS (node vm + Playwright at 1180x820 / 820x1180 / 390x844); TEST_SCRIPT.md round 6 additions + round 7 merged. Minor: R1 state is per session (a re-opened finished room refolds after switching turns / refresh); iPad portrait (761-900px) keeps small desktop inputs; resubmit after undo-Apply sends a second NOT-applied email. Next: Matt's phone + iPad pass on TEST @15, then LIVE with his OK.
+
+## Run 2b (Matt's TEST pass feedback, 2026-11-11)
+Acceptance criteria:
+- B1 Time dropdowns: 8:00 AM to 5:00 PM every 30 min only (an off-grid saved time still shows as selected).
+- B2 Scope trades: Pre-clean is offered again (in its catalog spot); Trash-out is no longer offered. Old turns that already have a trash or pre-clean step keep it. "Pre-clean" leaves the Other vendors Type list (old saved values still show).
+- B3 Buffer days, NEW turns only (turn whose schedule is first built after this change; flag on the turn): 1 business day right after move-out ("Buffer: trash-out if needed") before the first trade, and 1 business day after the last step ("Buffer: tech punch list"); rent ready = the end buffer day. Shown as grey rows on the schedule + calendar, no vendor/booking, in the schedule email text. Existing turns' dates do not move.
+- B4 Tech Prep Walk: Bedrooms + Bathrooms on the same row (hours field on its own row), phone and iPad.
+- B5 Move-out check: required? no. New Yes/No question "Have we looked at the tenant's move-in inventory checklist?"
+- B6 Tests: engine + describe tests pass, new engine tests for B3 (new turn gets both buffers, old turn unchanged, holidays/weekends skipped).
+Decision log:
+- 2026-11-11: Matt: buffers shown as grey steps and in the schedule email; new turns only. Furnace filter size = text only (goes in Tech Prep email + WO description), no Drive write; answered, nothing built.
