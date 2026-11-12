@@ -238,4 +238,14 @@ t('B3 end buffer comes after cure days; applyChanges + recommended keep the buff
   assert.equal(r.rentReady, '2026-11-30');
 });
 
+t('B10 pinned step warns only when it starts before the move-out date', () => {
+  const warnAt = (day, buf) => { const st = chain3(); st[0].pinned = true; st[0].start = day;
+    return E.layout(st, '2026-11-20', cat, { buffers: buf }).warnings.filter(w => /before the move-out date/.test(w)); };
+  assert.equal(warnAt('2026-11-19', true).length, 1);   // Thu, before move-out Fri
+  assert.equal(warnAt('2026-11-19', true)[0], 'Tech starts before the move-out date (Fri Nov 20). The tenant may still be in the unit.');
+  assert.equal(warnAt('2026-11-20', false).length, 0);  // on move-out day: no warning
+  assert.equal(warnAt('2026-11-23', true).length, 0);   // on the start buffer day
+  assert.equal(warnAt('2026-11-23', false).length, 0);  // move-out + 1 business day
+});
+
 console.log(n + ' tests passed');

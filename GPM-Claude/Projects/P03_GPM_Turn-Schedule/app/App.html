@@ -1060,7 +1060,7 @@ tr.miss td{background:var(--red-soft)}
     else if (key === 'scope') h += '<button class="btn primary" data-act="form-submit">' + 'Save scope + update schedule' + '</button>';
     else {
       h += '<button class="btn" data-act="form-save">Save draft</button><button class="btn primary" data-act="form-submit">' + (submitted ? 'Save changes' : 'Submit') + '</button>';
-      if (key === 'moveout') h += '<button class="btn" data-act="copy-charges">⧉ Copy tenant charges for the WO</button>';
+      if (key === 'moveout') h += '<button class="btn" data-act="copy-charges">⧉ Copy confirmed tenant charges</button>';
       if (key === 'techprep' && submitted) h += '<button class="btn primary" data-act="wo-desc">⧉ AppFolio WO description</button><button class="btn" data-act="resend-email">Resend email</button>';
       if (submitted) h += '<span class="muted">Submitted ' + esc(new Date(submitted).toLocaleString()) + '</span>';
       if (key === 'techprep' && d.email_sent_at) h += '<span class="muted">Email sent ' + esc(new Date(d.email_sent_at).toLocaleString()) + '</span>';
@@ -1292,29 +1292,15 @@ tr.miss td{background:var(--red-soft)}
       add({ src: 'keys', ref: 'keys', desc: 'Missing keys / remotes' + (cnt ? ' (' + cnt + ')' : ''), room: 'Keys' });
     }
   }
-  /** B7 (Matt 2026-11-11): ONLY the tenant-charge items as plain text for the AppFolio WO; '' when none are tagged.
-   *  From: Scope damages tagged Charge tenant, Tech Prep Fix lines + missing keys tagged Charge tenant, and move-out
-   *  final damages marked Charge. A move-out "Don't charge" on an item carried in from the PMI drops it. No prices. */
+  /** B7/B9 (Matt 2026-11-11): CONFIRMED tenant charges only, as plain text for the AppFolio WO; '' when none.
+   *  Confirmed = marked Charge on the move-out check's Final tenant damages (PMI / Tech Prep / keys rows carried in
+   *  there + new move-out rows). Only tagged at the PMI, or Don't charge = left out. No prices / notes. */
   function tenantChargesText(t, d) {
-    var dec = {}, seen = {}, lines = [], tp = t.tech_prep;
-    (d.damages || []).forEach(function (x) { if (x.ref && x.charge != null) dec[x.ref] = x.charge; });
-    function add(ref, text) { seen[ref] = 1; if (dec[ref] !== false) lines.push('- ' + text); }
-    (t.scope.damages || []).forEach(function (x) {
-      if (x.item && x.charge) add('scope:' + dkey(x.item) + '|' + dkey(x.room), x.item + (x.room ? ' (' + x.room + ')' : ''));
-    });
-    if (tp && tp.checklist) roomInstances(tp).forEach(function (r) {
-      var st = tp.checklist[r.id] || {};
-      r.items.forEach(function (it, ii) {
-        var e = st[ii];
-        if (e && e.s === 'fix' && e.charge) add('tech:' + r.id + ':' + ii, r.label + ': ' + it + (e.note ? ' (' + e.note + ')' : ''));
-      });
-    });
-    if (tp && tp.keys_charge) add('keys', 'Missing keys / remotes');
-    (d.damages || []).forEach(function (x) {
-      if (x.charge === true && !seen[x.ref] && dkey(x.desc)) lines.push('- ' + x.desc + (x.room ? ' (' + x.room + ')' : ''));
-    });
+    var lines = (d.damages || []).filter(function (x) { return x.charge === true && dkey(x.desc); })
+      .map(function (x) { return '- ' + x.desc + (x.room ? ' (' + x.room + ')' : ''); });
     if (!lines.length) return '';
-    return ['Tenant charges: ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + (t.af_wo_number ? ' · WO ' + t.af_wo_number : '')].concat(lines).join('\n');
+    return ['Confirmed tenant charges: ' + shortProp(t) + (t.unit_label ? ' ' + t.unit_label : '') + (t.af_wo_number ? ' · WO ' + t.af_wo_number : '')]
+      .concat(lines, ['', 'Move-in inventory checklist reviewed: ' + (d.movein_inventory || '(not answered)')]).join('\n');
   }
   function damageUndecided(x) { return x.charge == null && (x.src !== 'moveout' || dkey(x.desc)); }
   function damagesHtml(d) {
@@ -2011,10 +1997,10 @@ tr.miss td{background:var(--red-soft)}
     }
     if (a === 'copy-charges') {
       var ctext = tenantChargesText(t, S.formKey === 'moveout:' + t.id && S.form ? S.form : t.move_out_check || {});
-      if (!ctext) { toast('No tenant charges tagged on this turn', true); return; }
+      if (!ctext) { toast('No confirmed tenant charges on this turn (mark Charge under Final tenant damages)', true); return; }
       copyText(ctext).then(function (ok) {
         if (ok) { toast('Tenant charges copied. Paste them into the WO in AppFolio.'); return; }
-        $('#overlay').innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal wo-modal"><h3>Tenant charges for the WO</h3>' +
+        $('#overlay').innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal wo-modal"><h3>Confirmed tenant charges</h3>' +
           '<textarea id="wotext" rows="10">' + esc(ctext) + '</textarea><div class="row"><div class="spacer"></div><button class="btn ghost" data-act="close-modal">Close</button></div></div></div>';
         $('#wotext').select(); toast('Copy blocked: the text is selected, copy it by hand.', true);
       });

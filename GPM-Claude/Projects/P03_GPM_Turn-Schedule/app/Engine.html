@@ -144,9 +144,10 @@ var Engine = (function () {
       var start;
       if (s.pinned && s.start) {
         start = rollBiz(s.start);
+        // A pin on move-out day or later (start buffer, first build day) does not warn; before move-out does (Matt 2026-11-11).
         // reflow (move-out rebuild): a pin that now clashes with the steps before it is released and moves.
         if (reflow && (start < first || (prev && start < earliest))) { s.pinned = false; start = earliest; }
-        else if (start < first) warnings.push(s.label + ' is set before the first build day (' + fmt(first) + '). The tenant may still be in the unit.');
+        else if (start < moveOut.slice(0, 10)) warnings.push(s.label + ' starts before the move-out date (' + fmt(moveOut) + '). The tenant may still be in the unit.');
         else if (start < earliest && prev) warnings.push(s.label + ' starts before ' + prev.label + ' is finished.');
       } else {
         start = earliest;

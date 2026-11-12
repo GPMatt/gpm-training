@@ -355,7 +355,7 @@ function addDaysIso_(s, n) { return isoUtc_(new Date(parseUtc_(s).getTime() + n 
 /**
  * One event per step with a start date + one Rent ready event. All-day events: start..end inclusive,
  * endExclusive = end + 1 day. A one-day step with a start time is timed: time .. time + hours (8 if unset, max 12).
- * key = step key ('#2' suffix on duplicates), '_rentready' for rent ready.
+ * key = step key ('#2' suffix on duplicates), '_rentready' for rent ready, '_buffer_start' / '_buffer_end' (flagged turns).
  */
 function calendarEvents(turn, appUrl) {
   var place = placeOf_(turn), out = [], used = {};
@@ -389,6 +389,15 @@ function calendarEvents(turn, appUrl) {
     out.push({ key: '_measure' + i, title: 'Flooring measure · ' + (hasVal_(s.vendor) ? String(s.vendor).trim() : 'Eastpointe') + ' · ' + place,
       description: info('Install ' + fmtDay_(s.start)), allDay: true, start: s.measure, end: addDaysIso_(s.measure, 1) });
   });
+  // Run 2b buffer days, flagged turns only (scope.buffers). Start = next business day after move-out; end = rent ready
+  // (Engine.layout makes rent ready the end buffer day on flagged turns). Same keys = same create/update/cleanup path.
+  if (turn.scope && turn.scope.buffers && hasVal_(turn.move_out_date)) {
+    var b1 = addDaysIso_(String(turn.move_out_date).slice(0, 10), 1);
+    while (!isBizServer_(b1)) b1 = addDaysIso_(b1, 1);
+    out.push({ key: '_buffer_start', title: 'Buffer: trash-out if needed – ' + place, description: info('Buffer day, no vendor booked'), allDay: true, start: b1, end: addDaysIso_(b1, 1) });
+    if (hasVal_(turn.rent_ready_date)) out.push({ key: '_buffer_end', title: 'Buffer: tech punch list – ' + place, description: info('Buffer day, no vendor booked'),
+      allDay: true, start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
+  }
   if (hasVal_(turn.rent_ready_date)) {
     out.push({ key: '_rentready', title: 'Rent ready · ' + place, description: info('', true), allDay: true,
       start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
