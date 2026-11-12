@@ -48,10 +48,14 @@ const mock = `<script>
       keys_charge:true, keys_entry:1, keys_mailbox:0, remotes_garage:0,
       checklist:{basement:{2:{s:'nc', note:'Washer area locked'}}, bed1:{3:{s:'nc', note:'Blocked by boxes'}}, kitchen:{8:{s:'fix', note:'Door handle snapped', charge:true}}}};
     c.scope.damages = [{item:'Hole in hallway wall', room:'Hallway', charge:true}, {item:'Carpet stain', room:'Bedroom'}];
-    // an older turn that still has a Pre-clean step (pre-clean is no longer offered as a trade)
+    // an older turn (no buffer flag) that still has a Trash-out step (trash-out is no longer offered as a trade, Run 2b)
     var p = turn('turn-preclean', '44444444-4444-4444-4444-444444444444', '90 Wealthy St SE', null, null,
-      'Cookie cutter (Spencer alone)', day(16), day(35), {preclean:{size:'std'}, tech:{size:'basic'}, paint:{size:'full'}, clean:{size:'std'}});
-    return [a, b, w, c, p];
+      'Cookie cutter (Spencer alone)', day(16), day(35), {trash:{size:'std'}, preclean:{size:'std'}, tech:{size:'basic'}, paint:{size:'full'}, clean:{size:'std'}});
+    // Run 2b: a new-style turn with buffer days (scope.buffers) and a pre-clean step
+    var nb = turn('turn-buffers', '44444444-4444-4444-4444-444444444444', '90 Wealthy St SE', null, null,
+      'Cookie cutter (Spencer alone)', day(20), day(40), {preclean:{size:'std'}, tech:{size:'basic'}, paint:{size:'full'}, clean:{size:'std'}});
+    nb.scope.buffers = true; E.layout(nb.steps, nb.move_out_date, cat, {buffers:true});
+    return [a, b, w, c, p, nb];
   }
   function mail(id, kind){
     if (localStorage.getItem('mockEmailFail')) throw new Error('Mail service unavailable (preview stub)');

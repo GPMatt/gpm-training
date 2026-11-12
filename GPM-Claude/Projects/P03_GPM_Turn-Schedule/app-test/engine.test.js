@@ -193,4 +193,49 @@ t("progress does not count 'resched' as done or confirmed", () => {
   assert.deepEqual([p.done, p.booked, p.total, p.pct], [1, 1, 4, 38]);
 });
 
+// ---------- Run 2b B3: buffer days (new turns only, flag scope.buffers) ----------
+function chain3() { return E.stepsFromScope(scope({ tech: { size: 'basic' }, paint: { size: 'full' }, clean: { size: 'std' } }), cat, 0); }
+
+t('B3 unflagged turn: layout identical to before, no buffers', () => {
+  const a = E.layout(chain3(), '2026-11-20', cat), b = E.layout(chain3(), '2026-11-20', cat, { buffers: false });
+  assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
+  assert.deepEqual(a.buffers, []);
+  assert.deepEqual(a.steps.map(s => s.start), ['2026-11-23', '2026-11-24', '2026-11-25']);
+  assert.equal(a.rentReady, '2026-11-25');
+});
+
+t('B3 flagged turn: start + end buffer, rent ready = end buffer (skips Thanksgiving)', () => {
+  const r = E.layout(chain3(), '2026-11-20', cat, { buffers: true });   // move-out Fri
+  assert.deepEqual(r.buffers.map(x => [x.key, x.date, x.label]), [
+    ['buffer_start', '2026-11-23', 'Buffer: trash-out if needed'],
+    ['buffer_end', '2026-11-30', 'Buffer: tech punch list']]);
+  assert.deepEqual(r.steps.map(s => s.start), ['2026-11-24', '2026-11-25', '2026-11-27']); // clean skips Thu 11-26
+  assert.equal(r.rentReady, '2026-11-30');
+  assert.equal(r.firstBuildDay, '2026-11-23');
+  assert.deepEqual(r.warnings, []);
+});
+
+t('B3 buffer skips holiday + weekend (move-out Wed 2026-11-25)', () => {
+  const r = E.layout(E.stepsFromScope(scope({ tech: { size: 'basic' } }), cat, 0), '2026-11-25', cat, { buffers: true });
+  assert.equal(r.buffers[0].date, '2026-11-27');   // Thanksgiving 11-26 skipped
+  assert.equal(r.steps[0].start, '2026-11-30');    // weekend skipped
+  assert.equal(r.buffers[1].date, '2026-12-01');
+  assert.equal(r.rentReady, '2026-12-01');
+});
+
+t('B3 end buffer comes after cure days; applyChanges + recommended keep the buffers', () => {
+  const st = chain3(); st[2].cure = 1;
+  let r = E.layout(st, '2026-11-20', cat, { buffers: true });
+  assert.equal(r.buffers[1].date, '2026-12-01');   // clean 11-27, cure Mon 11-30, buffer Tue 12-01
+  r = E.applyChanges(chain3(), [{ type: 'add', trade: 'drywall', size: 'small' }], cat, '2026-11-20', { buffers: true });
+  assert.equal(r.buffers[0].date, '2026-11-23');
+  assert.equal(r.steps[0].key, 'drywall');
+  assert.equal(r.steps[0].start, '2026-11-24');
+  assert.equal(r.rentReady, r.buffers[1].date);
+  assert.equal(r.buffers[1].date, E.nextBiz(r.steps[r.steps.length - 1].end));
+  assert.deepEqual(E.applyChanges(chain3(), [], cat, '2026-11-20').buffers, []);
+  r = E.recommended(chain3(), '2026-11-20', cat, { buffers: true });
+  assert.equal(r.rentReady, '2026-11-30');
+});
+
 console.log(n + ' tests passed');
