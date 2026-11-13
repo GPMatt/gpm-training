@@ -657,7 +657,7 @@ tr.miss td{background:var(--red-soft)}
       (sc.project ? '<span>Project estimate (Jason): <span class="seg">' + ['open', 'done'].map(function (s) {
         return '<button class="' + ((sc.project_status || 'open') === s ? 'on ' + (s === 'done' ? 'done' : 'open') : '') + '" data-act="project-status" data-v="' + s + '">' + (s === 'done' ? 'Done' : 'Open') + '</button>';
       }).join('') + '</span></span>' : '') +
-      '<span>Move-out walk: <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span>' +
+      '<span>Move-out walk: <b>' + (t.move_out_date ? E.fmt(E.nextBiz(t.move_out_date)) : '—') + '</b></span>' + // walk = next business day after move-out (Matt 2026-11-12)
       '</div></div>';
 
     if (!t.steps.length) {
@@ -902,7 +902,7 @@ tr.miss td{background:var(--red-soft)}
     turns.forEach(function (t) {
       var lab = calLabel(t);
       if (t.scope.pmi_date) add(E.rollBiz(t.scope.pmi_date), { cls: 'visit', text: lab + ' · PMI' + (t.scope.pmi_time ? ' ' + E.fmtTime(t.scope.pmi_time) : ''), id: t.id, c: '#1E4632' });
-      if (t.move_out_date) add(E.rollBiz(t.move_out_date), { cls: 'visit', text: lab + ' · Move-out walk', id: t.id, c: '#1E4632' });
+      if (t.move_out_date) add(E.nextBiz(t.move_out_date), { cls: 'visit', text: lab + ' · Move-out walk', id: t.id, c: '#1E4632' });
       var tech = t.steps.filter(function (s) { return s.key === 'tech'; })[0];
       t.steps.forEach(function (s) {
         if (!s.start) return;

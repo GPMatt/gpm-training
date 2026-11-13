@@ -73,6 +73,7 @@ source of scope, and vendors are booked ~30 days out, so dates are locked before
 - Grease/smoke units get a pre-clean on Day 1 (before step 3); step 9 cleans again.
 - Only Appliances + Tech may share a day. Skipped steps pull later steps forward.
 - First build step = next business day after move-out. Business days exclude weekends + GPM office holidays.
+- Move-out walk = next business day after move-out (same day as the first build step; Matt 2026-11-12).
 - Buffer of 1+ business day before move-in.
 
 ## Flow
