@@ -23,6 +23,10 @@ var LOG_SHEET = 'Log';
 var HEADERS = ['Submitted At', 'Work Date', 'Tech', 'WO #', 'Start', 'End',
                'Hours', 'Work Done', 'Submission ID'];
 var TZ = 'America/Detroit';
+// ScriptApp.getService().getUrl() returns a dead (404) URL when called from a
+// time trigger, so the reminder link is pinned to the @1 deployment instead.
+var WEB_APP_URL = 'https://script.google.com/a/greenpropertymgt.com/macros/s/AKfycbwA9zyvTEk4K0hjqVvlHPQS5D65hRqOOeakjibvf7bqXF7ZJdFMLYrQWdJU9kz-YKmyLQ/exec';
+function webAppUrl_() { return prop_('WEB_APP_URL', WEB_APP_URL); }
 
 function prop_(key, fallback) {
   var v = PropertiesService.getScriptProperties().getProperty(key);
@@ -64,7 +68,7 @@ function setup() {
   ScriptApp.newTrigger('checkMissedDay').timeBased().everyDays(1).atHour(8).nearMinute(0).inTimezone(TZ).create();
 
   Logger.log('Sheet: ' + ss.getUrl());
-  Logger.log('Web app: ' + (ScriptApp.getService().getUrl() || '(deploy first)'));
+  Logger.log('Web app: ' + webAppUrl_());
 }
 
 // ---------- Web app ----------
@@ -175,7 +179,7 @@ function sendDailyReminder() {
   if (!isWeekday_(new Date())) return;
   var to = prop_('TECH_EMAIL');
   if (!to) throw new Error('Set the TECH_EMAIL Script Property.');
-  var url = ScriptApp.getService().getUrl();
+  var url = webAppUrl_();
   var name = techName_();
   MailApp.sendEmail({
     to: to,
@@ -227,5 +231,5 @@ function checkMissedDay() {
 function testReminderNow() { // emails the tech the link right now, ignores weekday check
   var to = prop_('TECH_EMAIL');
   MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '[TEST] reminder that would go to ' + to,
-    'Link: ' + ScriptApp.getService().getUrl());
+    'Link: ' + webAppUrl_());
 }
