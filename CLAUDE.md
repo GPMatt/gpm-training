@@ -8,40 +8,14 @@ Keep it updated in this file whenever an item is added, finished, or removed,
 and commit the change. Numbers are stable: never renumber; gaps are removed items. List order is
 priority order (set by Matt), not numeric order.
 
-1. New client onboarding (P15)
-3. Inventory audit
-2. Dashboard (GPM Exec Dashboard)
-5. CC Billing (P12, gpm-cc-billing). Open:
-   - Confirmation email sent 2026-10-14. 7 of 14 confirmed; still waiting on
-     Laura, Alaina, John, Riley, Laura C, Joe, Isaac (asked Laura to nudge).
-     Follow-ups: move $153 gas + $191.50 towing to Laura's folder (per
-     Spencer), Jody's flagged wrong/duplicate receipts, Mike's wallet
-     receipts, check Blake's Amazon credits for Victory.
-   - Packages 1-4 + new matcher LIVE 2026-11-09 (tag matcher-on-live).
-     Re-run shows 0 Needs a look. Thu 2026-11-12: Invoice & Send (popup shows
-     per-owner totals), then check Alaina's packet arrives as zips with no
-     "too large to attach"; if so, drop this line. Ask Alaina to confirm she
-     got part 5 (Eaglebrook) of Aug 15 - Sep 14. Rule: always Invoice & Send
-     before parsing the next statement. Next: Billing Console (claude-access
-     Part 2) after the cycle.
-   - Next run (planned 2026-11-16, gpm-cc-billing PLAN.md, waiting on
-     Matt's go after this cycle bills): auto clean-up of settled rows to a
-     Billed Archive tab, Archive Row(s) Now menu, owner-email route
-     (PropertyMap G/H). Runbook update dropped for now.
-   - Duplicate "Laura-C" and "Laura C" cardholder folders in Drive
-     "CC Receipts — By Cardholder": investigate read-only, change nothing in
-     gpm-cc-billing without Matt's sign-off.
-18. GPM auto responder
-4. Rentvine
-15. Reconcile bank accounts
-16. ACE price tracking
-17. Create a turn schedule
-8. Spencer pre-screen bug: ON HOLD, do not change anything
-9. Eaglebrook bird's-eye: relabel building 6025 as A-B-C-D (for Jason)
-12. Rotate the reception Jotform password
-14. RingCentral + Claude webinar: watch the recording and answer Alaina
-19. Hire a tech
+1. GPM Expansion
+2. CRM or autoresponder
+3. Turn Schedule
+4. Onboarding Trigger Setup
+5. Reconcilliation of bank accounts
+6. Compile ACE POs
+7. Meta Ad Campaign
 
-Removed (done): 10 Van Audit Supabase grant, 11 GitHub Pages builds,
-13 missing receipts for invoice 231254,
-6 Cunningham (P22), 7 Barn registration (P21).
+List reset by Matt 2026-11-16: all earlier items removed and numbering
+restarted at 1. Numbers stay stable from here on.
+
