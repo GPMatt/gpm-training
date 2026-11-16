@@ -24,6 +24,10 @@ priority order (set by Matt), not numeric order.
      got part 5 (Eaglebrook) of Aug 15 - Sep 14. Rule: always Invoice & Send
      before parsing the next statement. Next: Billing Console (claude-access
      Part 2) after the cycle.
+   - Next run (planned 2026-11-16, gpm-cc-billing PLAN.md, waiting on
+     Matt's go after this cycle bills): auto clean-up of settled rows to a
+     Billed Archive tab, Archive Row(s) Now menu, owner-email route
+     (PropertyMap G/H). Runbook update dropped for now.
    - Duplicate "Laura-C" and "Laura C" cardholder folders in Drive
      "CC Receipts — By Cardholder": investigate read-only, change nothing in
      gpm-cc-billing without Matt's sign-off.
