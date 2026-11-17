@@ -42,7 +42,7 @@ function importAppFolioReservations() {
     row['Staff Notes'] = 'Booked before the web app (AppFolio calendar), actual time ' + e[3] +
       (e[3] === 'All day' ? '' : '-' + e[4]) + '. ' + e[5];
     var values = HEADERS.map(function (h) { return row[h] === undefined ? '' : row[h]; });
-    var r = sh.getLastRow() + 1;
+    var r = lastBookingRow_(sh) + 1;
     sh.getRange(r, COL['Event Date']).setNumberFormat('@');
     sh.getRange(r, 1, 1, HEADERS.length).setValues([values]);
     sh.getRange(r, COL['AppFolio Charges Posted?']).insertCheckboxes();

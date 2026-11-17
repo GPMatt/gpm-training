@@ -75,7 +75,8 @@ function setup() {
   b.getRange(2, COL['Event Date'], b.getMaxRows() - 1, 1).setNumberFormat('@');
   b.getRange(2, COL['Status'], b.getMaxRows() - 1, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(['Confirmed', 'Cancelled'], true).build());
-  b.getRange(2, COL['AppFolio Charges Posted?'], b.getMaxRows() - 1, 1).insertCheckboxes();
+  // Checkboxes are added per booking row, never pre-filled down the sheet: an unticked
+  // checkbox counts as data and pushes getLastRow() past ~1000 empty rows.
   b.getRange(2, COL['Deposit Status'], b.getMaxRows() - 1, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(
       ['Charged', 'Returned', 'Partially kept', 'Kept'], true).build());
@@ -248,7 +249,7 @@ function submitBooking(p) {
     row['AppFolio Charges Posted?'] = false;
     row['Deposit Status'] = '';
     var values = HEADERS.map(function (h) { return row[h] === undefined ? '' : row[h]; });
-    var r = sh.getLastRow() + 1;
+    var r = lastBookingRow_(sh) + 1;
     sh.getRange(r, COL['Event Date']).setNumberFormat('@');
     sh.getRange(r, 1, 1, HEADERS.length).setValues([values]);
     sh.getRange(r, COL['AppFolio Charges Posted?']).insertCheckboxes();
@@ -453,6 +454,37 @@ function prettyDate_(iso) {
   var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
                 'September', 'October', 'November', 'December'];
   return days[d.getUTCDay()] + ', ' + months[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear();
+}
+
+/** Last row with a Booking ID (column A). Ignores blank rows that only hold checkboxes. */
+function lastBookingRow_(sh) {
+  var n = sh.getLastRow();
+  if (n < 2) return 1;
+  var ids = sh.getRange(2, 1, n - 1, 1).getDisplayValues();
+  for (var i = ids.length - 1; i >= 0; i--) if (ids[i][0] !== '') return i + 2;
+  return 1;
+}
+
+/**
+ * One-time cleanup (2026-11-17): bookings landed at row ~1009 because setup pre-filled
+ * checkboxes to row 1000. Deletes every blank row (no Booking ID) between the header
+ * and the last booking, so bookings sit right under the header. Booking rows are untouched.
+ */
+function tidyBookings() {
+  var sh = SpreadsheetApp.getActive().getSheetByName(SHEET_BOOKINGS);
+  var last = lastBookingRow_(sh);
+  if (last < 2) { Logger.log('No bookings.'); return; }
+  var ids = sh.getRange(2, 1, last - 1, 1).getDisplayValues();
+  var deleted = 0;
+  for (var i = ids.length - 1; i >= 0; ) {
+    if (ids[i][0] !== '') { i--; continue; }
+    var end = i;
+    while (i >= 0 && ids[i][0] === '') i--;
+    var count = end - i;
+    sh.deleteRows(i + 3, count);
+    deleted += count;
+  }
+  Logger.log('Deleted ' + deleted + ' blank rows. Bookings now in rows 2-' + lastBookingRow_(sh) + '.');
 }
 
 /** One-time: give staff edit access to the bookings Sheet (owned by automation@). */
