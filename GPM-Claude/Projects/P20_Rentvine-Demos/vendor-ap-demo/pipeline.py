@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 import requests
 
 BASE_URL = "https://demopm33.rentvine.com/api/manager"
-AUTH = ("e8b39bfd118949448dbfb0e8a63f6924", "50548bff12d54703b7b41fdc34373ef8")
+AUTH = (os.environ["RV_KEY"], os.environ["RV_SECRET"])  # from ../.env: set -a; . ../.env
 HEADERS = {"Accept": "application/json", "Content-Type": "application/json"}
 
 HERE = os.path.dirname(os.path.abspath(__file__))

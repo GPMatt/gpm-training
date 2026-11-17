@@ -18,14 +18,14 @@ here touches GPM's real AppFolio data or production systems.
 ```
 Base URL : https://demopm33.rentvine.com/api/manager
 Auth     : HTTP Basic — username = access key, password = secret
-Access Key : e8b39bfd118949448dbfb0e8a63f6924
-Secret      : 50548bff12d54703b7b41fdc34373ef8
+Access Key : $RV_KEY     (in .env, never commit)
+Secret      : $RV_SECRET  (in .env, never commit)
 Headers  : Accept: application/json  (and Content-Type: application/json for POST)
 ```
 
 Quick test:
 ```bash
-curl -u "e8b39bfd118949448dbfb0e8a63f6924:50548bff12d54703b7b41fdc34373ef8" \
+curl -u "$RV_KEY:$RV_SECRET" \
   -H "Accept: application/json" \
   "https://demopm33.rentvine.com/api/manager/properties"
 ```
