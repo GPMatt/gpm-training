@@ -4,7 +4,7 @@ Apps Script web app, clasp-linked (owner automation@). Data in the Executive Das
 
 - Script: https://script.google.com/d/10S_Dzwrz4wg-8LLSLzS7Q1wUs7APfay1k6D-eSuGyyX_l8HWQ8o2_hm4/edit
 - Web app (domain only): https://script.google.com/a/macros/greenpropertymgt.com/s/AKfycbxSZWNz1j-XJGdB8AIuU9dopXVzlDAKZQKDZkXdVGO0Cu6tK73o3zL5hrmlplaXS0KZWA/exec
-- Tech calendar (read only, for the techs): same URL + `?view=tech` (Tech.html, data from apiTechBoot). On TEST since @19.
+- Tech calendar (read only, for the techs): same URL + `?view=tech` (Tech.html, data from apiTechBoot). On TEST since @19; month view Mon–Fri (iPad) @20.
 - Deploy: `clasp push -f && clasp deploy -i AKfycbxSZWNz1j-XJGdB8AIuU9dopXVzlDAKZQKDZkXdVGO0Cu6tK73o3zL5hrmlplaXS0KZWA -d "..."`
   (`clasp push` alone does NOT update the /exec URL). Careful: `clasp create` overwrites appsscript.json.
 

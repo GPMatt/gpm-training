@@ -300,3 +300,5 @@ Decision log:
   week view (phone = stacked days), tech chips from Settings + turn data (no hard-coded names; Laura C shows up when named on a
   Tech step). Events: Tech work days (dashed = not confirmed), PMI walk only when a tech walks, punch-list buffer day = Tech
   vendor. Refresh on open + every 2 min. Preview: node app-test/build-tech-preview.js <out.html>. TEST deploy @19. LIVE still @18.
+- 2026-11-18 Matt: tech calendar built for iPad = full month, Monday-Friday only (no weekends). Phones (<640px) get a list of
+  the month's days that have jobs. Tap targets 44px. TEST deploy @20. LIVE still @18.
