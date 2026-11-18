@@ -6,7 +6,6 @@
 *{box-sizing:border-box}
 body{margin:0;background:#f3f3f1;color:var(--ink);font:12px/1.35 -apple-system,"Helvetica Neue",Arial,sans-serif}
 .sheet{max-width:8.5in;margin:24px auto;background:#fff;padding:.5in;box-shadow:0 1px 6px rgba(0,0,0,.12)}
-.draft{float:right;font-size:10px;letter-spacing:.08em;color:#a33;border:1px solid #a33;padding:2px 6px;border-radius:3px}
 h1{font-size:20px;margin:0 0 2px}
 .sub{color:var(--muted);margin:0 0 14px}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px}
@@ -39,12 +38,11 @@ h2{font-size:14px;margin:0 0 6px}
 .foot{margin-top:10px;color:var(--muted);font-size:10px}
 .print{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 16px;font:600 13px sans-serif;cursor:pointer}
 @media (max-width:640px){.sheet{margin:0;padding:16px}.fields,.sig{grid-template-columns:1fr}.note{display:none}}
-@media print{body{background:#fff}.sheet{margin:0;padding:0;box-shadow:none;max-width:none}.print,.draft{display:none}@page{size:letter;margin:.45in}}
+@media print{body{background:#fff}.sheet{margin:0;padding:0;box-shadow:none;max-width:none}.print{display:none}@page{size:letter;margin:.45in}}
 </style></head>
 <body>
 <button class="print" onclick="window.print()">Print</button>
 <div class="sheet">
-<span class="draft">DRAFT</span>
 <h1>Van Inventory Sign-Off</h1>
 <p class="sub">Green Property Management · Maintenance · {{COUNT}} parts across {{BINS}} bins</p>
 
