@@ -289,3 +289,7 @@ Decision log:
 - 2026-11-18 later: mock v2 deleted. KEEP (when built): "Vendor slots: N confirmed · N unconfirmed" chips; drop the % (caption
   "X of Y done", bar keeps stripes). Everything else from the mocks is on hold: Matt still working out the card layout.
   Nothing built; LIVE still @18.
+- 2026-11-18 Matt: card redesign dropped, current card kept as is. NEW: tech calendar (design only, awaiting sign-off).
+  Own small web app (not Google Calendar). Shows tech work days, walks (PMI / move-out), Scope + Tech Prep details.
+  All techs see all tech jobs (colored by tech). Turn app stays open to the domain (no allowlist).
+  Must-have: changing the tech day in the turn app shows on the tech calendar (same Supabase data, read on open + auto-refresh).
