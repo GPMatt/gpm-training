@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Van Inventory Sign-Off</title>
+<style>
+:root{--ink:#1f1f1f;--muted:#666;--line:#bdbdbd;--band:#e8efe4;--accent:#3d6b35}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f3f1;color:var(--ink);font:12px/1.35 -apple-system,"Helvetica Neue",Arial,sans-serif}
+.sheet{max-width:8.5in;margin:24px auto;background:#fff;padding:.5in;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.draft{float:right;font-size:10px;letter-spacing:.08em;color:#a33;border:1px solid #a33;padding:2px 6px;border-radius:3px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{color:var(--muted);margin:0 0 14px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px}
+.f{display:flex;align-items:flex-end;gap:8px}
+.f b{white-space:nowrap;font-weight:600}
+.f i{flex:1;border-bottom:1px solid var(--ink);height:18px}
+.type{display:flex;gap:18px;margin:4px 0 12px}
+.type label{display:flex;align-items:center;gap:6px}
+.type span,.chk span{display:inline-block;width:13px;height:13px;border:1.5px solid var(--ink);border-radius:2px}
+.how{background:#fafaf7;border-left:3px solid var(--accent);padding:8px 10px;margin-bottom:14px}
+.how ol{margin:4px 0 0 18px;padding:0}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--ink);padding:4px 5px}
+thead{display:table-header-group}
+td{border-bottom:1px solid var(--line);padding:4px 5px;vertical-align:middle}
+tr{break-inside:avoid}
+tr.bin td{background:var(--band);font-weight:700;border-bottom:1px solid var(--accent);padding:5px;break-after:avoid}
+tr.bin span{float:right;font-weight:400;color:var(--muted);font-size:10.5px}
+.sku{width:70px;color:var(--muted);font-variant-numeric:tabular-nums}
+.box{width:62px;border-left:1px solid var(--line)}
+.chk{width:42px;text-align:center;border-left:1px solid var(--line)}
+.note{width:120px;border-left:1px solid var(--line)}
+th.c{text-align:center}
+section{break-inside:avoid;margin-top:18px}
+h2{font-size:14px;margin:0 0 6px}
+.lines i{display:block;border-bottom:1px solid var(--line);height:22px}
+.ack{border:1.5px solid var(--ink);padding:10px 12px;margin-top:18px;break-inside:avoid}
+.ack p{margin:0 0 12px}
+.sig{display:grid;grid-template-columns:2fr 1fr;gap:14px 20px}
+.foot{margin-top:10px;color:var(--muted);font-size:10px}
+.print{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 16px;font:600 13px sans-serif;cursor:pointer}
+@media (max-width:640px){.sheet{margin:0;padding:16px}.fields,.sig{grid-template-columns:1fr}.note{display:none}}
+@media print{body{background:#fff}.sheet{margin:0;padding:0;box-shadow:none;max-width:none}.print,.draft{display:none}@page{size:letter;margin:.45in}}
+</style></head>
+<body>
+<button class="print" onclick="window.print()">Print</button>
+<div class="sheet">
+<span class="draft">DRAFT</span>
+<h1>Van Inventory Sign-Off</h1>
+<p class="sub">Green Property Management · Maintenance · 118 parts across 25 bins</p>
+
+<div class="fields">
+  <div class="f"><b>Van</b><i></i></div>
+  <div class="f"><b>Date</b><i></i></div>
+  <div class="f"><b>Tech taking the van</b><i></i></div>
+  <div class="f"><b>Handed over by</b><i></i></div>
+</div>
+<div class="type">
+  <b>Reason:</b>
+  <label><span></span>New tech</label>
+  <label><span></span>Van reassignment</label>
+  <label><span></span>Return from leave</label>
+  <label><span></span>Other ________</label>
+</div>
+
+<div class="how"><b>How to use this sheet</b>
+<ol>
+  <li>Before the walk-through, the supervisor writes the <b>Expected</b> quantity for every part. This is the amount the tech is responsible for keeping on the van.</li>
+  <li>The supervisor and the tech count each bin together, from Bin 1 to Bin 25, and write the <b>Counted</b> quantity.</li>
+  <li>Tick <b>OK</b> when Counted matches Expected. If it doesn't, write the reason in Notes (for example: short, broken, on order).</li>
+  <li>List any broken items, tools and equipment below, then both people sign.</li>
+</ol></div>
+
+<table>
+<thead><tr><th>Part #</th><th>Item</th><th>Expected</th><th>Counted</th><th class="c">OK</th><th>Notes</th></tr></thead>
+<tbody>
+<tr class="bin"><td colspan="6">Bin 1<span>7 parts</span></td></tr>
+<tr><td class="sku">3008737</td><td>Battery - 2032 3V</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3413846</td><td>Battery - 9V Advanced Lithium</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">32625</td><td>Battery - 9V Alkaline</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">32886</td><td>Battery - AA Alkaline (4 pk)</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">32327</td><td>Battery - AAA Alkaline (4 pk)</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">34574</td><td>Battery - C Alkaline (4 pk)</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">34573</td><td>Battery - D Alkaline (4 pk)</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 2<span>3 parts</span></td></tr>
+<tr><td class="sku">4875530</td><td>Bathroom Faucet - Nickel 2-Handle Faucet</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4877353</td><td>Kitchen Faucet - Chrome 2-Handle w/ Sprayer</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4876009</td><td>Kitchen Faucet - Without Sprayer Chrome Faucet</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 3<span>2 parts</span></td></tr>
+<tr><td class="sku">46357</td><td>Toilet - Seat Elongated White Wood Seat</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">48076</td><td>Toilet - Seat Round White Plastic Seat</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 4<span>10 parts</span></td></tr>
+<tr><td class="sku">4208773</td><td>Toilet - Bolt to Flange</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4935177</td><td>Toilet - Fill Valve PerforMAX</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">44094</td><td>Toilet - Flapper 2&quot; Red Flapper</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4009474</td><td>Toilet - Flapper Universal 3&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">40415</td><td>Toilet - Handle Chrome Tank Lever</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4593554</td><td>Toilet - Repair Flange</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">40202</td><td>Toilet - Rubber Hinge Repair Bolts</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">45438</td><td>Toilet - Seat Bolts White Hinge Bolts</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4199584</td><td>Toilet - Seat Washer</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4027132</td><td>Toilet - Wax Ring Thick</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 5<span>6 parts</span></td></tr>
+<tr><td class="sku">4335212</td><td>Sink Plumbing - Supply Line 3/8&quot;x1/2&quot; 20&quot; SS</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4335311</td><td>Sink Plumbing - Supply Line 3/8&quot;x1/2&quot; 24&quot; SS Faucet</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4061123</td><td>Sink Plumbing - Supply Line 3/8&quot;x3/8&quot; 48&quot; SS</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4060364</td><td>Toilet - Supply Line 3/8&quot;x7/8&quot; 12&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4060380</td><td>Toilet - Supply Line 3/8&quot;x7/8&quot; 16&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4060398</td><td>Toilet - Supply Line 3/8&quot;x7/8&quot; 20&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 6<span>10 parts</span></td></tr>
+<tr><td class="sku">4233185</td><td>Kitchen Faucet - Brushed Nickel Spray Hose Guide</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">43588</td><td>Kitchen Faucet - Chrome Spray Hose Guide</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4903738</td><td>Kitchen Faucet - Delta/Moen Pull-Out Spray Hose</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4070843</td><td>Kitchen Faucet - White Kitchen Sprayer</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4238911</td><td>Kitchen Sink - 1-3/4&quot; SS Sink Hole Cover</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4568663</td><td>Kitchen Sink - 1/4&quot; Clips Pop Up</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4563664</td><td>Kitchen Sink - Sprayer Handle Brushed Nickel</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4165189</td><td>Kitchen Sink - Strainer Basket Stainless</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4563920</td><td>Kitchen Sink Plumbing - Sink Clips</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4230975</td><td>Sink Faucet - Chrome Nickel Drain Rod &amp; Strap</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 7<span>5 parts</span></td></tr>
+<tr><td class="sku">4564241</td><td>Sink Faucet - Aerator 15/16&quot;x55/64&quot; Brushed Nickel</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4563961</td><td>Sink Faucet - Aerator 15/16&quot;x55/64&quot; Chrome Adapter</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4586947</td><td>Sink Faucet - Aerator 3/16&quot; &amp; 55/64&quot; Black Aerator Repair Kit</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4564183</td><td>Sink Faucet - Aerator 55/64&quot; Brushed Nickel</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4564209</td><td>Sink Faucet - Aerator 55/64&quot; Chrome</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 8<span>11 parts</span></td></tr>
+<tr><td class="sku">45503</td><td>Kitchen Sink - Single Handle Delta Repair Kit</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4390985</td><td>Shower Faucet - Delta RP46074 Cartridge</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4007552</td><td>Shower Faucet - Delta Single Handle Cartridge</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4201497</td><td>Shower Faucet - Moen Cartridge</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">43086</td><td>Sink Faucet - Delta Seats &amp; Springs</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4561890</td><td>Sink Faucet - Glacier Bay 3S-11C Stem</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4562336</td><td>Sink Faucet - Glacier Bay 3S-12C Stem</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4562005</td><td>Sink Faucet - Glacier Bay 3S-9H/C Stem</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4561908</td><td>Sink Faucet - Glacier Bay Hot Stem</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">40124</td><td>Sink Faucet - Single Handle Rubber Repair Kit</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4561916</td><td>Sink Faucet - Stem Delta H/C</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 9<span>2 parts</span></td></tr>
+<tr><td class="sku">4007587</td><td>Shower - 2&quot; Chrome Tub Stopper</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4007568</td><td>Shower - 2-1/8&quot;x3-3/16&quot; Overflow Plate Gasket</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 10<span>3 parts</span></td></tr>
+<tr><td class="sku">45947</td><td>Bathroom Faucet - 1-1/4&quot; Drain Pop Up</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">42296</td><td>Bathroom Faucet - 1-3/16&quot; Chrome Pop-Up Plunger</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4230496</td><td>Bathroom Faucet - Pop Up Rod 1-1/2&quot; Metal Pop- Up Rod</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 11<span>4 parts</span></td></tr>
+<tr><td class="sku">4265583</td><td>Shower Faucet - Delta Chrome Tub/Shower Handle</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4200259</td><td>Shower Faucet - Delta Clear Tub/Shower Handles</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4007546</td><td>Shower Faucet - Handle Delta Chrome Tub</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">43518</td><td>Sink Faucet - Delta Clear Handle Set H/C</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 12<span>2 parts</span></td></tr>
+<tr><td class="sku">43795</td><td>Sink Plumbing - Plastic 1-1/2&quot; Washer</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">45219</td><td>Sink Plumbing - Plastic 1-1/4&quot; Rubber Washer</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 13<span>9 parts</span></td></tr>
+<tr><td class="sku">4009623</td><td>Kitchen Sink Plumbing - Plastic 1-1/2&quot; Garbage Disposal Install Kit</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4223491</td><td>Sink Plumbing - Plastic 1-1/2&quot; Coupling</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">48891</td><td>Sink Plumbing - Plastic 1-1/2&quot; Plastic 90 Deg Elbow</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">48280</td><td>Sink Plumbing - Plastic 1-1/2&quot; Plastic P-Trap</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">48282</td><td>Sink Plumbing - Plastic 1-1/2&quot; Plastic Sink Trap</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">48284</td><td>Sink Plumbing - Plastic 1-1/2&quot;x16&quot; End Outlet</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4223111</td><td>Sink Plumbing - Plastic 1-1/2&quot;x16&quot; Poly Extension Tube</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">4223715</td><td>Sink Plumbing - Plastic 1-1/4&quot;x12&quot; Poly Extension Tube</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">43695</td><td>Sink Plumbing - Plastic 1-1/4&quot;x20-1/2&quot; Plastic S- Trap</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 14<span>4 parts</span></td></tr>
+<tr><td class="sku">5050136</td><td>Smoke Detector - Battery, Smoke &amp; Carbon</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5050089</td><td>Smoke Detector - Battery, Smoke Only</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5050065</td><td>Smoke Detector - Hard-Wired, Smoke &amp; Carbon</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5050051</td><td>Smoke Detector - Hard-Wired, Smoke Only</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 15<span>2 parts</span></td></tr>
+<tr><td class="sku">3272192</td><td>Electric - 1-Old Work 1 Gang</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3280955</td><td>Electric - 2-Old Work 2 Gang</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 16<span>5 parts</span></td></tr>
+<tr><td class="sku">3007267</td><td>Electric - 1-Blank Plate, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202389</td><td>Electric - 1-Outlet Plate Decorator, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202413</td><td>Electric - 2-Decorator/Outlet Wall Plate, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202397</td><td>Electric - 2-Outlet Plate Decorator, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202405</td><td>Electric - 2-Outlet/Switch Plate Decorator, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 17<span>1 part</span></td></tr>
+<tr><td class="sku">3500162</td><td>Electric - 15A AFCI Outlet, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 18<span>4 parts</span></td></tr>
+<tr><td class="sku">31034</td><td>Electric - 15A Outlet Decorator, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3201605</td><td>Electric - 15A Outlet, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3201811</td><td>Electric - 15A Single Pole Toggle Switch, Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">31037</td><td>Electric - 15A Switch, Decorative Ivory</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 19<span>6 parts</span></td></tr>
+<tr><td class="sku">3202181</td><td>Electric - 1-Blank Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3007226</td><td>Electric - 1-Outlet Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202199</td><td>Electric - 1-Switch Wall Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202231</td><td>Electric - 2-Outlet Wall Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3007218</td><td>Electric - 2-Switch Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3202249</td><td>Electric - 2-Switch/Outlet Plate, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 20<span>2 parts</span></td></tr>
+<tr><td class="sku">3534120</td><td>Electric - 15A GFCI Outlet, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3809464</td><td>Electric - 20A AFCI Outlet, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 21<span>4 parts</span></td></tr>
+<tr><td class="sku">31036</td><td>Electric - 15A Decorative Switch, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">31035</td><td>Electric - 15A Decorator Outlet, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3201613</td><td>Electric - 15A Outlet, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">3201829</td><td>Electric - 15A Switch, White</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 22<span>8 parts</span></td></tr>
+<tr><td class="sku">5622386</td><td>Door - Back Plate Chrome Steel Lock Back Plate</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5300587</td><td>Door - Bright Brass Surface Lock</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">50400</td><td>Door - Chain Brass</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5395579</td><td>Door - Peep Hole Satin Brass Door Viewer 160 Deg</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5299516</td><td>Door - Screen Door Closer Black</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5107859</td><td>Door - Wall Protector Ivory 5&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">59132</td><td>Window - Lock Pining Plastic</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5302211</td><td>Window - Pin Security Pin Metal</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 23<span>5 parts</span></td></tr>
+<tr><td class="sku">5238548</td><td>Door - Door Handle Passage Satin Knob</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">50361</td><td>Door - Heritage Hill Brass Replacement Knobs</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">50021</td><td>Door - Heritage Hill Old Interior Lock Mortise Lockset 1-3/4&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5366703</td><td>Door - Passage Handle Lever 1-3/4&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5215033</td><td>Door - Schlage Deadbolt</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 24<span>2 parts</span></td></tr>
+<tr><td class="sku">5967955</td><td>Door - Door Seal White Aluminum 84&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr><td class="sku">5315544</td><td>Door - Door Sweep White 36&quot;</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+<tr class="bin"><td colspan="6">Bin 25<span>1 part</span></td></tr>
+<tr><td class="sku">47982</td><td>Kitchen Sink Plumbing - Garbage Disposal</td><td class="box"></td><td class="box"></td><td class="chk"><span></span></td><td class="note"></td></tr>
+</tbody></table>
+
+<section><h2>Broken or damaged items found at handover</h2>
+<div class="lines"><i></i><i></i><i></i></div></section>
+
+<section><h2>Tools and equipment on the van</h2>
+<div class="lines"><i></i><i></i><i></i></div></section>
+
+<div class="ack">
+<p><b>Acknowledgement.</b> I have reviewed the expected quantities above and confirm that the counted quantities are what is on the van today. From this date I am responsible for keeping the van stocked to the expected quantities and for reporting used, broken, or missing parts through the weekly van audit.</p>
+<div class="sig">
+  <div class="f"><b>Tech signature</b><i></i></div><div class="f"><b>Date</b><i></i></div>
+  <div class="f"><b>Supervisor signature</b><i></i></div><div class="f"><b>Date</b><i></i></div>
+</div></div>
+<p class="foot">Bin layout follows the 25-bin van map (P09 Inventory Guide). Keep the signed copy in the tech's file.</p>
+</div>
+</body></html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Van Inventory Sign-Off</title>
+<style>
+:root{--ink:#1f1f1f;--muted:#666;--line:#bdbdbd;--band:#e8efe4;--accent:#3d6b35}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f3f1;color:var(--ink);font:12px/1.35 -apple-system,"Helvetica Neue",Arial,sans-serif}
+.sheet{max-width:8.5in;margin:24px auto;background:#fff;padding:.5in;box-shadow:0 1px 6px rgba(0,0,0,.12)}
+.draft{float:right;font-size:10px;letter-spacing:.08em;color:#a33;border:1px solid #a33;padding:2px 6px;border-radius:3px}
+h1{font-size:20px;margin:0 0 2px}
+.sub{color:var(--muted);margin:0 0 14px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin-bottom:12px}
+.f{display:flex;align-items:flex-end;gap:8px}
+.f b{white-space:nowrap;font-weight:600}
+.f i{flex:1;border-bottom:1px solid var(--ink);height:18px}
+.type{display:flex;gap:18px;margin:4px 0 12px}
+.type label{display:flex;align-items:center;gap:6px}
+.type span,.chk span{display:inline-block;width:13px;height:13px;border:1.5px solid var(--ink);border-radius:2px}
+.how{background:#fafaf7;border-left:3px solid var(--accent);padding:8px 10px;margin-bottom:14px}
+.how ol{margin:4px 0 0 18px;padding:0}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--ink);padding:4px 5px}
+thead{display:table-header-group}
+td{border-bottom:1px solid var(--line);padding:4px 5px;vertical-align:middle}
+tr{break-inside:avoid}
+tr.bin td{background:var(--band);font-weight:700;border-bottom:1px solid var(--accent);padding:5px;break-after:avoid}
+tr.bin span{float:right;font-weight:400;color:var(--muted);font-size:10.5px}
+.sku{width:70px;color:var(--muted);font-variant-numeric:tabular-nums}
+.box{width:62px;border-left:1px solid var(--line)}
+.chk{width:42px;text-align:center;border-left:1px solid var(--line)}
+.note{width:120px;border-left:1px solid var(--line)}
+th.c{text-align:center}
+section{break-inside:avoid;margin-top:18px}
+h2{font-size:14px;margin:0 0 6px}
+.lines i{display:block;border-bottom:1px solid var(--line);height:22px}
+.ack{border:1.5px solid var(--ink);padding:10px 12px;margin-top:18px;break-inside:avoid}
+.ack p{margin:0 0 12px}
+.sig{display:grid;grid-template-columns:2fr 1fr;gap:14px 20px}
+.foot{margin-top:10px;color:var(--muted);font-size:10px}
+.print{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:10px 16px;font:600 13px sans-serif;cursor:pointer}
+@media (max-width:640px){.sheet{margin:0;padding:16px}.fields,.sig{grid-template-columns:1fr}.note{display:none}}
+@media print{body{background:#fff}.sheet{margin:0;padding:0;box-shadow:none;max-width:none}.print,.draft{display:none}@page{size:letter;margin:.45in}}
+</style></head>
+<body>
+<button class="print" onclick="window.print()">Print</button>
+<div class="sheet">
+<span class="draft">DRAFT</span>
+<h1>Van Inventory Sign-Off</h1>
+<p class="sub">Green Property Management · Maintenance · {{COUNT}} parts across {{BINS}} bins</p>
+
+<div class="fields">
+  <div class="f"><b>Van</b><i></i></div>
+  <div class="f"><b>Date</b><i></i></div>
+  <div class="f"><b>Tech taking the van</b><i></i></div>
+  <div class="f"><b>Handed over by</b><i></i></div>
+</div>
+<div class="type">
+  <b>Reason:</b>
+  <label><span></span>New tech</label>
+  <label><span></span>Van reassignment</label>
+  <label><span></span>Return from leave</label>
+  <label><span></span>Other ________</label>
+</div>
+
+<div class="how"><b>How to use this sheet</b>
+<ol>
+  <li>Before the walk-through, the supervisor writes the <b>Expected</b> quantity for every part. This is the amount the tech is responsible for keeping on the van.</li>
+  <li>The supervisor and the tech count each bin together, from Bin 1 to Bin 25, and write the <b>Counted</b> quantity.</li>
+  <li>Tick <b>OK</b> when Counted matches Expected. If it doesn't, write the reason in Notes (for example: short, broken, on order).</li>
+  <li>List any broken items, tools and equipment below, then both people sign.</li>
+</ol></div>
+
+<table>
+<thead><tr><th>Part #</th><th>Item</th><th>Expected</th><th>Counted</th><th class="c">OK</th><th>Notes</th></tr></thead>
+<tbody>
+{{ROWS}}
+</tbody></table>
+
+<section><h2>Broken or damaged items found at handover</h2>
+<div class="lines"><i></i><i></i><i></i></div></section>
+
+<section><h2>Tools and equipment on the van</h2>
+<div class="lines"><i></i><i></i><i></i></div></section>
+
+<div class="ack">
+<p><b>Acknowledgement.</b> I have reviewed the expected quantities above and confirm that the counted quantities are what is on the van today. From this date I am responsible for keeping the van stocked to the expected quantities and for reporting used, broken, or missing parts through the weekly van audit.</p>
+<div class="sig">
+  <div class="f"><b>Tech signature</b><i></i></div><div class="f"><b>Date</b><i></i></div>
+  <div class="f"><b>Supervisor signature</b><i></i></div><div class="f"><b>Date</b><i></i></div>
+</div></div>
+<p class="foot">Bin layout follows the 25-bin van map (P09 Inventory Guide). Keep the signed copy in the tech's file.</p>
+</div>
+</body></html>
