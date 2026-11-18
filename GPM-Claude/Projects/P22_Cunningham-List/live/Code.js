@@ -216,6 +216,15 @@ function remove34thRow() {
   Logger.log('Cunningham sheet synced.');
 }
 
+// Run once from the editor: removes the 6 Truth rows that are inactive in
+// AppFolio 11 / Supabase (Matt, 2026-11-18). 717 5th's extra address (719 5th)
+// drops with it. Then re-syncs the Cunningham sheet.
+function removeInactive20261118() {
+  removeRows_(['36 34th', '717 5th', '2159 Galewood', '4860 Pinedell', '4877 River', '4890 Pinedell']);
+  syncPublicSheet();
+  Logger.log('Cunningham sheet synced.');
+}
+
 // Deletes Truth rows whose address matches one of the given keys.
 // Bottom-up so earlier row numbers stay valid.
 function removeRows_(addresses) {

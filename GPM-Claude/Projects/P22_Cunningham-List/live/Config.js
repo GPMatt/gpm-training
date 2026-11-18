@@ -49,7 +49,6 @@ const CONFIG = {
     ['2131 Leonard St NE, Grand Rapids, MI 49505', '2121 Leonard'],
     ['30 Gold Ave SW, Grand Rapids, MI 49504', '28 Gold'],
     ['536 56th St SE, Kentwood, MI 49508', '538 56th'],
-    ['719 5th St NW, Grand Rapids, MI 49504', '717 5th'],
     ['813 Park St SW, Grand Rapids, MI 49504', '811 Park'],
     ['919 Park St SW, Grand Rapids, MI 49504', '917 Park'],
     ['453 Knapp St NE, Grand Rapids, MI 49505', '445 Knapp'],          // Cardinal Point
