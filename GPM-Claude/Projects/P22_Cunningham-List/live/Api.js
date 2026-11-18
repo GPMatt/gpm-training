@@ -11,6 +11,7 @@
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
+  if (p.review) return reviewPage_(p.review);   // Matt's weekly proposal page (Proposal.js)
   const key = PropertiesService.getScriptProperties().getProperty('API_KEY');
   if (!key || urlKey_(e) !== key) return json_({ ok: false, error: 'unauthorized' });
 

@@ -5,20 +5,24 @@
 function setup() {
   addOakwoodRow_();
   removeRows_(['1044 Muskegon', '1133 Dogwood']);   // no longer managed (Matt, 2026-10-14)
+  installWeeklyTrigger();
+}
+
+// Cunningham bills $99 per emailed list (2026-10-15), so the weekly run never
+// emails them; they read the live Cunningham sheet / API instead (Sync.js).
+// Matt gets a proposed update with a review-and-approve link (Proposal.js).
+function weeklyRun() {
+  sendProposal_();
+}
+
+// Run once from the editor to move the weekly email to Wednesday noon.
+function installWeeklyTrigger() {
   ScriptApp.getProjectTriggers()
     .filter(t => t.getHandlerFunction() === 'weeklyRun')
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('weeklyRun').timeBased()
     .onWeekDay(CONFIG.TRIGGER_DAY).atHour(CONFIG.TRIGGER_HOUR).create();
-  Logger.log('Thursday trigger installed.');
-}
-
-// Cunningham bills $99 per emailed list (2026-10-15), so Thursdays no longer
-// email them; they read the live Cunningham sheet / API instead (Sync.js).
-// Matt still gets the discrepancy report on the current list.
-function weeklyRun() {
-  const date = Utilities.formatDate(new Date(), 'America/Detroit', 'yyyy-MM-dd');
-  sendDiscrepancyReport({ list: buildList_(), date: date, label: 'on the live Cunningham sheet' });
+  Logger.log('Weekly trigger installed.');
 }
 
 // Full Thursday flow, but the list goes to REPORT_TO only. Nothing reaches
@@ -163,7 +167,7 @@ function fetchActiveProperties_() {
   const url = clean(p.getProperty('SUPABASE_URL')), key = clean(p.getProperty('SUPABASE_SERVICE_KEY'));
   if (!url || !key) throw new Error('Set SUPABASE_URL and SUPABASE_SERVICE_KEY in Script Properties');
   const res = UrlFetchApp.fetch(
-    `${url}/rest/v1/dim_property?select=canonical_address,af_property_name,property_type,af_account&active=eq.true&limit=5000`,
+    `${url}/rest/v1/dim_property?select=canonical_address,af_property_name,property_type,af_account,pm_name&active=eq.true&limit=5000`,
     { headers: { apikey: key, Authorization: 'Bearer ' + key }, muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) throw new Error('Supabase ' + res.getResponseCode() + ': ' + res.getContentText());
   const rows = JSON.parse(res.getContentText());

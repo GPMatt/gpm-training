@@ -15,9 +15,9 @@ const CONFIG = {
   CONTACT_EMAIL: 'blake@greenpropertymgt.com',
   EXPORT_FOLDER_NAME: 'Cunningham Property Lists',
 
-  // Thursday, 7am Detroit time (the warehouse pipeline ingests Wednesday).
-  TRIGGER_DAY: ScriptApp.WeekDay.THURSDAY,
-  TRIGGER_HOUR: 7,
+  // Wednesday noon Detroit time, after the Wednesday warehouse load (Matt, 2026-11-18).
+  TRIGGER_DAY: ScriptApp.WeekDay.WEDNESDAY,
+  TRIGGER_HOUR: 12,
 
   // Properties still open in AppFolio (so still active in Supabase) that GPM
   // no longer manages. Matt confirmed 2026-10-14. Matched on house number +
