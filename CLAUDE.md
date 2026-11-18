@@ -15,6 +15,7 @@ priority order (set by Matt), not numeric order.
 5. Reconcilliation of bank accounts
 6. Compile ACE POs
 7. Meta Ad Campaign
+8. AI class for GPM Staff
 
 List reset by Matt 2026-11-16: all earlier items removed and numbering
 restarted at 1. Numbers stay stable from here on.
