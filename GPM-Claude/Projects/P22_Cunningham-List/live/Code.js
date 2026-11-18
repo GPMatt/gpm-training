@@ -229,6 +229,30 @@ function removeInactive20261118() {
   Logger.log('Cunningham sheet synced.');
 }
 
+// Run once from the editor: 65 Monroe Center goes from Blake to Laura Porter
+// (Matt, 2026-11-18). Then re-syncs the Cunningham sheet.
+function assignMonroeToLaura() {
+  setPm_('65 Monroe', 'Laura Porter');
+  syncPublicSheet();
+  Logger.log('Cunningham sheet synced.');
+}
+
+// Sets the PM on every Truth row whose address matches the key.
+function setPm_(address, pm) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(CONFIG.TAB);
+  const c = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String).indexOf('PM');
+  if (c < 0) throw new Error('Column "PM" not found on ' + CONFIG.TAB);
+  const k = addressKey_(address);
+  let n = 0;
+  readAssignments_().forEach((r, i) => {
+    if (addressKey_(r.address) !== k) return;
+    sh.getRange(i + 2, c + 1).setValue(pm);
+    n++;
+    Logger.log(r.address + ': ' + r.pm + ' -> ' + pm);
+  });
+  if (!n) throw new Error('No Truth row matches ' + address);
+}
+
 // Deletes Truth rows whose address matches one of the given keys.
 // Bottom-up so earlier row numbers stay valid.
 function removeRows_(addresses) {
