@@ -296,3 +296,7 @@ Decision log:
 - 2026-11-18 Matt: walks for the tech calendar. Cookie cutter + Bill's properties = Spencer alone; Riley = everything that is
   not Bill's and not cookie cutter (Wesley walks Cherry St). Move-out check is Spencer alone (no tech). Laura C may become a
   tech later: keep the tech list fluid (from the turn data + Settings, no hard-coded tech names in the tech calendar).
+- 2026-11-18: tech calendar BUILT (Tech.html, apiTechBoot + techTurn_ in Describe.js, doGet ?view=tech). Read only, all techs,
+  week view (phone = stacked days), tech chips from Settings + turn data (no hard-coded names; Laura C shows up when named on a
+  Tech step). Events: Tech work days (dashed = not confirmed), PMI walk only when a tech walks, punch-list buffer day = Tech
+  vendor. Refresh on open + every 2 min. Preview: node app-test/build-tech-preview.js <out.html>. TEST deploy @19. LIVE still @18.

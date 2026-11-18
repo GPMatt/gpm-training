@@ -18,7 +18,14 @@ var TZ = 'America/Detroit';
 var TURN_COLS = ['property_id', 'unit_id', 'property_label', 'unit_label', 'af_wo_number', 'move_out_date',
   'move_in_date', 'rent_ready_date', 'stage', 'scope', 'tech_prep', 'move_out_check', 'steps', 'archived'];
 
-function doGet() {
+function doGet(e) {
+  // Tech calendar (Matt 2026-11-18): its own read-only page at <url>?view=tech, same turn data.
+  if (e && e.parameter && e.parameter.view === 'tech') {
+    return HtmlService.createTemplateFromFile('Tech').evaluate()
+      .setTitle('GPM Tech Calendar')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+  }
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('GPM Turns')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -72,6 +79,16 @@ function apiSaveTurn(turn) {
 }
 
 /** One turn, fresh from Supabase (the client re-reads it when a tab opens, so edits from another phone show up). */
+/** Tech calendar data (read only): open turns trimmed to what a tech needs (techTurn_ in Describe.js). */
+function apiTechBoot() {
+  var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
+  var settings = settingsRows.length ? settingsRows[0].value || {} : {};
+  var turns = sb_('get', 'p03_turns?archived=eq.false&select=id,property_label,unit_label,af_wo_number,move_out_date,' +
+    'rent_ready_date,scope,tech_prep,steps&order=move_out_date.asc.nullslast');
+  return { techProperties: settings.techProperties || null, turns: turns.map(function (t) { return techTurn_(t, settings); }),
+    at: new Date().toISOString() };
+}
+
 function apiTurn(id) {
   var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(id || '') + '&select=*');
   return rows.length ? rows[0] : null;

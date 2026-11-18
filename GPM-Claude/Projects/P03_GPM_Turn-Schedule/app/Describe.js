@@ -411,3 +411,28 @@ function eventHash(ev) {
   for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
   return h.toString(36);
 }
+
+// ---------- Tech calendar (apiTechBoot in Code.js, page Tech.html; Matt 2026-11-18) ----------
+
+/** One open turn, trimmed to what the tech calendar shows. Who does what is worked out in Tech.html. */
+function techTurn_(turn, settings) {
+  var sc = turn.scope || {}, steps = turn.steps || [];
+  var pick = function (s) {
+    return { vendor: hasVal_(s.vendor) ? String(s.vendor).trim() : '', start: s.start || '', end: s.end || s.start || '',
+      days: s.days || 1, hours: s.hours || '', time: s.time || '', status: s.status || 'open', size: s.sizeLabel || '', note: s.note || '' };
+  };
+  return {
+    id: turn.id, property: turn.property_label || '', unit: turn.unit_label || '', wo: turn.af_wo_number || '',
+    move_out: turn.move_out_date ? String(turn.move_out_date).slice(0, 10) : '',
+    rent_ready: turn.rent_ready_date ? String(turn.rent_ready_date).slice(0, 10) : '',
+    access: sc.access || '', walk_type: sc.walk_type || '', pmi_date: sc.pmi_date || '', pmi_time: sc.pmi_time || '',
+    buffers: !!sc.buffers,
+    tech: steps.filter(function (s) { return s.key === 'tech'; }).map(pick),
+    trades: steps.map(function (s) { return s.label + (s.sizeLabel ? ' – ' + s.sizeLabel : '') + (hasVal_(s.vendor) ? ': ' + String(s.vendor).trim() : ''); }),
+    other_vendors: (sc.other_vendors || []).filter(function (o) { return o && (hasVal_(o.type) || hasVal_(o.note)); })
+      .map(function (o) { return [o.type, o.note].filter(hasVal_).join(': '); }),
+    pests: sc.pests && sc.pests !== 'None' ? sc.pests + (hasVal_(sc.pests_note) ? ' (' + sc.pests_note + ')' : '') : '',
+    notes: sc.notes || '',
+    tech_prep: turn.tech_prep ? describeTechPrep(turn, CHECK_ROOMS_SERVER, settings).text : ''
+  };
+}

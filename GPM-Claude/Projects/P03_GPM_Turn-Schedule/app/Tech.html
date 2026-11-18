@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Tech calendar (Matt 2026-11-18): read-only, all techs, live from the turn data (apiTechBoot). Opened at <url>?view=tech. -->
+<style>
+:root{
+  --cream:#F4EEDF; --cream-2:#EDE5D0; --paper:#FFFCF5; --line:#E2D8C0; --line-2:#D3C7A9;
+  --green:#1E4632; --green-2:#2D6347; --green-soft:#DCE8DD;
+  --ink:#1F2A22; --muted:#6F6B5C; --red:#A3402E; --red-soft:#F5DED6;
+  --r:12px; --shadow:0 1px 2px rgba(31,42,34,.06),0 4px 14px rgba(31,42,34,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--cream);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:650;letter-spacing:-.01em;margin:0}
+button{font:inherit;color:inherit}
+.topbar{position:sticky;top:0;z-index:20;background:var(--green);color:#F4EEDF;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.brand{font-family:Fraunces,serif;font-size:19px;font-weight:650;white-space:nowrap}
+.upd{margin-left:auto;font-size:12px;color:#CFE0D3;white-space:nowrap}
+main{max-width:1240px;margin:0 auto;padding:16px 16px 60px}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.bar h1{font-size:22px;margin-right:auto}
+.btn{border:1px solid var(--line-2);background:var(--paper);padding:7px 12px;border-radius:9px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--green-2)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);background:var(--paper);border-radius:99px;padding:5px 12px;cursor:pointer;font-weight:600;font-size:14px}
+.chip i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.week{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.day{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:10px;min-height:120px;display:flex;flex-direction:column;gap:8px}
+.day.today{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+.day.past{opacity:.6}
+.dh{display:flex;align-items:baseline;gap:6px}
+.dh b{font-family:Fraunces,serif;font-size:17px}
+.dh span{color:var(--muted);font-size:13px}
+.dh .tag{margin-left:auto;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--green)}
+.empty{color:var(--muted);font-size:13px}
+.ev{border-radius:9px;padding:8px 10px;background:var(--cream);border-left:5px solid var(--c);cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.ev:hover{background:var(--cream-2)}
+.ev.tent{background:var(--paper);border:1.5px dashed var(--line-2);border-left:5px solid var(--c)}
+.ev .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.ev .p{font-weight:700;font-size:14px;line-height:1.25}
+.ev .s{font-size:13px;color:var(--muted)}
+.ev .who{font-size:12px;font-weight:700;color:var(--c)}
+.note{margin-top:14px;color:var(--muted);font-size:13px}
+.err{background:var(--red-soft);color:var(--red);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-weight:600}
+/* detail sheet */
+.shade{position:fixed;inset:0;background:rgba(31,42,34,.35);z-index:40;display:flex;justify-content:flex-end}
+.sheet{background:var(--paper);width:min(520px,100%);height:100%;overflow:auto;padding:18px 18px 40px;box-shadow:-4px 0 20px rgba(0,0,0,.15)}
+.sheet h2{font-size:22px;line-height:1.2}
+.sheet .sub{color:var(--muted);margin:2px 0 12px}
+.sheet h3{font-size:16px;margin:16px 0 6px}
+.sheet .x{float:right}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.kv span{color:var(--muted)}
+.list{margin:0;padding-left:18px}
+.pre{white-space:pre-wrap;background:var(--cream);border-radius:9px;padding:10px 12px;font-size:14px}
+@media (max-width:860px){
+  .week{grid-template-columns:minmax(0,1fr)}
+  .bar h1{flex-basis:100%}
+  .bar .btn{flex:1}
+  .day{min-height:0}
+}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="brand">GPM Tech Calendar</div><div class="upd" id="upd">Loading…</div></div>
+<main id="main"></main>
+<div id="sheet"></div>
+<?!= include('Config') ?>
+<?!= include('Engine') ?>
+<script>
+(function () {
+  var E = Engine;
+  var PALETTE = ['#1F4D36', '#3E73A8', '#9C5B34', '#6B4E8F', '#2C8C82', '#A8566F', '#8E8A3A', '#56707D'];
+  var S = { turns: [], techProps: null, filter: 'All', week: null, at: null, err: '' };
+  try { S.filter = localStorage.getItem('techcal:filter') || 'All'; } catch (e) {}
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function today() { return E.iso(new Date()); }
+  function monday(s) { var d = E.parse(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return E.iso(d); }
+  function place(t) { return [t.property, t.unit].filter(Boolean).join(' '); }
+  /** The tech named in a walk type: "Riley walk (Spencer + Riley)" -> Riley. Spencer-alone walks -> ''. */
+  function walkTech(w) { var m = /\(Spencer \+ ([^)]+)\)/.exec(w || ''); return m ? m[1].trim() : ''; }
+
+  /** Tech names: Settings first (techProperties + Riley as the default tech), then anyone named on the turns. Nothing hard-coded beyond the defaults. */
+  function techList(events) {
+    var names = [], seen = {};
+    function add(n) { if (n && !seen[n.toLowerCase()]) { seen[n.toLowerCase()] = 1; names.push(n); } }
+    var cat = (DEFAULT_SETTINGS.catalog || []).filter(function (c) { return c.key === 'tech'; })[0];
+    add(cat && cat.vendor);
+    (S.techProps || DEFAULT_SETTINGS.techProperties || []).forEach(function (tp) { add(tp.tech); });
+    events.forEach(function (ev) { add(ev.who); });
+    return names;
+  }
+  function colorOf(name, names) { var i = names.indexOf(name); return i < 0 ? '#77736A' : PALETTE[i % PALETTE.length]; }
+
+  /** Every tech event, one per business day: work days, PMI walks, punch-list buffer days. */
+  function buildEvents() {
+    var out = [];
+    S.turns.forEach(function (t) {
+      var techName = (t.tech[0] && t.tech[0].vendor) || '';
+      t.tech.forEach(function (s) {
+        if (!s.start) return;
+        var days = E.bizDaysInRange(s.start, s.end || s.start);
+        days.forEach(function (d, k) {
+          out.push({ date: d, kind: 'Tech work', who: s.vendor || 'No tech yet', turn: t, tent: s.status === 'open' || s.status === 'resched',
+            done: s.status === 'done', sub: (days.length > 1 ? 'Day ' + (k + 1) + ' of ' + days.length : (s.hours && Number(s.hours) < 8 ? s.hours + ' hours' : 'Full day')) +
+              (k === 0 && s.time ? ' · ' + E.fmtTime(s.time) : ''), status: s.status, sort: k === 0 && s.time ? s.time : '08:00' });
+        });
+      });
+      var wt = walkTech(t.walk_type);
+      if (wt && t.pmi_date) out.push({ date: E.rollBiz(t.pmi_date), kind: 'PMI walk with Spencer', who: wt, turn: t, sub: t.pmi_time ? E.fmtTime(t.pmi_time) : 'Time not set', sort: t.pmi_time || '07:00' });
+      if (t.buffers && t.rent_ready) out.push({ date: t.rent_ready, kind: 'Punch list (buffer day)', who: techName || 'No tech yet', turn: t, sub: 'Rent ready today', sort: '09:00' });
+    });
+    return out;
+  }
+
+  function render() {
+    var events = buildEvents(), names = techList(events);
+    if (S.filter !== 'All' && names.indexOf(S.filter) < 0) S.filter = 'All';
+    var wk = S.week || monday(today()), td = today();
+    var days = [0, 1, 2, 3, 4].map(function (n) { return E.addDays(wk, n); });
+    var h = '';
+    if (S.err) h += '<div class="err">' + esc(S.err) + '</div>';
+    h += '<div class="bar"><h1>Week of ' + esc(E.fmt(wk).replace(/^\w+ /, '')) + '</h1>' +
+      '<button class="btn" data-go="-7">‹ Prev</button><button class="btn" data-go="0">This week</button><button class="btn" data-go="7">Next ›</button></div>';
+    h += '<div class="chips">' + ['All'].concat(names).map(function (n) {
+      return '<button class="chip' + (S.filter === n ? ' on' : '') + '" data-f="' + esc(n) + '">' + (n === 'All' ? '' : '<i style="background:' + colorOf(n, names) + '"></i>') + esc(n === 'All' ? 'All techs' : n) + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="week">' + days.map(function (d) {
+      var list = events.filter(function (ev) { return ev.date === d && (S.filter === 'All' || ev.who === S.filter); })
+        .sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
+      var hol = E.holidayName(d);
+      var x = '<div class="day' + (d === td ? ' today' : d < td ? ' past' : '') + '"><div class="dh"><b>' + esc(E.fmt(d).split(' ')[0]) + '</b><span>' + esc(E.fmt(d).replace(/^\w+ /, '')) + '</span>' +
+        (d === td ? '<span class="tag">Today</span>' : hol ? '<span class="tag" style="color:var(--muted)">' + esc(hol) + '</span>' : '') + '</div>';
+      if (!list.length) x += '<div class="empty">Nothing scheduled</div>';
+      list.forEach(function (ev) {
+        var c = colorOf(ev.who, names);
+        x += '<div class="ev' + (ev.tent ? ' tent' : '') + '" style="--c:' + c + '" data-t="' + esc(ev.turn.id) + '">' +
+          '<span class="k">' + esc(ev.kind) + (ev.done ? ' · ✓ Done' : ev.tent ? ' · Not confirmed yet' : '') + '</span>' +
+          '<span class="p">' + esc(place(ev.turn)) + '</span><span class="s">' + esc(ev.sub) + '</span>' +
+          (S.filter === 'All' ? '<span class="who">' + esc(ev.who) + '</span>' : '') + '</div>';
+      });
+      return x + '</div>';
+    }).join('') + '</div>';
+    h += '<div class="note">Dashed = Spencer hasn\'t confirmed this day yet, it may still move. Tap a job for the address, access and the Tech Prep list. This page updates by itself every 2 minutes.</div>';
+    document.getElementById('main').innerHTML = h;
+    document.getElementById('upd').textContent = S.at ? 'Updated ' + new Date(S.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Loading…';
+  }
+
+  function detail(id) {
+    var t = S.turns.filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    var h = '<div class="shade" data-close="1"><div class="sheet"><button class="btn x" data-close="1">Close</button>' +
+      '<h2>' + esc(place(t)) + '</h2><div class="sub">' + (t.wo ? 'WO ' + esc(t.wo) : '&nbsp;') + '</div>';
+    h += '<div class="kv">';
+    t.tech.forEach(function (s) {
+      h += '<span>Tech work</span><b>' + esc(s.start ? E.fmt(s.start) + (s.end && s.end !== s.start ? ' – ' + E.fmt(s.end) : '') + (s.time ? ', ' + E.fmtTime(s.time) : '') : 'Not scheduled') +
+        (s.vendor ? ' · ' + esc(s.vendor) : '') + (s.status === 'open' || s.status === 'resched' ? ' (not confirmed)' : s.status === 'done' ? ' (done)' : '') + '</b>';
+    });
+    if (walkTech(t.walk_type) && t.pmi_date) h += '<span>PMI walk</span><b>' + esc(E.fmt(t.pmi_date) + (t.pmi_time ? ', ' + E.fmtTime(t.pmi_time) : '') + ' · ' + walkTech(t.walk_type)) + '</b>';
+    if (t.move_out) h += '<span>Move-out</span><b>' + esc(E.fmt(t.move_out)) + '</b>';
+    if (t.rent_ready) h += '<span>Rent ready</span><b>' + esc(E.fmt(t.rent_ready)) + '</b>';
+    if (t.access) h += '<span>Access</span><b>' + esc(t.access) + '</b>';
+    h += '</div>';
+    h += '<h3>Tech Prep</h3>' + (t.tech_prep ? '<div class="pre">' + esc(t.tech_prep) + '</div>' : '<div class="empty">No Tech Prep saved yet.</div>');
+    h += '<h3>Scope</h3><ul class="list">' + t.trades.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    if (t.other_vendors.length) h += '<h3>Other vendors</h3><ul class="list">' + t.other_vendors.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+    if (t.pests) h += '<h3>Pests</h3><div>' + esc(t.pests) + '</div>';
+    if (t.notes) h += '<h3>Notes</h3><div class="pre">' + esc(t.notes) + '</div>';
+    document.getElementById('sheet').innerHTML = h + '</div></div>';
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-go],[data-f],[data-t],[data-close]');
+    if (!el) return;
+    if (el.dataset.close && e.target === el) { document.getElementById('sheet').innerHTML = ''; return; }
+    if (el.dataset.go != null) { var n = +el.dataset.go; S.week = n === 0 ? null : E.addDays(S.week || monday(today()), n); render(); }
+    else if (el.dataset.f) { S.filter = el.dataset.f; try { localStorage.setItem('techcal:filter', S.filter); } catch (er) {} render(); }
+    else if (el.dataset.t) detail(el.dataset.t);
+  });
+
+  var loading = false;
+  function load() {
+    if (loading) return; loading = true;
+    google.script.run.withSuccessHandler(function (r) {
+      loading = false; S.err = ''; S.turns = r.turns || []; S.techProps = r.techProperties; S.at = r.at; render();
+    }).withFailureHandler(function (er) {
+      loading = false; S.err = 'Could not refresh: ' + (er && er.message || er) + '. Showing the last data loaded.'; render();
+    }).apiTechBoot();
+  }
+  render(); load();
+  setInterval(load, 120000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') load(); });
+})();
+</script>
+</body>
+</html>
