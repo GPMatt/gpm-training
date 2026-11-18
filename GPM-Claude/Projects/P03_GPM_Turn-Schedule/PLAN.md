@@ -280,3 +280,9 @@ Decision log:
 - 2026-11-12 Matt: move-out walk moves from the move-out date to the next business day after move-out (App.html detail panel + in-app calendar; Google Calendar has no walk event). Build start unchanged, so walk and first build step share a day.
 - 2026-11-12: walk change clasp pushed, TEST deploy @17. LIVE still @3.
 - 2026-11-12: Matt deployed LIVE @18 (run 2b + walk next business day). LIVE and TEST now match.
+- 2026-11-18 Matt (card redesign, MOCK ONLY, not built): mock v2 https://claude.ai/artifact/GG1i2ztEZGNnRE5XigRyav (v1 deleted).
+  Cards keep today's look. Progress: drop the %, caption = "X of Y done" only, bar keeps confirmed stripes. Remove the
+  "→ Book ..." line. Rent-ready box becomes one box with Move-out / Rent ready / Move-in (+ the buffer text). New "Next
+  vendor" box (trade · vendor · date · confirmed/not); RED when its scheduled day has passed and the step isn't marked done.
+  Separate "Vendor slots: N confirmed · N unconfirmed" (booking, not work done). PMI left out (turns start at the scope).
+  Open: RingCentral "done" confirmation method (proposed in chat).
