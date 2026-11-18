@@ -302,3 +302,5 @@ Decision log:
   vendor. Refresh on open + every 2 min. Preview: node app-test/build-tech-preview.js <out.html>. TEST deploy @19. LIVE still @18.
 - 2026-11-18 Matt: tech calendar built for iPad = full month, Monday-Friday only (no weekends). Phones (<640px) get a list of
   the month's days that have jobs. Tap targets 44px. TEST deploy @20. LIVE still @18.
+- 2026-11-18 Matt: job panel bigger (820px wide, 18px text) TEST @21. Asked for an AppFolio WO link: not possible from the WO #
+  alone (AppFolio WO URLs use an internal id). Proposed: Spencer pastes the WO link on the PMI Scope form. Awaiting Matt.
