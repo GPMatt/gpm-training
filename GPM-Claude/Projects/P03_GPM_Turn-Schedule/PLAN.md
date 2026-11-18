@@ -293,3 +293,6 @@ Decision log:
   Own small web app (not Google Calendar). Shows tech work days, walks (PMI / move-out), Scope + Tech Prep details.
   All techs see all tech jobs (colored by tech). Turn app stays open to the domain (no allowlist).
   Must-have: changing the tech day in the turn app shows on the tech calendar (same Supabase data, read on open + auto-refresh).
+- 2026-11-18 Matt: walks for the tech calendar. Cookie cutter + Bill's properties = Spencer alone; Riley = everything that is
+  not Bill's and not cookie cutter (Wesley walks Cherry St). Move-out check is Spencer alone (no tech). Laura C may become a
+  tech later: keep the tech list fluid (from the turn data + Settings, no hard-coded tech names in the tech calendar).
