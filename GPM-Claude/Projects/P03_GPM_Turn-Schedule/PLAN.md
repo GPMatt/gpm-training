@@ -286,3 +286,6 @@ Decision log:
   vendor" box (trade · vendor · date · confirmed/not); RED when its scheduled day has passed and the step isn't marked done.
   Separate "Vendor slots: N confirmed · N unconfirmed" (booking, not work done). PMI left out (turns start at the scope).
   Open: RingCentral "done" confirmation method (proposed in chat).
+- 2026-11-18 later: mock v2 deleted. KEEP (when built): "Vendor slots: N confirmed · N unconfirmed" chips; drop the % (caption
+  "X of Y done", bar keeps stripes). Everything else from the mocks is on hold: Matt still working out the card layout.
+  Nothing built; LIVE still @18.
