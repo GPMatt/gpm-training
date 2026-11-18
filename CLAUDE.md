@@ -16,6 +16,7 @@ priority order (set by Matt), not numeric order.
 6. Compile ACE POs
 7. Meta Ad Campaign
 8. AI class for GPM Staff
+9. New Tech Onboarding
 
 List reset by Matt 2026-11-16: all earlier items removed and numbering
 restarted at 1. Numbers stay stable from here on.
