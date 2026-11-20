@@ -45,7 +45,13 @@ var PM_EMAILS = {
   'Spencer Green': 'spencer@greenpropertymgt.com'
 };
 // Supabase has no PM for the non-11 accounts; these are Matt's assignments.
-var PM_BY_ACCOUNT = { IVA: 'Jody Betsch', OAK: 'Mike Green' };
+var PM_BY_ACCOUNT = { IVA: 'Jody Betsch', OAK: 'Mike Green', Pinery: 'Blake Roush' };
+
+// CC Billing sheet, PropertyMap tab: READ ONLY, never written (Matt's rule).
+// Owner per street address tells whether two numbers on one street are the
+// same property (same owner) or different ones.
+var CC_BILLING_SHEET_ID = '1Ft4kDjcMCW5c4HRhE6XTLwm5t0pyuBR_NbmL0CU96iU';
+var PROPERTY_MAP_TAB = 'PropertyMap';
 
 var STREET_SUFFIXES = /^(st|street|ave|avenue|dr|drive|ln|lane|rd|road|ct|court|pl|place|blvd|way|cir|circle|pkwy|ter|trl|hwy)\.?$/;
 var DIRECTIONS = /^(n|s|e|w|ne|nw|se|sw|north|south|east|west)\.?$/;
@@ -59,9 +65,7 @@ function runPropertyScan() {
   try {
     deleteScanTriggers_();
     var ss = SpreadsheetApp.openById(props.getProperty('PROFILES_SHEET_ID'));
-    if (!props.getProperty('SUPABASE_URL') || !props.getProperty('SUPABASE_KEY')) {
-      throw new Error('Set Script Properties SUPABASE_URL and SUPABASE_KEY first.');
-    }
+    supabaseConfig_(); // fails fast, naming what it found, before the long Gmail scan
     var done = scanGuestCards_(ss);
     if (!done) {
       ScriptApp.newTrigger('runPropertyScan').timeBased().after(60 * 1000).create();
@@ -149,14 +153,46 @@ function readScanCards_(ss) {
 
 // ---- 2. Supabase -----------------------------------------------------------
 
+// Finds the Supabase URL and key even with a stray space or different case in
+// the property name, or the warehouse's SUPABASE_SERVICE_KEY name. On a miss
+// the error lists the property NAMES that are set (never their values).
+function supabaseConfig_() {
+  var all = PropertiesService.getScriptProperties().getProperties();
+  var find = function (names) {
+    var keys = Object.keys(all);
+    for (var i = 0; i < keys.length; i++) {
+      if (names.indexOf(keys[i].trim().toUpperCase()) >= 0 && String(all[keys[i]]).trim()) return String(all[keys[i]]).trim();
+    }
+    return '';
+  };
+  var url = find(['SUPABASE_URL']).replace(/\/+$/, '');
+  var key = find(['SUPABASE_KEY', 'SUPABASE_SERVICE_KEY', 'SUPABASE_SERVICE_ROLE_KEY']);
+  if (!url || !key) {
+    throw new Error('Missing ' + (!url ? 'SUPABASE_URL ' : '') + (!key ? 'SUPABASE_KEY ' : '') +
+      'in this project\'s Script Properties (' + ScriptApp.getScriptId() + '). Names set here: ' +
+      Object.keys(all).map(function (k) { return '"' + k + '"'; }).join(', '));
+  }
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url)) throw new Error('SUPABASE_URL should look like https://xxxx.supabase.co — got "' + url.slice(0, 40) + '"');
+  return { url: url, key: key };
+}
+
 function fetchSupabaseProperties_() {
-  var props = PropertiesService.getScriptProperties();
-  var url = props.getProperty('SUPABASE_URL').replace(/\/+$/, '') +
-    '/rest/v1/dim_property?select=af_account,af_property_name,canonical_address,property_type,pm_name&active=eq.true';
-  var key = props.getProperty('SUPABASE_KEY');
+  var cfg = supabaseConfig_();
+  var url = cfg.url + '/rest/v1/dim_property?select=af_account,af_property_name,canonical_address,property_type,pm_name&active=eq.true';
+  var key = cfg.key;
   var res = UrlFetchApp.fetch(url, { headers: { apikey: key, Authorization: 'Bearer ' + key }, muteHttpExceptions: true });
   if (res.getResponseCode() !== 200) throw new Error('Supabase returned ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 300));
   return JSON.parse(res.getContentText());
+}
+
+// [{address, owner}] from the CC Billing PropertyMap tab. Read only.
+function readPropertyMap_() {
+  var values = SpreadsheetApp.openById(CC_BILLING_SHEET_ID).getSheetByName(PROPERTY_MAP_TAB).getDataRange().getValues();
+  var head = values[0].map(function (h) { return String(h).trim(); });
+  var a = head.indexOf('Property Address'), o = head.indexOf('Owner Name');
+  if (a < 0 || o < 0) throw new Error('PropertyMap headers changed: expected "Property Address" and "Owner Name"');
+  return values.slice(1).map(function (r) { return { address: String(r[a]).trim(), owner: String(r[o]).trim() }; })
+    .filter(function (r) { return r.address && r.owner; });
 }
 
 // → {keep: [...], skipped: [{name, why}]}
@@ -275,7 +311,7 @@ function applyPropertyScan_(ss) {
 
   var supa = filterScanProperties_(fetchSupabaseProperties_());
   var cards = readScanCards_(ss);
-  var plan = planPropertyScan_(rows, supa.keep, cards, stamp);
+  var plan = planPropertyScan_(rows, supa.keep, cards, stamp, readPropertyMap_());
   var report = plan.report, changes = plan.changes;
   supa.skipped.forEach(function (s) { report.push(['Skipped property', s.name, s.why, '']); });
 
@@ -329,16 +365,19 @@ function applyPropertyScan_(ss) {
     'Rows: ' + rowsBefore + ' → ' + rows.length + ' (' + changes.added + ' new, Status Off). ' +
     changes.appended + ' existing rows got new phrases. ' + changes.dropped + ' phrases held back (would clash).\n' +
     'Leads after the update: ' + JSON.stringify(tally) + '\n' +
+    'Unmatched-lead alerts are now ON: any new lead that matches no row emails you within 5 minutes.\n' +
     'Details: PropertyScan tab. Backup: "' + backup.getName() + '" (hidden tab).\n' + ss.getUrl();
   GmailApp.sendEmail(ALERT_EMAIL, 'Lead responder: property scan done', summary);
   Logger.log(summary);
   PropertiesService.getScriptProperties().deleteProperty('SCAN_NEXT_DAY');
+  // Every property now has a row: turn on the unmatched-lead failsafe (Responder.gs).
+  PropertiesService.getScriptProperties().setProperty('UNMATCHED_ALERTS_ON', '1');
 }
 
 // The whole decision, with no Apps Script calls, so it can be dry-run
 // outside Apps Script. `rows` is changed in place (phrases appended, new
 // rows pushed).
-function planPropertyScan_(rows, keep, cards, stamp) {
+function planPropertyScan_(rows, keep, cards, stamp, propertyMap) {
   var report = [];   // [Section, Property, Detail, Count]
   var changes = { added: 0, appended: 0, dropped: 0 };
 
@@ -351,6 +390,33 @@ function planPropertyScan_(rows, keep, cards, stamp) {
       return own.some(function (ph) { return phrases.indexOf(ph) >= 0 || containsPhrase_(name, ph); });
     });
     return { p: p, phrases: phrases, hits: hits };
+  });
+
+  // Same street, other numbers (PropertyMap): a number with the SAME owner as
+  // this property is another building of it ("2715 mckee" for Woods Edge); a
+  // different owner means a different property, so it is never added.
+  var streetOf = function (ph) { return ph.replace(/^\d+\s+/, ''); };
+  var claimed = {};
+  plans.forEach(function (pl) { pl.phrases.forEach(function (ph) { claimed[ph] = true; }); });
+  var mapRows = (propertyMap || []).map(function (m) { return { owner: m.owner.toLowerCase(), phrases: addressPhrases_(m.address), address: m.address }; })
+    .filter(function (m) { return m.phrases.length; });
+  plans.forEach(function (pl) {
+    var mine = pl.phrases.filter(function (ph) { return /^\d/.test(ph); });
+    var owners = {};
+    mapRows.forEach(function (m) {
+      if (m.phrases.some(function (ph) { return mine.indexOf(ph) >= 0; })) owners[m.owner] = true;
+    });
+    var streets = mine.map(streetOf);
+    mapRows.forEach(function (m) {
+      m.phrases.forEach(function (ph) {
+        if (claimed[ph] || streets.indexOf(streetOf(ph)) < 0) return;
+        if (owners[m.owner]) {
+          pl.phrases.push(ph);
+          claimed[ph] = true;
+          report.push(['Same owner, same street (PropertyMap)', displayName_(pl.p), '"' + ph + '" (' + m.address + ')', '']);
+        }
+      });
+    });
   });
 
   // Names prospects actually use: "Interested in: X - unit" on cards whose

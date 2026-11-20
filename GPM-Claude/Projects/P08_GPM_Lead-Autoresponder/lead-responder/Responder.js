@@ -105,7 +105,10 @@ function handleGuestCard_(msg, profiles, listings, history) {
   var match = matchCard_(card, listings, profiles.properties);
   var p = match.profile;
 
-  if (match.outcome === 'NO_PROFILE' || match.outcome === 'AMBIGUOUS') return logRow_(msg, 'SKIP', card, match, {}, '', match.reason);
+  if (match.outcome === 'NO_PROFILE' || match.outcome === 'AMBIGUOUS') {
+    var alerted = sendUnmatchedAlert_(card, msg, match);
+    return logRow_(msg, alerted ? 'ALERT' : 'SKIP', card, match, {}, alerted ? ALERT_EMAIL : '', match.reason);
+  }
   if (p.Status === 'Off') return null; // no log row; remembered in QUIET_IDS so it isn't re-read
   if (p.Status !== 'Test' && p.Status !== 'Live') return logRow_(msg, 'SKIP', card, match, {}, '', 'Row is ' + (p.Status || 'blank'));
   if (!card.email) return logRow_(msg, 'SKIP', card, match, {}, '', 'No prospect email on the guest card');
@@ -210,6 +213,52 @@ function sendNoListingAlert_(p, card, msg, prospectGetsHoldingReply) {
   var options = { name: SENDER_NAME };
   if (to.toLowerCase() !== ALERT_EMAIL) options.cc = ALERT_EMAIL;
   GmailApp.sendEmail(to, subject, lines.join('\n'), options);
+}
+
+// Failsafe: a lead that matches no row (or 2+ rows) gets NO reply, so Matt
+// hears about it on the next 5-minute run. One email per lead, at most
+// UNMATCHED_ALERTS_PER_DAY a day (then one "limit reached" email). Jefferson
+// (hilltop) is out of this project on purpose and never alerts.
+var UNMATCHED_ALERTS_PER_DAY = 25;
+var UNMATCHED_ALERT_SKIP_ACCOUNTS = ['hilltoprealtymanagement'];
+
+function sendUnmatchedAlert_(card, msg, match) {
+  var props = PropertiesService.getScriptProperties();
+  // Switched on by the property scan once every property has a row, so the
+  // alert doesn't fire for the ~100 properties that aren't on the sheet yet.
+  if (props.getProperty('UNMATCHED_ALERTS_ON') !== '1') return false;
+  if (UNMATCHED_ALERT_SKIP_ACCOUNTS.indexOf(card.account) >= 0) return false;
+  var today = Utilities.formatDate(new Date(), 'America/Detroit', 'yyyy-MM-dd');
+  var count = JSON.parse(props.getProperty('UNMATCHED_ALERTS') || '{}');
+  var n = count[today] || 0;
+  if (n > UNMATCHED_ALERTS_PER_DAY) return false;
+  props.setProperty('UNMATCHED_ALERTS', JSON.stringify((function (o) { o[today] = n + 1; return o; })({})));
+  if (n === UNMATCHED_ALERTS_PER_DAY) {
+    GmailApp.sendEmail(ALERT_EMAIL, 'Lead responder: unmatched-lead alerts paused for today',
+      UNMATCHED_ALERTS_PER_DAY + ' leads today matched no row. More alerts are paused until tomorrow; every one is still in the ResponderLog tab (Action SKIP).',
+      { name: SENDER_NAME });
+    return false;
+  }
+  var ambiguous = match.outcome === 'AMBIGUOUS';
+  var lines = [
+    ambiguous ? 'This lead matched MORE THAN ONE property row, so nobody was emailed:' :
+      'This lead matched NO MatchPhrase in the Lead Response Profiles sheet, so nobody was emailed:',
+    '',
+    'Card: ' + (card.headline || '(no headline)') + (card.interestedIn ? ' / Interested in: ' + card.interestedIn : ''),
+    'Subject: ' + (card.subject || ''),
+    'AppFolio account: ' + (card.account || '(unknown)'),
+    'Why: ' + match.reason,
+    '',
+    'Prospect: ' + (card.name || '(no name)') + ' · ' + (card.email || 'no email') + ' · ' + (card.phone || 'no phone'),
+    'Received: ' + Utilities.formatDate(msg.getDate(), 'America/Detroit', 'EEE M/d h:mm a'),
+    '',
+    ambiguous ? 'Fix: make the rows\' MatchPhrases not overlap.' :
+      'Fix: add the property (or the phrase the card uses) to its row\'s MatchPhrases. A property we never auto-answer can get a row with Status Off, which silences this alert.',
+    'The prospect has NOT been answered. Forward to the PM if it needs a person.'
+  ];
+  GmailApp.sendEmail(ALERT_EMAIL, (ambiguous ? 'Lead matched 2+ rows: ' : 'Lead matched no property: ') + (card.headline || card.subject),
+    lines.join('\n'), { name: SENDER_NAME });
+  return true;
 }
 
 function logRow_(msg, action, card, match, mail, sentTo, reason) {
