@@ -32,7 +32,7 @@ var SCAN_RESIDENTIAL_TYPES = ['Single-Family', 'Multi-Family', 'Mixed-Use'];
 var SCAN_SKIP_ACCOUNTS = ['Jeff'];                 // Jefferson is out of this project (Matt)
 var SCAN_SKIP_NAME_PREFIXES = ['green miscellaneous'];
 var GENERIC_UNIT_RE_ = /^(unit|apt|apartment|suite|ste|no|#)\.?\s*#?\s*[a-z0-9-]{1,5}$/;
-var SCAN_SKIP_PHRASES = ['28 gold'];               // 28 Gold removed on purpose (Updates.gs REMOVE_PROPERTIES)
+var SCAN_SKIP_PHRASES = [];   // 28/30 Gold re-added 2026-11-20 (addGoldRow20261120)
 var SCAN_SHEET_ROWS = 300;                         // Missing formula, dropdowns and colors reach this row
 
 // Known PM inboxes. A PM not listed here gets a blank PMEmail, which the
@@ -566,4 +566,28 @@ function fixScanPhrases20261120() {
     if (!data.some(function (r) { return String(r[pCol]).trim() === name; })) log.push('NOT FOUND: ' + name);
   });
   Logger.log((log.length ? log.join('\n') : 'Nothing to change.') + '\n' + ss.getUrl());
+}
+
+// addGoldRow20261120() (PropertyScan.gs): puts 28/30 Gold back as ONE row,
+// Status Off. It was dropped on 2026-10-15 because units are posted under both
+// 28 and 30 Gold; one row with both numbers now covers every lead. Safe to re-run.
+function addGoldRow20261120() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var col = {};
+  header.forEach(function (h, i) { col[h] = i + 1; });
+  var names = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (/\b(28|30) gold\b/i.test(String(names[i][0]))) { Logger.log('Already there: row ' + (i + 2)); return; }
+  }
+  var r = 2;
+  while (sheet.getRange(r, 1).getValue() !== '') r++;
+  var values = {
+    Property: '28 Gold Ave SW', MatchPhrases: '28 gold; 30 gold',
+    PM: 'Mike Green', PMEmail: 'mike@greenpropertymgt.com', Status: 'Off',
+    Notes: 'Units are posted under both 28 and 30 Gold Ave SW. Re-added 2026-11-20.'
+  };
+  Object.keys(values).forEach(function (k) { sheet.getRange(r, col[k]).setValue(values[k]); });
+  Logger.log('Added 28/30 Gold as row ' + r + ' (Off)\n' + ss.getUrl());
 }

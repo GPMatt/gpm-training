@@ -37,7 +37,7 @@ var PM_BY_PROPERTY = {
   '329 Lyon St NE': ['Jody Betsch', 'jody@greenpropertymgt.com']
 };
 
-var REMOVE_PROPERTIES = ['28 Gold Ave SW'];
+var REMOVE_PROPERTIES = [];   // 28 Gold re-added 2026-11-20 as one row for 28 + 30 Gold
 
 function applyProfileUpdates() {
   var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
