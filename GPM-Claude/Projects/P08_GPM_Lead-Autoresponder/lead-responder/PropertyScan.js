@@ -336,7 +336,7 @@ function applyPropertyScan_(ss) {
   listings.forEach(function (l) {
     if (l.account === 'hilltoprealtymanagement') return;
     var covered = rows.some(function (r) {
-      return phrasesOf(r).some(function (ph) { return /^\d/.test(ph) && containsPhrase_(l.address, ph); });
+      return phraseList_(r).some(function (ph) { return /^\d/.test(ph) && containsPhrase_(l.address, ph); });
     });
     if (!covered) report.push(['Posted unit not covered', l.address, l.title + ' (' + l.account + ')', '']);
   });
@@ -444,7 +444,6 @@ function planPropertyScan_(rows, keep, cards, stamp, propertyMap) {
   });
 
   // Every phrase in use by a row, for the overlap check.
-  var phrasesOf = function (r) { return phraseList_(r); };
 
   plans.forEach(function (pl) {
     if (pl.hits.length > 1) {
@@ -459,12 +458,12 @@ function planPropertyScan_(rows, keep, cards, stamp, propertyMap) {
       target = { Property: displayName_(pl.p), MatchPhrases: '', PM: pm, PMEmail: PM_EMAILS[pm] || '', Status: 'Off',
         Notes: 'Added by property scan ' + stamp + ' from Supabase. AppFolio (' + pl.p.af_account + '): ' + pl.p.af_property_name + '.' };
     }
-    var own = phrasesOf(target);
+    var own = phraseList_(target);
     var others = rows.filter(function (r) { return r !== target; });
     var add = [];
     pl.phrases.forEach(function (ph) {
       if (phraseOverlaps_(ph, own) || add.indexOf(ph) >= 0) return;
-      var clash = others.filter(function (r) { return phraseOverlaps_(ph, phrasesOf(r)); });
+      var clash = others.filter(function (r) { return phraseOverlaps_(ph, phraseList_(r)); });
       if (clash.length) {
         report.push(['Phrase NOT added (clash)', target.Property, '"' + ph + '" also matches ' + clash.map(function (r) { return r.Property; }).join(', '), '']);
         changes.dropped++;
