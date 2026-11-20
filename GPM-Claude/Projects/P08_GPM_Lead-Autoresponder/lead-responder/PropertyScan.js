@@ -31,6 +31,7 @@ var SCAN_TIME_BUDGET_MS = 4.5 * 60 * 1000;
 var SCAN_RESIDENTIAL_TYPES = ['Single-Family', 'Multi-Family', 'Mixed-Use'];
 var SCAN_SKIP_ACCOUNTS = ['Jeff'];                 // Jefferson is out of this project (Matt)
 var SCAN_SKIP_NAME_PREFIXES = ['green miscellaneous'];
+var GENERIC_UNIT_RE_ = /^(unit|apt|apartment|suite|ste|no|#)\.?\s*#?\s*[a-z0-9-]{1,5}$/;
 var SCAN_SKIP_PHRASES = ['28 gold'];               // 28 Gold removed on purpose (Updates.gs REMOVE_PROPERTIES)
 var SCAN_SHEET_ROWS = 300;                         // Missing formula, dropdowns and colors reach this row
 
@@ -425,6 +426,7 @@ function planPropertyScan_(rows, keep, cards, stamp, propertyMap) {
   cards.forEach(function (c) {
     var nick = c.interestedIn.split(/\s+-\s+/)[0].toLowerCase().replace(/\s+/g, ' ').trim();
     if (!nick || /^\d/.test(nick) || nick.length < 5) return;
+    if (GENERIC_UNIT_RE_.test(nick)) return;   // "apt 2", "unit 1": every building has one
     plans.forEach(function (pl, i) {
       if (isStreetOnly_(nick, pl.p.canonical_address)) return;
       if (pl.phrases.some(function (ph) { return /^\d/.test(ph) && containsPhrase_(c.headline, ph); })) {
@@ -437,6 +439,12 @@ function planPropertyScan_(rows, keep, cards, stamp, propertyMap) {
     var ids = Object.keys(nameVotes[nick]);
     if (ids.length !== 1 || nameVotes[nick][ids[0]] < 2) return;
     var pl = plans[Number(ids[0])];
+    // Skip a name that also shows up on a card for a different property.
+    var elsewhere = cards.some(function (c) {
+      var mine = pl.phrases.some(function (ph) { return /^\d/.test(ph) && containsPhrase_(c.headline, ph); });
+      return !mine && containsPhrase_(c.headline + ' ' + c.interestedIn, nick);
+    });
+    if (elsewhere) return;
     if (!phraseOverlaps_(nick, pl.phrases)) {
       pl.phrases.push(nick);
       report.push(['Learned from leads', displayName_(pl.p), '"' + nick + '"', nameVotes[nick][ids[0]]]);
@@ -516,4 +524,46 @@ function extendPropertiesSheet_(sheet, col, lastRow) {
     return rule.copy().setRanges(ranges).build();
   });
   sheet.setConditionalFormatRules(rules);
+}
+
+// fixScanPhrases20261120() (PropertyScan.gs): one-time clean-up after the
+// first scan, checked against the Cunningham list. Safe to re-run.
+//   1. Removes generic unit phrases the scan learned from leads ("apt 2",
+//      "unit 1"…). They made Lyon, Fremont and Pinery leads AMBIGUOUS.
+//   2. Adds building numbers that are on the Cunningham list but were missing
+//      from their property's row (same PM on both lists).
+var FIX_20261120_REMOVE = ['unit 1', 'unit 2', 'unit 411', 'apt 2', 'apt 6', 'apt 11'];
+var FIX_20261120_ADD = {
+  'Cardinal Point': ['453 knapp'],
+  '2121 Leonard St NE': ['2131 leonard'],
+  'Woods Edge Apartments': ['2657 mckee', '2721 mckee', '2704 clyde park', '2720 clyde park'],
+  '3001 Woodcliff Ln SE': ['3003 woodcliff'],
+  'Pinery Woods Apartments': ['2231 michael', '2280 michael']
+};
+function fixScanPhrases20261120() {
+  var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var pCol = header.indexOf('Property'), mCol = header.indexOf('MatchPhrases');
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, header.length).getValues();
+  var log = [];
+  data.forEach(function (row, i) {
+    var name = String(row[pCol]).trim();
+    if (!name) return;
+    var before = String(row[mCol]);
+    var list = before.split(';').map(function (s) { return s.trim(); }).filter(String);
+    var kept = list.filter(function (ph) { return FIX_20261120_REMOVE.indexOf(ph.toLowerCase()) < 0; });
+    (FIX_20261120_ADD[name] || []).forEach(function (ph) {
+      if (kept.map(function (k) { return k.toLowerCase(); }).indexOf(ph) < 0) kept.push(ph);
+    });
+    var after = kept.join('; ');
+    if (after !== before) {
+      sheet.getRange(i + 2, mCol + 1).setValue(after);
+      log.push(name + ': "' + before + '" → "' + after + '"');
+    }
+  });
+  Object.keys(FIX_20261120_ADD).forEach(function (name) {
+    if (!data.some(function (r) { return String(r[pCol]).trim() === name; })) log.push('NOT FOUND: ' + name);
+  });
+  Logger.log((log.length ? log.join('\n') : 'Nothing to change.') + '\n' + ss.getUrl());
 }
