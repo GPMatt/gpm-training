@@ -8,7 +8,7 @@
 var LISTING_ACCOUNTS = ['greenproperty11', 'greenproperty', 'greenproperty7', 'greenproperty9'];
 var LISTINGS_CACHE_SECONDS = 10 * 60;
 var SLOTS_CACHE_SECONDS = 60 * 60;
-var SLOT_LOOKAHEAD_DAYS = 14; // AppFolio returns 4 days per request
+// AppFolio's availabilities endpoint only ever returns the next 4 days.
 
 function listingsBase_(account) {
   return 'https://' + account + '.appfolio.com/listings';
@@ -56,7 +56,7 @@ function parseListingsPage_(account, html) {
   return out;
 }
 
-// Bookable showing times in the next SLOT_LOOKAHEAD_DAYS, keyed by uid:
+// Bookable showing times in the next 4 days, keyed by uid:
 // -1 = showings are turned off for the listing, 0 = calendar has no times.
 function showingSlots_(listings) {
   var cache = CacheService.getScriptCache();
@@ -69,16 +69,14 @@ function showingSlots_(listings) {
   if (!todo.length) return result;
 
   var requests = [], owners = [];
-  var today = new Date();
+  // AppFolio ignores startDate and always returns the next 4 days from today,
+  // so one request per listing (more only counted the same times again).
   todo.forEach(function (l) {
-    for (var d = 0; d < SLOT_LOOKAHEAD_DAYS; d += 4) {
-      var start = Utilities.formatDate(new Date(today.getTime() + d * 864e5), 'America/Detroit', 'MM/dd/yyyy');
-      requests.push({
-        url: listingsBase_(l.account) + '/api/listings/' + l.uid + '/availabilities?startDate=' + encodeURIComponent(start),
-        headers: { Accept: 'application/json' }, muteHttpExceptions: true
-      });
-      owners.push(l.uid);
-    }
+    requests.push({
+      url: listingsBase_(l.account) + '/api/listings/' + l.uid + '/availabilities',
+      headers: { Accept: 'application/json' }, muteHttpExceptions: true
+    });
+    owners.push(l.uid);
   });
   var counts = {};
   UrlFetchApp.fetchAll(requests).forEach(function (res, i) {

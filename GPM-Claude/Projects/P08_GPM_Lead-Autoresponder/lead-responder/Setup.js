@@ -27,7 +27,7 @@ var PROPERTY_COLUMNS = [
 
 var PROPERTY_HEADER_NOTES = {
   MatchPhrases: 'Lowercase phrases, separated by ";". A lead email that contains any of them belongs to this property. Use street NUMBER + street (e.g. "1960 burton"), never a bare street name.',
-  ShowingLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio booking page, and only when the PM\'s showing calendar has open times.',
+  ShowingLink: 'Leave blank: each email links every posted unit to its own AppFolio booking page, only when the PM\'s showing calendar has open times. Type Off to never offer online booking for this property (prospects are asked to reply to set up a time). A URL here overrides the booking link.',
   ApplyLink: 'Optional override — leave blank. Each email links every posted unit to its own AppFolio application.',
   RentRange: 'Optional. Each email already shows the live rent of every posted unit.',
   Special: 'COPIED WORD FOR WORD into every email for this property, exactly as typed here, under "CURRENT SPECIAL". Write it the way you want prospects to read it, e.g. "First month free on a 13-month lease signed by Nov 30." Leave blank when there is no special. Clear or change it the day the special changes.',

@@ -133,9 +133,13 @@ function unitsBlock_(property, match, pm) {
   // type: the unit they asked about, then a real unit over a wait list, then
   // one they can book a showing for, then the soonest available.
   var list = (match.building || []).slice();
-  var slots = list.length ? showingSlots_(list) : {};
+  // ShowingLink = "Off" on a row: never offer online booking for that property
+  // (e.g. the PM sets showings up by hand); the reply-to-schedule line is used instead.
+  var noBooking = /^(off|none|no)$/i.test(String(property.ShowingLink || '').trim());
+  var fixedLink = noBooking ? '' : property.ShowingLink;
+  var slots = (list.length && !noBooking) ? showingSlots_(list) : {};
   var rank = function (l) {
-    return [match.unit && l.uid === match.unit.uid ? 0 : 1, isWaitList_(l), (slots[l.uid] > 0 || property.ShowingLink) ? 0 : 1,
+    return [match.unit && l.uid === match.unit.uid ? 0 : 1, isWaitList_(l), (slots[l.uid] > 0 || fixedLink) ? 0 : 1,
       availableSortKey_(l)];
   };
   var better = function (a, b) {
@@ -154,7 +158,7 @@ function unitsBlock_(property, match, pm) {
     if (match.unit && b.uid === match.unit.uid) return 1;
     return bedSortValue_(a) - bedSortValue_(b);
   });
-  var bookable = shown.filter(function (l) { return slots[l.uid] > 0 || property.ShowingLink; }).length;
+  var bookable = shown.filter(function (l) { return slots[l.uid] > 0 || fixedLink; }).length;
 
   if (!shown.length) {
     // Only sent after hours (Responder.js); the PM is alerted to follow up.
@@ -169,7 +173,7 @@ function unitsBlock_(property, match, pm) {
   var text = [intro, ''], html = ['<p style="margin:0 0 8px">' + escapeHtml_(intro) + '</p>'];
 
   shown.forEach(function (l) {
-    var showUrl = property.ShowingLink || (slots[l.uid] > 0 ? l.showingUrl : '');
+    var showUrl = fixedLink || (slots[l.uid] > 0 ? l.showingUrl : '');
     var applyUrl = property.ApplyLink || l.applyUrl;
     var wait = isWaitList_(l);
     var facts = [l.bedBath, l.rent ? l.rent + '/mo' : '',
