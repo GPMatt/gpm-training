@@ -41,24 +41,40 @@ function sendTestPreviews(toOverride) {
 function loadProfiles_() {
   var ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('PROFILES_SHEET_ID'));
 
-  var data = ss.getSheetByName(PROPERTIES_TAB).getDataRange().getValues();
+  var range = ss.getSheetByName(PROPERTIES_TAB).getDataRange();
+  var data = range.getValues(), shown = range.getDisplayValues();
   var header = data[0];
-  var properties = data.slice(1).filter(function (row) { return row[0]; }).map(function (row) {
+  var properties = data.slice(1).map(function (row, r) {
+    if (!row[0]) return null;
     var obj = {};
-    header.forEach(function (h, i) { obj[h] = typeof row[i] === 'string' ? row[i].trim() : row[i]; });
+    header.forEach(function (h, i) { obj[h] = cellValue_(row[i], shown[r + 1][i]); });
     return obj;
-  });
+  }).filter(Boolean);
 
   // Code defaults (Setup.gs DEFAULTS, e.g. the $50 application fee) apply
   // when the Defaults tab cell is blank; a value typed in the sheet wins.
   var defaults = {};
   DEFAULTS.forEach(function (d) { if (d[1]) defaults[d[0]] = d[1]; });
-  ss.getSheetByName(DEFAULTS_TAB).getDataRange().getValues().slice(1).forEach(function (row) {
-    if (row[0] && String(row[1]).trim()) defaults[row[0]] = String(row[1]).trim();
+  var dRange = ss.getSheetByName(DEFAULTS_TAB).getDataRange();
+  var dShown = dRange.getDisplayValues();
+  dRange.getValues().forEach(function (row, i) {
+    if (i === 0 || !row[0]) return;
+    var v = String(cellValue_(row[1], dShown[i][1])).trim();
+    if (v) defaults[row[0]] = v;
   });
 
   var t = ss.getSheetByName(TEMPLATE_TAB).getRange(1, 2, 2, 1).getValues();
   return { properties: properties, defaults: defaults, subject: String(t[0][0]), body: String(t[1][0]) };
+}
+
+// Sheets stores "$50" or "10%" as a plain number; use what the cell shows
+// ("$50", not "50"). Dates and checkboxes keep their real value.
+function cellValue_(raw, shown) {
+  if (typeof raw === 'string') return raw.trim();
+  if (typeof raw === 'number' && shown !== undefined && String(shown).trim() !== '' && String(shown) !== String(raw)) {
+    return String(shown).trim().replace(/^(\$[\d,]+)\.00$/, '$1');
+  }
+  return raw;
 }
 
 // Row value first, then the company default, then blank. `match` is the

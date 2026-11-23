@@ -20,9 +20,15 @@ var VOTE_COL = 'TurnOffAppFolioReply';
 var OLD_INCOME_LINE = '• Combined household income of {{IncomeMultiple}}x the monthly rent';
 var NEW_INCOME_LINE = '• Gross household income of {{IncomeMultiple}}x the monthly rent';
 
-// What a PM may change from the app. Cosigner / Section 8 stay sheet-only.
+// What a PM may change from the app.
 var APP_FIELDS = ['PM', 'PMEmail', 'Status', 'ShowingLink', 'Special', 'SpecialEnds', 'About', 'Pets',
-  'LeaseLengths', 'RentRange', 'VirtualTourLink', 'CreditMin', 'IncomeMultiple', VOTE_COL];
+  'LeaseLengths', 'RentRange', 'VirtualTourLink', 'CreditMin', 'IncomeMultiple',
+  'CosignerPolicy', 'Section8Policy', VOTE_COL];
+
+// Every item the Missing check can name → the app field that fixes it. An item
+// with no field here is a company setting (Defaults tab) only Matt can change.
+var MISSING_FIELDS = { 'PM': 'PM', 'PM email': 'PM', 'Pets': 'Pets', 'Lease lengths': 'LeaseLengths',
+  'Credit': 'CreditMin', 'Income': 'IncomeMultiple', 'Cosigner': 'CosignerPolicy', 'Section 8': 'Section8Policy' };
 
 function doGet() {
   return HtmlService.createTemplateFromFile('PmAppPage').evaluate()
@@ -172,7 +178,8 @@ function pmAppSave(name, edits) {
     Object.keys(clean.values).forEach(function (k) { next[k] = clean.values[k]; });
     var missing = missingFor_(next, profiles.defaults);
     if (next.Status === 'Live' && missing.length) {
-      return { ok: false, errors: ['Can\'t turn this property Live yet. Fill in: ' + missing.join(', ') + '.'] };
+      return { ok: false, errors: ['Can\'t turn this property Live yet. Fill in: ' + missing.join(', ') + '.' +
+        (missing.some(function (m) { return !MISSING_FIELDS[m]; }) ? ' (Items not on this form are company settings; ask Matt.)' : '')] };
     }
 
     var sheet = profilesSs_().getSheetByName(PROPERTIES_TAB);
@@ -263,11 +270,15 @@ function buildView_(p, profiles) {
   if (match.outcome === 'NO_VACANCY') notes.push('No posted units match this property right now. A real lead gets a short holding reply and the PM gets an alert instead of this email.');
   if (p.Special && specialExpired_(p.SpecialEnds)) notes.push('The Special is past its end date, so it is left out.');
   if (!String(p.About || '').trim() && p.WriteupDoc) notes.push('The About section comes from the old WriteupDoc link. Type a blurb here to replace it.');
+  var companyOnly = missing.filter(function (m) { return !MISSING_FIELDS[m]; });
+  if (companyOnly.length) notes.push('Company setting missing: ' + companyOnly.join(', ') + '. Only Matt can set this (Defaults tab); it blocks Live for every property.');
   if (mode === 'custom') notes.push('Every unit in the email uses your own booking link, whatever AppFolio shows.');
 
   return {
     name: p.Property, row: row, missing: missing, notes: notes, voteColumn: !!(VOTE_COL in p),
-    defaults: { CreditMin: String(profiles.defaults.CreditMin || ''), IncomeMultiple: String(profiles.defaults.IncomeMultiple || '') },
+    defaults: { CreditMin: String(profiles.defaults.CreditMin || ''), IncomeMultiple: String(profiles.defaults.IncomeMultiple || ''),
+      CosignerPolicy: String(profiles.defaults.CosignerPolicy || ''), Section8Policy: String(profiles.defaults.Section8Policy || '') },
+    missingFields: missing.map(function (m) { return MISSING_FIELDS[m] || ''; }),
     units: units, totalUnits: match.building.length,
     subject: mail.subject, html: mail.html,
     bookable: mail.bookable, shownCount: mail.unitsShown,
@@ -302,6 +313,11 @@ function cleanEdits_(edits, pms, defaults) {
   ['Pets', 'LeaseLengths', 'RentRange'].forEach(function (f) { text(f, 500); });
   text('Special', 600);
   text('About', 2500);
+  ['CosignerPolicy', 'Section8Policy'].forEach(function (f) {
+    text(f, 300);
+    // Same as the company standard → blank, so the row follows the standard.
+    if (f in v && v[f] && v[f] === String(defaults[f] || '').trim()) v[f] = '';
+  });
 
   if ('PM' in edits) {
     var pm = pms.filter(function (x) { return x.name === String(edits.PM).trim(); })[0];
