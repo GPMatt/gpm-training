@@ -71,7 +71,8 @@ function renderEmail_(property, profiles, firstName, match) {
   });
   values.FirstName = firstName || 'there';
   if (specialExpired_(property.SpecialEnds)) values.Special = '';
-  values.About = readWriteup_(property.WriteupDoc);
+  // About = the PM's blurb (typed in the PM app); the older WriteupDoc link is the fallback.
+  values.About = String(property.About || '').trim() || readWriteup_(property.WriteupDoc);
   var units = unitsBlock_(property, match || { building: [] }, values.PM || 'our leasing team');
   // Older Template tabs have no {{Tour}} line: keep the tour note under the units.
   if (profiles.body.indexOf('{{Tour}}') < 0 && units.tour) {
@@ -121,7 +122,7 @@ function renderEmail_(property, profiles, firstName, match) {
   var text = textLines.join('\n').replace(/\n{3,}/g, '\n\n');
   var subject = profiles.subject.replace(/\{\{(\w+)\}\}/g, function (_, k) { return values[k] || ''; });
   return { subject: subject, html: '<div style="font-family:Arial,sans-serif;font-size:14px">' + html + '</div>', text: text,
-    unitsShown: units.shown, bookable: units.bookable };
+    unitsShown: units.shown, bookable: units.bookable, shownUids: units.shownUids || [] };
 }
 
 // The available units, each with its own Apply button and — only when the
@@ -198,7 +199,8 @@ function unitsBlock_(property, match, pm) {
   }
   // Placed by the template's {{Tour}} line, after the qualifying criteria.
   var tour = bookable ? '' : 'Want to see it first? Reply to this email and ' + pm + ' will set up a time.';
-  return { text: text.join('\n'), html: html.join(''), shown: shown.length, bookable: bookable, tour: tour };
+  return { text: text.join('\n'), html: html.join(''), shown: shown.length, bookable: bookable, tour: tour,
+    shownUids: shown.map(function (l) { return l.uid; }) };
 }
 
 // "33 Lafayette Ave SE, Apt 07, Grand Rapids, MI 49503" → "33 Lafayette Ave SE, Apt 07".

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<style>
+  :root { --brown:#4a3728; --tan:#d9c7a8; --tan-light:#f3ecdd; --green:#4f7942; --green-dark:#3c5c32; --red:#a83232; --ink:#2b241c; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--tan-light); color:var(--ink); }
+  header { background:var(--brown); color:var(--tan-light); padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; font-weight:600; }
+  header p { margin:4px 0 0; font-size:13px; color:var(--tan); }
+  main { max-width:1180px; margin:0 auto; padding:20px; }
+  .card { background:#fff; border:1px solid #e4d8c0; border-radius:10px; padding:18px; margin-bottom:16px; }
+  .card h2 { margin:0 0 12px; font-size:15px; color:var(--brown); }
+  label { display:block; font-size:13px; font-weight:600; color:var(--brown); margin:0 0 5px; }
+  .hint { font-weight:400; color:#7d705b; font-size:12px; }
+  select, input[type=text], input[type=date], input[type=url], input[type=email], textarea {
+    width:100%; padding:9px 11px; font-size:14px; border:1px solid #cbb894; border-radius:6px; background:#fff; color:var(--ink); margin-bottom:14px; font-family:inherit; }
+  textarea { resize:vertical; min-height:70px; }
+  select:focus, input:focus, textarea:focus { outline:2px solid var(--green); }
+  .row2 { display:flex; gap:12px; } .row2 > div { flex:1; min-width:0; }
+  .pick { display:flex; gap:12px; align-items:flex-end; } .pick > div { flex:1; }
+  .pick select { margin-bottom:0; }
+  .chk { font-size:13px; font-weight:400; color:#55493a; display:flex; gap:6px; align-items:center; margin:8px 0 0; }
+  .grid { display:grid; grid-template-columns: 420px 1fr; gap:16px; align-items:start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  button { font-size:14px; font-weight:600; border:none; border-radius:8px; padding:11px 16px; cursor:pointer; }
+  .btn-primary { background:var(--green); color:#fff; } .btn-primary:hover { background:var(--green-dark); }
+  .btn-primary:disabled { background:#b8c9b0; cursor:not-allowed; }
+  .btn-secondary { background:#fff; color:var(--brown); border:1px solid #cbb894; }
+  .btns { display:flex; gap:10px; position:sticky; bottom:0; background:#fff; padding:12px 0 2px; }
+  .btns button { flex:1; }
+  .radio { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; font-size:14px; }
+  .radio label { font-weight:400; color:var(--ink); display:flex; gap:8px; align-items:flex-start; margin:0; }
+  .status { display:flex; gap:6px; margin-bottom:6px; }
+  .status label { flex:1; margin:0; }
+  .status input { display:none; }
+  .status span { display:block; text-align:center; padding:9px 0; border:1px solid #cbb894; border-radius:6px; font-weight:600; font-size:14px; cursor:pointer; color:var(--brown); }
+  .status input:checked + span { background:var(--brown); color:#fff; border-color:var(--brown); }
+  .status input[value=Live]:checked + span { background:var(--green); border-color:var(--green); }
+  .status-help { font-size:12px; color:#6b5f4c; margin:0 0 14px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 6px; border-bottom:1px solid #eee2cc; vertical-align:top; }
+  th { color:var(--brown); font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+  tr.out td { color:#8a7d66; }
+  .pill { display:inline-block; padding:2px 7px; border-radius:10px; font-size:11px; font-weight:700; }
+  .yes { background:#d9ead3; color:#2e5c22; } .no { background:#f4cccc; color:#7d1f1f; } .maybe { background:#fff2cc; color:#7a5c00; }
+  a { color:#1565c0; }
+  .warn { background:#fbeee0; border:1px solid #e0b579; color:#7a4c12; padding:9px 12px; border-radius:6px; font-size:13px; margin-bottom:12px; }
+  .error { background:#f8e2e2; border:1px solid #d99; color:var(--red); padding:9px 12px; border-radius:6px; font-size:13px; margin-bottom:12px; }
+  .ok { background:#e6f0e0; border:1px solid #9cc08c; color:var(--green-dark); padding:9px 12px; border-radius:6px; font-size:13px; margin-bottom:12px; }
+  .mail { border:1px solid #d9d0bd; border-radius:8px; overflow:hidden; }
+  .mail-head { background:#f7f3ea; padding:10px 14px; font-size:13px; border-bottom:1px solid #e4d8c0; line-height:1.6; }
+  .mail-body { padding:16px; background:#fff; }
+  .muted { color:#7d705b; font-size:12px; }
+  .empty { text-align:center; color:#8a7d66; padding:30px 0; font-size:14px; }
+  .spinner { display:inline-block; width:13px; height:13px; border:2px solid rgba(0,0,0,.15); border-top-color:var(--green); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .dirty { font-size:12px; color:#7a4c12; text-align:center; margin-top:6px; min-height:16px; }
+  #work { display:none; }
+  #addPm { display:none; border:1px dashed #cbb894; border-radius:6px; padding:10px; margin:-6px 0 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lead Responder: Property Emails</h1>
+  <p>Edit what prospects get when they ask about your property, and preview the whole email before it goes out.</p>
+</header>
+<main>
+  <div class="card">
+    <div class="pick">
+      <div>
+        <label for="who">Your name</label>
+        <select id="who"><option value="">Loading…</option></select>
+      </div>
+      <div>
+        <label for="prop">Property</label>
+        <select id="prop" disabled><option value="">Pick your name first</option></select>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="showAll"> Show every property, not just mine</label>
+    <div id="topMsg"></div>
+  </div>
+
+  <div id="work" class="grid">
+    <div>
+      <div class="card" id="formCard">
+        <h2 id="formTitle">Your part of the email</h2>
+        <div id="formMsg"></div>
+
+        <label>Status</label>
+        <div class="status">
+          <label><input type="radio" name="Status" value="Off"><span>Off</span></label>
+          <label><input type="radio" name="Status" value="Test"><span>Test</span></label>
+          <label><input type="radio" name="Status" value="Live"><span>Live</span></label>
+        </div>
+        <p class="status-help" id="statusHelp"></p>
+
+        <label for="PM">Property manager <span class="hint">replies go to this person</span></label>
+        <select id="PM"></select>
+        <div id="addPm">
+          <div class="row2">
+            <div><label for="newPmName">New PM name</label><input type="text" id="newPmName" placeholder="First Last"></div>
+            <div><label for="newPmEmail">Email</label><input type="email" id="newPmEmail" placeholder="name@greenpropertymgt.com"></div>
+          </div>
+          <button class="btn-secondary" id="addPmBtn" type="button">Add PM</button>
+        </div>
+
+        <label>Book-a-showing link</label>
+        <div class="radio">
+          <label><input type="radio" name="ShowingMode" value="auto"> <span><b>Automatic.</b> Each unit gets AppFolio's booking link, only while AppFolio's Schedule Showing button is up for it.</span></label>
+          <label><input type="radio" name="ShowingMode" value="custom"> <span><b>Use my own link</b> for every unit</span></label>
+          <label><input type="radio" name="ShowingMode" value="off"> <span><b>Don't include one.</b> Prospects are asked to reply to set up a time.</span></label>
+        </div>
+        <input type="url" id="ShowingUrl" placeholder="https://… your booking link" style="display:none">
+
+        <label for="Special">Current special <span class="hint">copied word for word; leave blank if none</span></label>
+        <textarea id="Special" rows="2"></textarea>
+        <label for="SpecialEnds">Special ends <span class="hint">optional; it drops out automatically after this day</span></label>
+        <input type="date" id="SpecialEnds">
+
+        <label for="About">About the property <span class="hint">neighborhood, amenities, parking. No prices or policies.</span></label>
+        <textarea id="About" rows="5"></textarea>
+
+        <div class="row2">
+          <div><label for="CreditMin">Credit minimum</label><input type="text" id="CreditMin" inputmode="numeric"></div>
+          <div><label for="IncomeMultiple">Income (x rent)</label><input type="text" id="IncomeMultiple" inputmode="decimal"></div>
+        </div>
+        <label for="Pets">Pets</label>
+        <textarea id="Pets" rows="2"></textarea>
+        <label for="LeaseLengths">Lease lengths</label>
+        <textarea id="LeaseLengths" rows="2"></textarea>
+        <label for="RentRange">Rent range <span class="hint">optional; each unit's live rent is already shown</span></label>
+        <input type="text" id="RentRange">
+        <label for="VirtualTourLink">Virtual tour link <span class="hint">optional</span></label>
+        <input type="url" id="VirtualTourLink" placeholder="https://…">
+
+        <div class="btns">
+          <button class="btn-secondary" id="previewBtn" type="button">Update preview</button>
+          <button class="btn-primary" id="saveBtn" type="button">Save changes</button>
+        </div>
+        <div class="dirty" id="dirty"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Units and links in the email <span class="muted" id="unitsSub"></span></h2>
+        <div id="units"></div>
+      </div>
+      <div class="card">
+        <h2>Email preview <span class="muted">exactly what a prospect gets right now</span></h2>
+        <div id="notes"></div>
+        <div class="mail">
+          <div class="mail-head" id="mailHead"></div>
+          <div class="mail-body" id="mailBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+var S = { init: null, view: null, dirty: false };
+var FIELDS = ['Special','SpecialEnds','About','Pets','LeaseLengths','RentRange','VirtualTourLink','CreditMin','IncomeMultiple'];
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function msg(el, kind, html) { $(el).innerHTML = html ? '<div class="' + kind + '">' + html + '</div>' : ''; }
+function fail(el) { return function (e) { busy(false); msg(el, 'error', esc(e && e.message || e)); }; }
+function busy(on, what) {
+  ['previewBtn','saveBtn'].forEach(function (id) { $(id).disabled = on; });
+  $('saveBtn').innerHTML = on && what === 'save' ? '<span class="spinner"></span>Saving…' : 'Save changes';
+  $('previewBtn').innerHTML = on && what === 'preview' ? '<span class="spinner"></span>Building…' : 'Update preview';
+}
+
+google.script.run.withSuccessHandler(function (init) {
+  S.init = init;
+  var who = $('who');
+  who.innerHTML = '<option value="">Choose your name…</option>' + init.pms.map(function (p) { return '<option>' + esc(p.name) + '</option>'; }).join('');
+  var me = init.pms.filter(function (p) { return p.email && p.email.toLowerCase() === String(init.user).toLowerCase(); })[0];
+  if (me) { who.value = me.name; fillProps(); }
+  $('CreditMin').placeholder = init.defaults.CreditMin ? 'Company default: ' + init.defaults.CreditMin : 'e.g. 625';
+  $('IncomeMultiple').placeholder = init.defaults.IncomeMultiple ? 'Company default: ' + init.defaults.IncomeMultiple + 'x' : 'e.g. 3';
+}).withFailureHandler(fail('topMsg')).pmAppInit();
+
+$('who').onchange = fillProps;
+$('showAll').onchange = fillProps;
+function fillProps() {
+  var who = $('who').value, all = $('showAll').checked, sel = $('prop');
+  if (!who && !all) { sel.disabled = true; sel.innerHTML = '<option value="">Pick your name first</option>'; return; }
+  var list = S.init.properties.filter(function (p) { return all || p.pm === who; });
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">' + (list.length ? 'Choose a property…' : 'No properties assigned to you; tick "Show every property"') + '</option>' +
+    list.map(function (p) { return '<option value="' + esc(p.name) + '">' + esc(p.name) + (p.status ? '  (' + esc(p.status) + ')' : '') + (all && p.pm !== who ? ' · ' + esc(p.pm || 'no PM') : '') + '</option>'; }).join('');
+}
+
+$('prop').onchange = function () {
+  if (S.dirty && !confirm('You have unsaved changes. Switch property and lose them?')) { $('prop').value = S.view ? S.view.name : ''; return; }
+  var name = $('prop').value;
+  if (!name) { $('work').style.display = 'none'; return; }
+  msg('topMsg', 'warn', '<span class="spinner"></span>Loading ' + esc(name) + ' and its live units…');
+  google.script.run.withSuccessHandler(function (v) { msg('topMsg'); $('work').style.display = 'grid'; msg('formMsg'); showView(v, true); })
+    .withFailureHandler(fail('topMsg')).pmAppLoad(name);
+};
+
+function pmOptions(current) {
+  var pms = S.init.pms.slice();
+  if (current && !pms.some(function (p) { return p.name === current; })) pms.unshift({ name: current, email: '' });
+  $('PM').innerHTML = pms.map(function (p) { return '<option value="' + esc(p.name) + '">' + esc(p.name) + (p.email ? ' (' + esc(p.email) + ')' : ' (no email)') + '</option>'; }).join('') +
+    '<option value="__new">+ Add a new PM…</option>';
+  $('PM').value = current || '';
+}
+
+function showView(v, resetForm) {
+  S.view = v;
+  if (resetForm) {
+    var r = v.row;
+    $('formTitle').textContent = v.name;
+    pmOptions(r.PM);
+    var st = r.Status === 'Live' || r.Status === 'Test' ? r.Status : 'Off';
+    document.querySelectorAll('input[name=Status]').forEach(function (x) { x.checked = x.value === st; });
+    document.querySelectorAll('input[name=ShowingMode]').forEach(function (x) { x.checked = x.value === r.ShowingMode; });
+    $('ShowingUrl').value = r.ShowingMode === 'custom' ? r.ShowingLink : '';
+    FIELDS.forEach(function (f) { $(f).value = r[f] || ''; });
+    $('addPm').style.display = 'none';
+    setDirty(false);
+    statusHelp(); showingUrlToggle();
+  }
+  var miss = v.missing.length ? 'Still needed before this can go Live: <b>' + esc(v.missing.join(', ')) + '</b>' : '';
+  $('formMsg').innerHTML = (v.errors && v.errors.length ? '<div class="error">' + v.errors.map(esc).join('<br>') + '</div>' : '') +
+    (miss ? '<div class="warn">' + miss + '</div>' : '') +
+    (v.lastReviewed ? '<div class="muted" style="margin:-4px 0 12px">Last saved ' + esc(v.lastReviewed) + '</div>' : '');
+
+  $('unitsSub').textContent = v.totalUnits ? v.shownCount + ' of ' + v.totalUnits + ' posted units go in the email (one per floor plan), ' + v.bookable + ' with a Book link' : '';
+  $('units').innerHTML = !v.units.length ? '<div class="empty">Nothing is posted on AppFolio for this property right now.</div>' :
+    '<table><tr><th>Unit</th><th>Rent / available</th><th>AppFolio button</th><th>Links in the email</th></tr>' +
+    v.units.map(function (u) {
+      var pill = u.appFolioButton === 'Yes' ? 'yes' : u.appFolioButton === 'No' ? 'no' : 'maybe';
+      return '<tr class="' + (u.inEmail ? '' : 'out') + '"><td><a href="' + esc(u.detailUrl) + '" target="_blank">' + esc(u.label) + '</a><div class="muted">' + esc(u.bedBath) + '</div></td>' +
+        '<td>' + esc(u.rent) + '<div class="muted">' + esc(u.available) + '</div></td>' +
+        '<td><span class="pill ' + pill + '" title="' + esc(u.why) + '">' + esc(u.appFolioButton) + '</span><div class="muted">' + esc(u.why) + '</div></td>' +
+        '<td>' + (u.inEmail ? (u.bookUrl ? '<a href="' + esc(u.bookUrl) + '" target="_blank">Book a showing</a><br>' : '<span class="muted">No Book link</span><br>') +
+          '<a href="' + esc(u.applyUrl) + '" target="_blank">Apply</a>' : '<span class="muted">Not in the email (another unit with the same floor plan is shown)</span>') + '</td></tr>';
+    }).join('') + '</table>';
+
+  $('notes').innerHTML = v.notes.map(function (n) { return '<div class="warn">' + esc(n) + '</div>'; }).join('');
+  var pmName = $('PM').value && $('PM').value !== '__new' ? $('PM').value : v.row.PM;
+  var pm = S.init.pms.filter(function (p) { return p.name === pmName; })[0];
+  $('mailHead').innerHTML = '<b>From:</b> Green Property Management Leasing<br><b>Reply-To:</b> ' + esc(pm ? pm.name + ' <' + pm.email + '>' : v.row.PM) +
+    '<br><b>Subject:</b> ' + esc(v.subject) + '<br><span class="muted">"Jordan" stands in for the prospect\'s first name. Units, rent and Book links are live and can change minute to minute.</span>';
+  $('mailBody').innerHTML = v.html;
+}
+
+function edits() {
+  var e = {};
+  FIELDS.forEach(function (f) { e[f] = $(f).value; });
+  var st = document.querySelector('input[name=Status]:checked'); if (st) e.Status = st.value;
+  var sm = document.querySelector('input[name=ShowingMode]:checked'); if (sm) e.ShowingMode = sm.value;
+  e.ShowingUrl = $('ShowingUrl').value;
+  if ($('PM').value && $('PM').value !== '__new') e.PM = $('PM').value;
+  return e;
+}
+function setDirty(d) { S.dirty = d; $('dirty').textContent = d ? 'Unsaved changes. Update preview to see them, or Save.' : ''; }
+document.addEventListener('input', function (ev) { if (ev.target.closest && ev.target.closest('#formCard') && !ev.target.closest('#addPm')) setDirty(true); });
+document.addEventListener('change', function (ev) { if (ev.target.name === 'Status') statusHelp(); if (ev.target.name === 'ShowingMode') showingUrlToggle(); });
+function statusHelp() {
+  var st = (document.querySelector('input[name=Status]:checked') || {}).value;
+  $('statusHelp').textContent = st === 'Live' ? 'Live: prospects get this email automatically within about 5 minutes of their inquiry.' :
+    st === 'Test' ? 'Test: real inquiries are answered, but the email goes to you (the PM) instead of the prospect.' :
+    'Off: no auto-replies for this property. Prospects only hear from you directly.';
+}
+function showingUrlToggle() {
+  var sm = (document.querySelector('input[name=ShowingMode]:checked') || {}).value;
+  $('ShowingUrl').style.display = sm === 'custom' ? 'block' : 'none';
+}
+
+$('PM').onchange = function () {
+  $('addPm').style.display = $('PM').value === '__new' ? 'block' : 'none';
+  setDirty(true);
+};
+$('addPmBtn').onclick = function () {
+  google.script.run.withSuccessHandler(function (pms) {
+    S.init.pms = pms;
+    var name = $('newPmName').value.trim();
+    pmOptions(name); $('addPm').style.display = 'none'; $('newPmName').value = ''; $('newPmEmail').value = '';
+    var who = $('who').value;
+    $('who').innerHTML = '<option value="">Choose your name…</option>' + pms.map(function (p) { return '<option>' + esc(p.name) + '</option>'; }).join('');
+    $('who').value = who;
+    msg('formMsg', 'ok', esc(name) + ' added to the PM list. Save to assign them to this property.');
+    setDirty(true);
+  }).withFailureHandler(fail('formMsg')).pmAppAddPm($('newPmName').value, $('newPmEmail').value);
+};
+
+$('previewBtn').onclick = function () {
+  busy(true, 'preview');
+  google.script.run.withSuccessHandler(function (v) { busy(false); showView(v, false); })
+    .withFailureHandler(fail('formMsg')).pmAppPreview(S.view.name, edits());
+};
+$('saveBtn').onclick = function () {
+  if ($('PM').value === '__new') { msg('formMsg', 'error', 'Finish adding the new PM (or pick one from the list) first.'); return; }
+  var st = (document.querySelector('input[name=Status]:checked') || {}).value;
+  if (st === 'Live' && S.view.row.Status !== 'Live' && !confirm('Turn ' + S.view.name + ' Live? Prospects will start getting this email automatically.')) return;
+  busy(true, 'save');
+  google.script.run.withSuccessHandler(function (res) {
+    busy(false);
+    if (!res.ok) { msg('formMsg', 'error', res.errors.map(esc).join('<br>')); return; }
+    showView(res.view, true);
+    var p = S.init.properties.filter(function (x) { return x.name === res.view.name; })[0];
+    if (p) { p.pm = res.view.row.PM; p.status = res.view.row.Status; }
+    $('formMsg').insertAdjacentHTML('afterbegin', '<div class="ok">' + (res.changed ? 'Saved ' + res.changed + ' change' + (res.changed > 1 ? 's' : '') + '. The next inquiry gets this version.' : 'Nothing changed.') + '</div>');
+  }).withFailureHandler(fail('formMsg')).pmAppSave(S.view.name, edits());
+};
+</script>
+</body>
+</html>
