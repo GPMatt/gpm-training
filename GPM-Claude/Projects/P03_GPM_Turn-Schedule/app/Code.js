@@ -12,6 +12,7 @@
  *   SUPABASE_SERVICE_KEY  - service_role key (server side only, never sent to the browser)
  *   EMAIL_TEST_TO         - optional; when set, every app email goes ONLY to this address
  *   cal_<turnId>          - written by the app (calendar event ids per turn); don't edit by hand
+ *   mail_<turnId>[_test]  - written by the app (the turn's Gmail thread, see sendTurnMail_); don't edit by hand
  */
 
 var TZ = 'America/Detroit';
@@ -142,14 +143,12 @@ function apiSendTechPrepEmail(turnId) {
   if (!turn.tech_prep) throw new Error('This turn has no Tech Prep saved yet, so there is nothing to email.');
   var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
   var mail = buildTechPrepMail(turn, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
-  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
-  if (mail.cc.length) msg.cc = mail.cc.join(',');
-  MailApp.sendEmail(msg);
+  var msg = sendTurnMail_(turn, mail, emailTestTo_());
   var sentAt = new Date().toISOString();
   var tp = turn.tech_prep;
   tp.email_sent_at = sentAt;
   sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { tech_prep: tp });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+  return { to: msg.to, cc: msg.cc || '', subject: msg.subject, sentAt: sentAt };
 }
 
 /**
@@ -157,18 +156,16 @@ function apiSendTechPrepEmail(turnId) {
  * Stamps scope.schedule_emailed_at (Run 2: the client sends it once on the first PMI Scope submit).
  */
 function apiEmailSchedule(turnId, text) {
-  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=id,property_label,unit_label,scope');
+  var rows = sb_('get', 'p03_turns?id=eq.' + encodeURIComponent(turnId || '') + '&select=id,property_label,unit_label,move_out_date,scope');
   if (!rows.length) throw new Error('Turn not found (it may have been deleted).');
   if (!String(text || '').trim()) throw new Error('The schedule is empty.');
   var mail = buildScheduleMail(rows[0], String(text).slice(0, 20000), emailTestTo_());
-  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
-  if (mail.cc.length) msg.cc = mail.cc.join(',');
-  MailApp.sendEmail(msg);
+  var msg = sendTurnMail_(rows[0], mail, emailTestTo_());
   var sentAt = new Date().toISOString();
   var scope = rows[0].scope || {};
   scope.schedule_emailed_at = sentAt;
   sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(rows[0].id), { scope: scope });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+  return { to: msg.to, cc: msg.cc || '', subject: msg.subject, sentAt: sentAt };
 }
 
 /**
@@ -187,7 +184,7 @@ function apiWoDescription(turnId) {
 
 /**
  * Run 2 (2026-11-11): the ONE move-out email (text builder: describeMoveOutMail in Describe.js). To Jason + Spencer,
- * cc Matt. mode 'applied' = after Apply (move_out_check.impact, stamps impact.email_sent_at); 'pending' = submitted
+ * cc Matt (all app emails cc Matt since 2026-11-23). mode 'applied' = after Apply (move_out_check.impact, stamps impact.email_sent_at); 'pending' = submitted
  * without Apply (move_out_check.pending_impact, stamps pending_impact.alert_sent_at). No mode: 'applied' if impact exists.
  */
 function apiSendMoveOutEmail(turnId, mode) {
@@ -209,17 +206,79 @@ function apiSendMoveOutEmail(turnId, mode) {
     }
   }
   var mail = buildMoveOutMail(turn, impact, applied, others, settingsRows.length ? settingsRows[0].value : {}, emailTestTo_());
-  var msg = { to: mail.to.join(','), subject: mail.subject, body: mail.text, htmlBody: mail.html };
-  if (mail.cc.length) msg.cc = mail.cc.join(',');
-  MailApp.sendEmail(msg);
+  var msg = sendTurnMail_(turn, mail, emailTestTo_());
   var sentAt = new Date().toISOString();
   if (applied) impact.email_sent_at = sentAt; else impact.alert_sent_at = sentAt;
   sb_('patch', 'p03_turns?id=eq.' + encodeURIComponent(turn.id), { move_out_check: mo });
-  return { to: msg.to, cc: msg.cc || '', subject: mail.subject, sentAt: sentAt };
+  return { to: msg.to, cc: msg.cc || '', subject: msg.subject, sentAt: sentAt };
 }
 
 /** Old clients: the NOT applied alert is now the merged move-out email in 'pending' mode. */
 function apiSendMoveOutAlert(turnId) { return apiSendMoveOutEmail(turnId, 'pending'); }
+
+// ---------- 2026-11-23 one Gmail thread per turn ----------
+
+/**
+ * Sends a turn email (mail = build*Mail in Describe.js) into that turn's ONE Gmail thread, via the Gmail advanced
+ * service (MailApp can't set threadId / In-Reply-To). Script Property mail_<turnId> (mail_<turnId>_test in test mode)
+ * = {threadId, msgId, subject} from the turn's first email; later emails reuse that subject and reply to msgId, so
+ * the thread holds for the sender AND the recipients. If the stored thread is gone, a new one is started.
+ */
+function sendTurnMail_(turn, mail, testTo) {
+  var props = PropertiesService.getScriptProperties();
+  var key = 'mail_' + turn.id + (testTo ? '_test' : '');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000); // two emails for a new turn at once must not start two threads
+  try {
+    var th = null;
+    try { th = JSON.parse(props.getProperty(key) || 'null'); } catch (e) { th = null; }
+    var msg = { to: mail.to.join(','), cc: mail.cc.join(','), subject: (th && th.subject) || mail.subject, text: mail.text, html: mail.html };
+    var res = null;
+    if (th && th.threadId) {
+      try {
+        res = Gmail.Users.Messages.send({ raw: mimeRaw_(msg, th.msgId), threadId: th.threadId }, 'me');
+      } catch (e) {
+        console.error('Turn thread ' + th.threadId + ' unusable, starting a new one: ' + e.message);
+        th = null;
+      }
+    }
+    if (!res) {
+      res = Gmail.Users.Messages.send({ raw: mimeRaw_(msg, '') }, 'me');
+      props.setProperty(key, JSON.stringify({ threadId: res.threadId, msgId: messageIdOf_(res.id), subject: msg.subject }));
+    }
+    return msg;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** The RFC Message-ID Gmail gave a sent message ('' if it can't be read: the thread still holds for the sender). */
+function messageIdOf_(id) {
+  try {
+    var m = Gmail.Users.Messages.get('me', id, { format: 'metadata', metadataHeaders: ['Message-ID'] });
+    var h = ((m.payload && m.payload.headers) || []).filter(function (x) { return /^message-id$/i.test(x.name); })[0];
+    return h ? h.value : '';
+  } catch (e) {
+    console.error('Could not read Message-ID of ' + id + ': ' + e.message);
+    return '';
+  }
+}
+
+/** multipart/alternative (plain + html), UTF-8, base64url for Gmail.Users.Messages.send. replyTo = first message's Message-ID. */
+function mimeRaw_(m, replyTo) {
+  var b64 = function (x) { return Utilities.base64Encode(x, Utilities.Charset.UTF_8); };
+  var wrap = function (x) { return b64(x).replace(/.{76}/g, '$&\r\n'); };
+  var boundary = 'p03_' + Utilities.getUuid().replace(/-/g, '');
+  var L = ['To: ' + m.to];
+  if (m.cc) L.push('Cc: ' + m.cc);
+  L.push('Subject: =?UTF-8?B?' + b64(m.subject) + '?=', 'MIME-Version: 1.0');
+  if (replyTo) L.push('In-Reply-To: ' + replyTo, 'References: ' + replyTo);
+  L.push('Content-Type: multipart/alternative; boundary="' + boundary + '"', '',
+    '--' + boundary, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(m.text),
+    '--' + boundary, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(m.html),
+    '--' + boundary + '--', '');
+  return Utilities.base64EncodeWebSafe(L.join('\r\n'), Utilities.Charset.UTF_8);
+}
 
 function emailTestTo_() {
   return cleanTestTo(PropertiesService.getScriptProperties().getProperty('EMAIL_TEST_TO'));
@@ -327,6 +386,6 @@ function checkSetup() {
   var settingsRows = sb_('get', 'p03_turn_settings?id=eq.config&select=value');
   var cal = calendar_(settingsRows.length ? settingsRows[0].value : {});
   Logger.log('Calendar: OK %s', cal.getName());
-  Logger.log('Mail quota: %s', MailApp.getRemainingDailyQuota());
+  Logger.log('Gmail (turn threads): OK %s', Gmail.Users.getProfile('me').emailAddress);
   Logger.log('EMAIL_TEST_TO: %s', emailTestTo_() || '(off: real recipients)');
 }

@@ -17,9 +17,21 @@ var CHECK_ROOMS_SERVER = [
 
 var REQUIRED_ENTRY_KEYS = 2;
 
-// Run 2 (2026-11-11): app emails go only to Jason + Spencer (+ Matt on cc for the move-out email). Never a tech or vendor.
+// Run 2 (2026-11-11): app emails go only to Jason + Spencer. Never a tech or vendor.
+// 2026-11-23 Matt: cc Matt on EVERY app email for now (was the move-out email only).
 var TEAM_TO = ['jason@greenpropertymgt.com', 'spencer@greenpropertymgt.com'];
-var MOVE_OUT_CC = ['matt@greenpropertymgt.com'];
+var TEAM_CC = ['matt@greenpropertymgt.com'];
+
+/**
+ * 2026-11-23 one Gmail thread per turn: every app email for a turn (schedule, Tech Prep, move-out) shares this
+ * subject. sendTurnMail_ (Code.js) stores the first one per turn and reuses it, so a later move-out date or WO #
+ * change can't split the thread. What kind of email it is goes on the body's first line (kindedBody_).
+ */
+function threadSubject(turn, testTo) {
+  return (String(testTo || '').trim() ? '[TEST] ' : '') + 'Turn: ' + placeOf_(turn) +
+    (hasVal_(turn.move_out_date) ? ' (move-out ' + fmtDay_(String(turn.move_out_date).slice(0, 10)) + ')' : '');
+}
+function kindedBody_(testNote, kind, text) { return (testNote ? testNote + '\n\n' : '') + kind + '\n\n' + String(text || '').trim(); }
 
 /** Wraps real recipients for the EMAIL_TEST_TO switch: only testTo, no cc, plus a note naming the real ones. */
 function applyTestTo_(to, cc, testTo) {
@@ -194,17 +206,17 @@ function describeTechPrep(turn, rooms, settings) {
 
 /** "Email schedule to Jason + Spencer": the schedule text the old Copy button put on the clipboard. */
 function buildScheduleMail(turn, text, testTo) {
-  var r = applyTestTo_(TEAM_TO, [], testTo);
-  var body = (r.testNote ? r.testNote + '\n\n' : '') + String(text || '').trim();
-  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + 'Turn schedule: ' + placeOf_(turn), text: body, html: textToHtml_(body) };
+  var r = applyTestTo_(TEAM_TO, TEAM_CC, testTo);
+  var body = kindedBody_(r.testNote, 'PMI Scope submitted: turn schedule', text);
+  return { to: r.to, cc: r.cc, subject: threadSubject(turn, testTo), text: body, html: textToHtml_(body) };
 }
 
 /** Everything apiSendTechPrepEmail sends: recipients + subject/body, test mode applied. */
 function buildTechPrepMail(turn, settings, testTo) {
   var d = describeTechPrep(turn, CHECK_ROOMS_SERVER, settings);
-  var r = applyTestTo_(TEAM_TO, [], testTo);
-  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
-  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+  var r = applyTestTo_(TEAM_TO, TEAM_CC, testTo);
+  var text = kindedBody_(r.testNote, d.subject, d.text);
+  return { to: r.to, cc: r.cc, subject: threadSubject(turn, testTo), text: text, html: textToHtml_(text) };
 }
 
 // ---------- Move-out scope change email (apiSendMoveOutEmail in Code.js) ----------
@@ -343,9 +355,9 @@ function describeMoveOutMail(turn, impact, applied, otherTurns, settings) {
 /** Everything apiSendMoveOutEmail sends: To Jason + Spencer, cc Matt, test switch applied. */
 function buildMoveOutMail(turn, impact, applied, otherTurns, settings, testTo) {
   var d = describeMoveOutMail(turn, impact, applied, otherTurns, settings);
-  var r = applyTestTo_(TEAM_TO, MOVE_OUT_CC, testTo);
-  var text = r.testNote ? r.testNote + '\n\n' + d.text : d.text;
-  return { to: r.to, cc: r.cc, subject: (r.testNote ? '[TEST] ' : '') + d.subject, text: text, html: textToHtml_(text) };
+  var r = applyTestTo_(TEAM_TO, TEAM_CC, testTo);
+  var text = kindedBody_(r.testNote, d.subject, d.text);
+  return { to: r.to, cc: r.cc, subject: threadSubject(turn, testTo), text: text, html: textToHtml_(text) };
 }
 
 // ---------- R4.6 Google Calendar: event list for a turn (synced by syncTurnCalendar_ in Code.js) ----------

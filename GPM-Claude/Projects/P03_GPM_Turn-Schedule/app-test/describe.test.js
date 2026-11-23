@@ -56,14 +56,14 @@ t('(a2) deterministic', () => {
 const TEAM = ['jason@greenpropertymgt.com', 'spencer@greenpropertymgt.com'];
 const TECH_RE = /riley@|bill@|wesley@|zed@/i;
 
-t('(E1) Tech Prep email: To Jason + Spencer only, no cc, never a tech (Riley / Bill / Wesley / custom tech)', () => {
+t('(E1) Tech Prep email: To Jason + Spencer, cc Matt, never a tech (Riley / Bill / Wesley / custom tech)', () => {
   const tp = { techProperties: [{ tech: 'Zed', email: 'zed@greenpropertymgt.com', walks: true, addresses: ['900 Leonard St NW'] }] };
   [['2860 Taft Avenue SW,', {}], ['3608 Havana Ave SW', {}], ['547 Cherry Street SE', {}], ['900 Leonard St NW', {}],
     ['900 Leonard St NW', tp], ['2340 Michael Ave SW', { billProperties: ['2340 Michael Ave SW'] }]].forEach(([addr, settings]) => {
     const turn = example2361(); turn.property_label = addr;
     const m = plain(D.buildTechPrepMail(turn, settings, ''));
     assert.deepEqual(m.to, TEAM, addr);
-    assert.deepEqual(m.cc, [], addr);
+    assert.deepEqual(m.cc, ['matt@greenpropertymgt.com'], addr);
     assert.ok(!TECH_RE.test(JSON.stringify(m)), addr);
   });
   assert.equal(D.techPrepRecipients, undefined); // tech routing is gone server side
@@ -100,16 +100,16 @@ t('(c) EMAIL_TEST_TO: only test address, [TEST] subject, first line names real r
   const m = plain(D.buildTechPrepMail(turn, {}, ' matt@greenpropertymgt.com '));
   assert.deepEqual(m.to, ['matt@greenpropertymgt.com']);
   assert.deepEqual(m.cc, []);
-  assert.ok(m.subject.startsWith('[TEST] Turn WO description:'));
+  assert.equal(m.subject, '[TEST] Turn: 2361 Example St SW #4');
   const first = m.text.split('\n')[0];
-  assert.equal(first, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com');
-  assert.equal(m.text, first + '\n\n' + EXPECTED_2361);
+  assert.equal(first, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com');
+  assert.equal(m.text, first + '\n\nTurn WO description: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_2361);
   assert.ok(m.html.startsWith('<p>TEST: real recipients'));
   const real = plain(D.buildTechPrepMail(turn, {}, ''));
   assert.deepEqual(real.to, TEAM);
-  assert.deepEqual(real.cc, []);
-  assert.equal(real.text, EXPECTED_2361);
-  assert.ok(!real.subject.includes('[TEST]'));
+  assert.deepEqual(real.cc, ['matt@greenpropertymgt.com']);
+  assert.equal(real.text, 'Turn WO description: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_2361);
+  assert.equal(real.subject, 'Turn: 2361 Example St SW #4');
 });
 
 t('(d) CHECK_ROOMS_SERVER deep-equals Config.html CHECK_ROOMS', () => {
@@ -339,22 +339,92 @@ t('(E3d) recipients: To Jason + Spencer, cc Matt, at a Bill and a Wesley propert
     assert.deepEqual(m.to, TEAM, addr);
     assert.deepEqual(m.cc, ['matt@greenpropertymgt.com'], addr);
     assert.ok(!TECH_RE.test(m.to.concat(m.cc).join(',')), addr);
-    assert.ok(!m.subject.includes('[TEST]'));
-    assert.equal(m.text, EXPECTED_APPLIED);
+    assert.equal(m.subject, 'Turn: ' + addr + ' #4');
+    assert.equal(m.text, 'Turn schedule changed: ' + addr + ' #4 (WO 18171-1)\n\n' + EXPECTED_APPLIED);
   });
   const turn = moveOutTurn();
   const m = plain(D.buildMoveOutMail(turn, turn.move_out_check.impact, true, otherTurns(), eng.S, 'matt@greenpropertymgt.com'));
   assert.deepEqual(m.to, ['matt@greenpropertymgt.com']);
   assert.deepEqual(m.cc, []);
-  assert.equal(m.subject, '[TEST] Turn schedule changed: 2361 Example St SW #4 (WO 18171-1)');
-  assert.equal(m.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com\n\n' + EXPECTED_APPLIED);
+  assert.equal(m.subject, '[TEST] Turn: 2361 Example St SW #4');
+  assert.equal(m.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com\n\nTurn schedule changed: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_APPLIED);
   const a = alertTurn();
   const p = plain(D.buildMoveOutMail(a, a.move_out_check.pending_impact, false, [], eng.S, 'matt@greenpropertymgt.com'));
-  assert.equal(p.subject, '[TEST] Turn scope changed, NOT applied: 2361 Example St SW #4 (WO 18171-1)');
-  assert.equal(p.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com\n\n' + EXPECTED_PENDING);
+  assert.equal(p.subject, '[TEST] Turn: 2361 Example St SW #4');
+  assert.equal(p.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com\n\nTurn scope changed, NOT applied: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_PENDING);
   // old separate builders are gone
   ['describeMoveOut', 'describeMoveOutAlert', 'buildMoveOutAlertMail', 'describeConflictReview', 'buildConflictReviewMail']
     .forEach(f => assert.equal(D[f], undefined, f));
+});
+
+// Gmail advanced service mock: decodes the raw MIME back into {to, cc, subject, body, inReplyTo, threadId}.
+function gasMailMocks(C, sent, opts) {
+  opts = opts || {};
+  const dec = b => Buffer.from(b.replace(/\r\n/g, ''), 'base64').toString('utf8');
+  C.Utilities = {
+    Charset: { UTF_8: 'utf8' }, getUuid: () => '1111-2222',
+    base64Encode: s => Buffer.from(s, 'utf8').toString('base64'),
+    base64EncodeWebSafe: s => Buffer.from(s, 'utf8').toString('base64url')
+  };
+  C.LockService = { getScriptLock: () => ({ waitLock: () => {}, releaseLock: () => {} }) };
+  let n = 0;
+  C.Gmail = { Users: { Messages: {
+    send: (res) => {
+      if (opts.failThread && res.threadId === opts.failThread) throw new Error('Requested entity was not found.');
+      const raw = Buffer.from(res.raw, 'base64url').toString('utf8');
+      const [head, ...rest] = raw.split('\r\n\r\n');
+      const hdr = k => (head.split('\r\n').find(l => l.toLowerCase().startsWith(k.toLowerCase() + ': ')) || '').slice(k.length + 2);
+      const subj = hdr('Subject').replace(/^=\?UTF-8\?B\?(.*)\?=$/, (_, b) => dec(b));
+      const parts = raw.split('--p03_11112222');
+      const body = dec(parts[1].split('\r\n\r\n')[1]);
+      const id = 'm' + (++n), threadId = res.threadId || 't' + n;
+      sent.push({ to: hdr('To'), cc: hdr('Cc'), subject: subj, body, inReplyTo: hdr('In-Reply-To'), references: hdr('References'), threadId: res.threadId || '', html: dec(parts[2].split('\r\n\r\n')[1]) });
+      return { id, threadId };
+    },
+    get: (me, id) => ({ payload: { headers: [{ name: 'Message-Id', value: '<' + id + '@mail.gmail.com>' }] } })
+  } } };
+}
+
+t('(11/23) one Gmail thread per turn: first email stores it, later emails reply into it, test mode separate, dead thread restarts', () => {
+  const C = { console: { error: () => {} } };
+  vm.createContext(C);
+  vm.runInContext(read('Describe.js') + '\n' + read('Code.js'), C);
+  const store = {}, sent = [];
+  let testTo = '';
+  C.PropertiesService = { getScriptProperties: () => ({ getProperty: k => k === 'EMAIL_TEST_TO' ? testTo : (store[k] || null), setProperty: (k, v) => { store[k] = v; } }) };
+  gasMailMocks(C, sent, { failThread: 'dead' });
+  const turn = { id: 'T1', property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' };
+  const mk = (kind, t) => { const m = C.buildScheduleMail(t, kind, testTo); return C.sendTurnMail_(t, m, testTo); };
+  mk('one', turn);
+  assert.equal(sent[0].subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(sent[0].threadId, ''); assert.equal(sent[0].inReplyTo, '');
+  assert.equal(sent[0].cc, 'matt@greenpropertymgt.com');
+  assert.deepEqual(JSON.parse(store.mail_T1), { threadId: 't1', msgId: '<m1@mail.gmail.com>', subject: 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)' });
+  // move-out date changed later: subject stays the stored one, reply goes into the same thread
+  const r = mk('two', Object.assign({}, turn, { move_out_date: '2026-12-18' }));
+  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(sent[1].subject, sent[0].subject);
+  assert.equal(sent[1].threadId, 't1');
+  assert.equal(sent[1].inReplyTo, '<m1@mail.gmail.com>'); assert.equal(sent[1].references, '<m1@mail.gmail.com>');
+  assert.equal(sent[1].body, 'PMI Scope submitted: turn schedule\n\ntwo');
+  // a different turn gets its own thread
+  mk('three', { id: 'T2', property_label: '900 Leonard St NW', unit_label: '2' });
+  assert.equal(sent[2].threadId, ''); assert.equal(sent[2].subject, 'Turn: 900 Leonard St NW 2');
+  // test mode: own thread, never mixes into the real one
+  testTo = 'matt@greenpropertymgt.com';
+  mk('four', turn);
+  assert.equal(sent[3].threadId, ''); assert.equal(sent[3].subject, '[TEST] Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(sent[3].to, 'matt@greenpropertymgt.com'); assert.equal(sent[3].cc, '');
+  assert.ok(store.mail_T1_test);
+  // stored thread deleted from the inbox: starts a fresh one and re-stores it
+  testTo = '';
+  store.mail_T1 = JSON.stringify({ threadId: 'dead', msgId: '<x>', subject: 'Turn: old' });
+  mk('five', turn);
+  assert.equal(sent[4].threadId, ''); assert.equal(sent[4].subject, 'Turn: old');
+  assert.equal(JSON.parse(store.mail_T1).threadId, 't5');
+  // non-ASCII survives the MIME round trip
+  mk('Tub · 2 days → done', turn);
+  assert.ok(sent[5].body.endsWith('Tub · 2 days → done'));
 });
 
 t('(E3e) other open turns unreadable: email STILL sends, section says why, error logged', () => {
@@ -362,8 +432,8 @@ t('(E3e) other open turns unreadable: email STILL sends, section says why, error
   vm.createContext(C);
   vm.runInContext(read('Describe.js') + '\n' + read('Code.js'), C);
   const turn = moveOutTurn(), sent = [], patches = [];
-  C.PropertiesService = { getScriptProperties: () => ({ getProperty: k => k === 'EMAIL_TEST_TO' ? '' : 'x' }) };
-  C.MailApp = { sendEmail: m => sent.push(m) };
+  C.PropertiesService = { getScriptProperties: () => ({ getProperty: k => k === 'EMAIL_TEST_TO' ? '' : null, setProperty: () => {} }) };
+  gasMailMocks(C, sent);
   C.sb_ = (method, p, body) => {
     if (method === 'patch') { patches.push(body); return [turn]; }
     if (p.indexOf('p03_turn_settings') === 0) return [{ value: eng.S }];
@@ -374,7 +444,7 @@ t('(E3e) other open turns unreadable: email STILL sends, section says why, error
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, 'jason@greenpropertymgt.com,spencer@greenpropertymgt.com');
   assert.equal(sent[0].cc, 'matt@greenpropertymgt.com');
-  assert.equal(sent[0].body, EXPECTED_APPLIED.split('\n\nSame vendors on other open turns')[0] +
+  assert.equal(sent[0].body, 'Turn schedule changed: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_APPLIED.split('\n\nSame vendors on other open turns')[0] +
     '\n\nSame vendors on other open turns: could not be read (Database error 503: timeout)');
   assert.equal(patches[0].move_out_check.impact.email_sent_at, r.sentAt);
   assert.equal(C.logged.length, 1);
@@ -513,16 +583,16 @@ t('(11/11) Eastpointe measure day becomes its own calendar event', () => {
   assert.equal(m.start, '2026-11-25');
 });
 
-t('(E2) schedule email: To Jason + Spencer, no cc, test switch respected', () => {
-  const r = plain(D.buildScheduleMail({ property_label: '547 Cherry St SE', unit_label: '108' }, 'line 1', ''));
+t('(E2) schedule email: To Jason + Spencer, cc Matt, test switch respected', () => {
+  const r = plain(D.buildScheduleMail({ property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' }, 'line 1', ''));
   assert.deepEqual(r.to, TEAM);
-  assert.deepEqual(r.cc, []);
-  assert.equal(r.subject, 'Turn schedule: 547 Cherry St SE 108');
-  assert.equal(r.text, 'line 1');
+  assert.deepEqual(r.cc, ['matt@greenpropertymgt.com']);
+  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(r.text, 'PMI Scope submitted: turn schedule\n\nline 1');
   const tst = plain(D.buildScheduleMail({ property_label: 'x' }, 'line 1', 'matt@greenpropertymgt.com'));
   assert.deepEqual(tst.to, ['matt@greenpropertymgt.com']); assert.deepEqual(tst.cc, []);
-  assert.equal(tst.subject, '[TEST] Turn schedule: x');
-  assert.equal(tst.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com\n\nline 1');
+  assert.equal(tst.subject, '[TEST] Turn: x');
+  assert.equal(tst.text, 'TEST: real recipients would be To: jason@greenpropertymgt.com, spencer@greenpropertymgt.com; Cc: matt@greenpropertymgt.com\n\nPMI Scope submitted: turn schedule\n\nline 1');
 });
 
 t('(Run 2b B8) buffer days are all-day calendar events on flagged turns only', () => {

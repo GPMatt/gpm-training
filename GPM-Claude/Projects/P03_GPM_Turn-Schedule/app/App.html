@@ -992,7 +992,7 @@ tr.miss td{background:var(--red-soft)}
   function sendEmail(fn, t, after, mode) {
     toast('Sending email…');
     return (mode ? call(fn, t.id, mode) : call(fn, t.id)).then(function (r) {
-      toast('Email sent to ' + [].concat(r && r.to || []).join(', '));
+      toast('Email sent to ' + [].concat(r && r.to || []).join(', ') + (r && r.cc ? ' (cc ' + r.cc + ')' : ''));
       if (after) after(r || {});
       render();
     }, function (e) { toast('Email not sent: ' + e.message, true); });
