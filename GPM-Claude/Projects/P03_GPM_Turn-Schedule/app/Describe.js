@@ -28,8 +28,8 @@ var TEAM_CC = ['matt@greenpropertymgt.com'];
  * change can't split the thread. What kind of email it is goes on the body's first line (kindedBody_).
  */
 function threadSubject(turn, testTo) {
-  return (String(testTo || '').trim() ? '[TEST] ' : '') + 'Turn: ' + placeOf_(turn) +
-    (hasVal_(turn.move_out_date) ? ' (move-out ' + fmtDay_(String(turn.move_out_date).slice(0, 10)) + ')' : '');
+  // 2026-11-23 Matt: no dates in the subject (a moved date made the stored subject misleading).
+  return (String(testTo || '').trim() ? '[TEST] ' : '') + 'Turn: ' + placeOf_(turn);
 }
 function kindedBody_(testNote, kind, text) { return (testNote ? testNote + '\n\n' : '') + kind + '\n\n' + String(text || '').trim(); }
 

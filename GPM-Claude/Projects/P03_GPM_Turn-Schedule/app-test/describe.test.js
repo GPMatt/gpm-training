@@ -396,13 +396,13 @@ t('(11/23) one Gmail thread per turn: first email stores it, later emails reply 
   const turn = { id: 'T1', property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' };
   const mk = (kind, t) => { const m = C.buildScheduleMail(t, kind, testTo); return C.sendTurnMail_(t, m, testTo); };
   mk('one', turn);
-  assert.equal(sent[0].subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(sent[0].subject, 'Turn: 547 Cherry St SE 108');
   assert.equal(sent[0].threadId, ''); assert.equal(sent[0].inReplyTo, '');
   assert.equal(sent[0].cc, 'matt@greenpropertymgt.com');
-  assert.deepEqual(JSON.parse(store.mail_T1), { threadId: 't1', msgId: '<m1@mail.gmail.com>', subject: 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)' });
+  assert.deepEqual(JSON.parse(store.mail_T1), { threadId: 't1', msgId: '<m1@mail.gmail.com>', subject: 'Turn: 547 Cherry St SE 108' });
   // move-out date changed later: subject stays the stored one, reply goes into the same thread
   const r = mk('two', Object.assign({}, turn, { move_out_date: '2026-12-18' }));
-  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108');
   assert.equal(sent[1].subject, sent[0].subject);
   assert.equal(sent[1].threadId, 't1');
   assert.equal(sent[1].inReplyTo, '<m1@mail.gmail.com>'); assert.equal(sent[1].references, '<m1@mail.gmail.com>');
@@ -413,7 +413,7 @@ t('(11/23) one Gmail thread per turn: first email stores it, later emails reply 
   // test mode: own thread, never mixes into the real one
   testTo = 'matt@greenpropertymgt.com';
   mk('four', turn);
-  assert.equal(sent[3].threadId, ''); assert.equal(sent[3].subject, '[TEST] Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(sent[3].threadId, ''); assert.equal(sent[3].subject, '[TEST] Turn: 547 Cherry St SE 108');
   assert.equal(sent[3].to, 'matt@greenpropertymgt.com'); assert.equal(sent[3].cc, '');
   assert.ok(store.mail_T1_test);
   // stored thread deleted from the inbox: starts a fresh one and re-stores it
@@ -587,7 +587,7 @@ t('(E2) schedule email: To Jason + Spencer, cc Matt, test switch respected', () 
   const r = plain(D.buildScheduleMail({ property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' }, 'line 1', ''));
   assert.deepEqual(r.to, TEAM);
   assert.deepEqual(r.cc, ['matt@greenpropertymgt.com']);
-  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108 (move-out Tue Dec 15)');
+  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108');
   assert.equal(r.text, 'PMI Scope submitted: turn schedule\n\nline 1');
   const tst = plain(D.buildScheduleMail({ property_label: 'x' }, 'line 1', 'matt@greenpropertymgt.com'));
   assert.deepEqual(tst.to, ['matt@greenpropertymgt.com']); assert.deepEqual(tst.cc, []);
