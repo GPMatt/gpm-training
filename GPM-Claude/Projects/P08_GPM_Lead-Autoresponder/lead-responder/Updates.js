@@ -6,12 +6,8 @@
 
 // Prospect-facing names: {{Property}} goes into the email subject and body,
 // so "Prospect Ave - Prospect" (the AppFolio name) is kept in Notes instead.
-var COSIGNER_POLICY_STANDARD =
-  'Accepted if you have no credit history or your income is under 3x the rent. ' +
-  'A cosigner does not make up for a credit score below the minimum.';
-
 var MIKE = { PM: 'Mike Green', PMEmail: 'mike@greenpropertymgt.com',
-  CreditMin: 625, IncomeMultiple: 3, CosignerPolicy: COSIGNER_POLICY_STANDARD };
+  CreditMin: 625, IncomeMultiple: 3 };  // cosigner: blank = company rule (Defaults tab)
 
 var NEW_ROWS = [
   { Property: 'The Oakwood', MatchPhrases: 'the oakwood; 547 cherry',

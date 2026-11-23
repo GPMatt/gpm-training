@@ -144,6 +144,43 @@ function applySection8Removal20261123() {
   Logger.log('Missing formulas rewritten for rows 2-' + last + '; Section 8 is no longer required.');
 }
 
+// Run once (Matt, 2026-11-23): puts the company cosigner rule in the Defaults
+// tab and clears per-property cosigner text that is looser than the rule (only
+// "Not accepted" is kept). Prefills "12 months" on rows with no lease length.
+// Every cleared/filled cell is logged.
+function applyCosignerLeaseRealign20261123() {
+  var ss = profilesSs_();
+  var def = ss.getSheetByName(DEFAULTS_TAB);
+  var keys = def.getRange(1, 1, def.getLastRow(), 1).getValues();
+  var defRow = 0;
+  keys.forEach(function (k, i) { if (String(k[0]).trim() === 'CosignerPolicy') defRow = i + 1; });
+  if (!defRow) throw new Error('No CosignerPolicy row in the Defaults tab.');
+  Logger.log('Defaults CosignerPolicy was: "' + def.getRange(defRow, 2).getDisplayValue() + '"');
+  def.getRange(defRow, 2).setValue(COSIGNER_POLICY_STANDARD);
+  def.getRange(defRow, 3).setValue('Company rule: only for no credit history or short income');
+
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var col = headerCols_(sheet);
+  var n = sheet.getLastRow() - 1;
+  if (n < 1) return;
+  var props = sheet.getRange(2, col.Property, n, 1).getDisplayValues();
+  var cos = sheet.getRange(2, col.CosignerPolicy, n, 1).getDisplayValues();
+  var lease = sheet.getRange(2, col.LeaseLengths, n, 1).getDisplayValues();
+  var cleared = 0, filled = 0;
+  for (var i = 0; i < n; i++) {
+    if (!String(props[i][0]).trim()) continue;
+    var c = String(cos[i][0]).trim();
+    if (c && c.toLowerCase() !== COSIGNER_NOT_ACCEPTED.toLowerCase()) {
+      Logger.log('Cosigner cleared (now company rule): ' + props[i][0] + ' — was "' + c + '"');
+      cos[i][0] = ''; cleared++;
+    }
+    if (!String(lease[i][0]).trim()) { lease[i][0] = LEASE_PREFILL; filled++; }
+  }
+  sheet.getRange(2, col.CosignerPolicy, n, 1).setValues(cos);
+  sheet.getRange(2, col.LeaseLengths, n, 1).setValues(lease);
+  Logger.log('Done. Cosigner overrides cleared: ' + cleared + '. Lease lengths prefilled with "' + LEASE_PREFILL + '": ' + filled + '.');
+}
+
 // ---------- API for PmApp.html ----------
 
 function pmAppInit() {
@@ -326,11 +363,15 @@ function cleanEdits_(edits, pms, defaults) {
   ['Pets', 'LeaseLengths', 'RentRange'].forEach(function (f) { text(f, 500); });
   text('Special', 600);
   text('About', 2500);
-  ['CosignerPolicy'].forEach(function (f) {
-    text(f, 300);
-    // Same as the company standard → blank, so the row follows the standard.
-    if (f in v && v[f] && v[f] === String(defaults[f] || '').trim()) v[f] = '';
-  });
+  if ('CosignerPolicy' in edits) {
+    // Company rule only (Matt, 2026-11-23): the standard (stored blank so the row
+    // follows it) or "Not accepted". Nothing looser, e.g. no "Accepted".
+    var cp = String(edits.CosignerPolicy || '').trim();
+    var std = String(defaults.CosignerPolicy || COSIGNER_POLICY_STANDARD).trim();
+    if (!cp || cp === std) v.CosignerPolicy = '';
+    else if (cp.toLowerCase() === COSIGNER_NOT_ACCEPTED.toLowerCase()) v.CosignerPolicy = COSIGNER_NOT_ACCEPTED;
+    else errors.push('Cosigners: pick the company rule or "Not accepted". We only accept cosigners for no credit history or short income.');
+  }
 
   if ('PM' in edits) {
     var pm = pms.filter(function (x) { return x.name === String(edits.PM).trim(); })[0];

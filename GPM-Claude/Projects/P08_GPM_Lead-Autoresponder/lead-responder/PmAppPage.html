@@ -128,9 +128,8 @@
           <div><label for="IncomeMultiple">Gross income (x rent)</label><input type="text" id="IncomeMultiple" inputmode="decimal"></div>
         </div>
         <p class="status-help" id="stdHelp" style="margin-top:-8px"></p>
-        <label for="CosignerPolicy">Cosigners / guarantors <span class="hint">e.g. "Accepted when income or credit falls short"</span></label>
-        <input type="text" id="CosignerPolicy" list="cosignerOpts">
-        <datalist id="cosignerOpts"><option>Accepted</option><option>Accepted when income or credit falls short</option><option>Not accepted</option></datalist>
+        <label for="CosignerPolicy">Cosigners / guarantors <span class="hint">company rule: only for no credit history or short income</span></label>
+        <select id="CosignerPolicy"><option value="" id="cosignerStd">Company rule</option><option value="Not accepted">Not accepted</option></select>
         <p class="status-help" id="policyHelp" style="margin-top:-8px"></p>
         <label class="chk" style="margin:0 0 14px;align-items:flex-start;font-size:14px;color:var(--ink)"><input type="checkbox" id="vote" style="margin-top:3px">
           <span><b>Vote: turn off AppFolio's generic auto-reply</b> for this property, so prospects get only this email. <span class="hint">Matt is notified and turns it off in AppFolio.</span></span></label>
@@ -233,10 +232,11 @@ function showView(v, resetForm) {
     if (!r.IncomeMultiple) $('IncomeMultiple').value = v.defaults.IncomeMultiple;
     $('stdHelp').textContent = 'Company standard: ' + (v.defaults.CreditMin || '?') + ' credit, ' + (v.defaults.IncomeMultiple || '?') +
       'x gross income. Change these only if this property is different.';
-    if (!r.CosignerPolicy) $('CosignerPolicy').value = v.defaults.CosignerPolicy;
-    $('policyHelp').textContent = v.defaults.CosignerPolicy
-      ? 'Company standard: "' + v.defaults.CosignerPolicy + '". Change only if this property is different.'
-      : 'No company standard is set yet, so fill this in for this property.';
+    $('cosignerStd').textContent = 'Company rule' + (v.defaults.CosignerPolicy ? ': ' + v.defaults.CosignerPolicy : '');
+    $('CosignerPolicy').value = r.CosignerPolicy === 'Not accepted' ? 'Not accepted' : '';
+    $('policyHelp').textContent = 'We do not accept cosigners unless the applicant has no credit history or not enough income. Pick "Not accepted" only if this property takes none at all.';
+    // Lease length prefill (Matt, 2026-11-23).
+    if (!r.LeaseLengths) $('LeaseLengths').value = '12 months';
     $('vote').checked = !!r.TurnOffAppFolioReply;
     $('vote').disabled = !v.voteColumn;
     $('addPm').style.display = 'none';

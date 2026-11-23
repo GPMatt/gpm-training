@@ -35,7 +35,7 @@ var PROPERTY_HEADER_NOTES = {
   VirtualTourLink: 'Optional. Leave blank if there is no video tour.',
   CreditMin: 'Leave blank to use the company default (Defaults tab). Fill in only if this property is different.',
   IncomeMultiple: 'Leave blank to use the company default.',
-  CosignerPolicy: 'Leave blank to use the company default.',
+  CosignerPolicy: 'Leave blank to use the company rule (cosigners only for no credit history or short income). The only other allowed value is "Not accepted".',
   Section8Policy: 'Leave blank to use the company default.',
   WriteupDoc: 'Optional. Link to a Google Doc describing the property (neighborhood, amenities, parking). Do NOT put prices or policies in it — those live in this sheet so they cannot go out of date in two places.',
   Status: 'Off = ignored completely (nothing sent, nothing logged). Draft = nothing sent, but each lead is logged in ResponderLog. Test = the email goes to the PM instead of the prospect. Live = auto-sends to prospects.',
@@ -50,10 +50,19 @@ var REQUIRED = [
   ['PM', 'PM'], ['PMEmail', 'PM email'], ['Pets', 'Pets'], ['LeaseLengths', 'Lease lengths']
 ];
 
+// Company cosigner rule (Matt, 2026-11-23): cosigners are NOT accepted unless
+// the applicant has no credit history or not enough income. Low credit is
+// never fixed by a cosigner.
+var COSIGNER_POLICY_STANDARD =
+  'Only accepted if you have no credit history or your income is below the requirement. ' +
+  'A cosigner does not make up for a credit score below the minimum.';
+var COSIGNER_NOT_ACCEPTED = 'Not accepted';
+var LEASE_PREFILL = '12 months';
+
 var DEFAULTS = [
   ['CreditMin', '625', 'Company standard credit score'],
   ['IncomeMultiple', '3', 'Company standard: gross household income of 3x the monthly rent'],
-  ['CosignerPolicy', '', 'e.g. "Accepted when income or credit falls short"'],
+  ['CosignerPolicy', COSIGNER_POLICY_STANDARD, 'Company rule: only for no credit history or short income'],
   ['Section8Policy', '', 'e.g. "Accepted" / "Not accepted"'],
   ['ApplicationFee', '$50', 'Company-wide application fee'],
   ['SignOff', 'Green Property Management Leasing Team', 'Last line of every email']
