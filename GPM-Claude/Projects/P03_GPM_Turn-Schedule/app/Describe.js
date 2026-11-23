@@ -29,8 +29,11 @@ var TEAM_CC = ['matt@greenpropertymgt.com'];
  */
 function threadSubject(turn, testTo) {
   // 2026-11-23 Matt: no dates in the subject (a moved date made the stored subject misleading).
-  return (String(testTo || '').trim() ? '[TEST] ' : '') + 'Turn: ' + placeOf_(turn);
+  // Matt 2026-11-23: + the turn's short id, so the NEXT turn of the same unit can never fall into this thread.
+  return (String(testTo || '').trim() ? '[TEST] ' : '') + 'Turn: ' + placeOf_(turn) + turnTag(turn);
 }
+/** " · #8A3671": first 6 characters of the turn's id (a uuid), upper case. '' when the turn has no id yet. */
+function turnTag(turn) { var id = String((turn && turn.id) || '').replace(/[^0-9a-f]/gi, ''); return id ? ' · #' + id.slice(0, 6).toUpperCase() : ''; }
 function kindedBody_(testNote, kind, text) { return (testNote ? testNote + '\n\n' : '') + kind + '\n\n' + String(text || '').trim(); }
 
 /** Wraps real recipients for the EMAIL_TEST_TO switch: only testTo, no cc, plus a note naming the real ones. */
@@ -407,7 +410,7 @@ function calendarEvents(turn, appUrl) {
     var b1 = addDaysIso_(String(turn.move_out_date).slice(0, 10), 1);
     while (!isBizServer_(b1)) b1 = addDaysIso_(b1, 1);
     out.push({ key: '_buffer_start', title: 'Buffer: trash-out if needed – ' + place, description: info('Buffer day, no vendor booked'), allDay: true, start: b1, end: addDaysIso_(b1, 1) });
-    if (hasVal_(turn.rent_ready_date)) out.push({ key: '_buffer_end', title: 'Buffer: tech punch list – ' + place, description: info('Buffer day, no vendor booked'),
+    if (hasVal_(turn.rent_ready_date)) out.push({ key: '_buffer_end', title: 'Buffer: final unit check – ' + place, description: info('Buffer day, no vendor booked'),
       allDay: true, start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
   }
   if (hasVal_(turn.rent_ready_date)) {

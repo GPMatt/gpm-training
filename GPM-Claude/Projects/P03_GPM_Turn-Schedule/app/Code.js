@@ -118,6 +118,22 @@ function apiSaveSettings(value) {
     'resolution=merge-duplicates,return=representation')[0].value;
 }
 
+/**
+ * 2026-11-23 tickler auto-fill + mismatch flags: AppFolio tenant tickler Move-out / Move-in events from the warehouse
+ * (fact_tenant_tickler, pulled by the warehouse pipeline; weekly until the daily switch), last 120 days onward.
+ * Read only. The app fills EMPTY move-out / move-in fields from it and flags turns whose dates differ (never overwrites).
+ */
+function apiTickler() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('tickler_v1');
+  if (hit) return JSON.parse(hit);
+  var since = Utilities.formatDate(new Date(Date.now() - 120 * 86400000), TZ, 'yyyy-MM-dd');
+  var rows = sb_('get', 'fact_tenant_tickler?event_type=in.(Move-out,Move-in)&event_date=gte.' + since +
+    '&select=property_id,unit_id,unit_label_af,event_type,event_date,last_seen_report_week&order=event_date.asc&limit=5000');
+  try { cache.put('tickler_v1', JSON.stringify(rows), 1800); } catch (e) { /* too big for cache: fine */ }
+  return rows;
+}
+
 function apiProperties() {
   var cache = CacheService.getScriptCache();
   var hit = cache.get('props_v1');

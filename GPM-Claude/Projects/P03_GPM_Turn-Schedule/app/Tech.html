@@ -105,7 +105,7 @@ main{max-width:1240px;margin:0 auto;padding:16px 16px 60px}
   }
   function colorOf(name, names) { var i = names.indexOf(name); return i < 0 ? '#77736A' : PALETTE[i % PALETTE.length]; }
 
-  /** Every tech event, one per business day: work days, PMI walks, punch-list buffer days. */
+  /** Every tech event, one per business day: work days, PMI walks, final-unit-check buffer days. */
   function buildEvents() {
     var out = [];
     S.turns.forEach(function (t) {
@@ -121,7 +121,7 @@ main{max-width:1240px;margin:0 auto;padding:16px 16px 60px}
       });
       var wt = walkTech(t.walk_type);
       if (wt && t.pmi_date) out.push({ date: E.rollBiz(t.pmi_date), kind: 'PMI walk with Spencer', who: wt, turn: t, time: t.pmi_time ? E.fmtTime(t.pmi_time) : '', sub: t.pmi_time ? E.fmtTime(t.pmi_time) : 'Time not set', sort: t.pmi_time || '07:00' });
-      if (t.buffers && t.rent_ready) out.push({ date: t.rent_ready, kind: 'Punch list (buffer day)', who: techName || 'No tech yet', turn: t, sub: 'Rent ready today', sort: '09:00' });
+      if (t.buffers && t.rent_ready) out.push({ date: t.rent_ready, kind: 'Final unit check (buffer day)', who: techName || 'No tech yet', turn: t, sub: 'Rent ready today', sort: '09:00' });
     });
     return out;
   }
@@ -132,7 +132,7 @@ main{max-width:1240px;margin:0 auto;padding:16px 16px 60px}
 
   function evHtml(ev, names) {
     var lab = ev.kind === 'Tech work' ? 'Tech' + (ev.part ? ' ' + ev.part : '') + (ev.time ? ' ' + ev.time : '') :
-      ev.kind === 'PMI walk with Spencer' ? 'PMI walk' + (ev.time ? ' ' + ev.time : '') : 'Punch list';
+      ev.kind === 'PMI walk with Spencer' ? 'PMI walk' + (ev.time ? ' ' + ev.time : '') : 'Final unit check';
     return '<div class="ev' + (ev.tent ? ' tent' : '') + '" style="--c:' + colorOf(ev.who, names) + '" data-t="' + esc(ev.turn.id) + '" title="' +
       esc(ev.kind + ' · ' + place(ev.turn) + ' · ' + ev.who + (ev.tent ? ' (not confirmed yet)' : '')) + '">' +
       '<span class="p">' + (ev.done ? '✓ ' : '') + esc(place(ev.turn)) + '</span>' +

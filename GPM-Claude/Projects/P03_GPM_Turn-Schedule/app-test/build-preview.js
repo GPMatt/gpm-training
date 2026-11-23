@@ -87,6 +87,16 @@ const mock = `<script>
       return t; },
     apiArchiveTurn: function(id){ db.turns.forEach(function(t){ if(t.id===id) t.archived=true; }); persist(); return {}; },
     apiSaveSettings: function(v){ db.settings = v; localStorage.setItem('mockSettings', JSON.stringify(v)); return v; },
+    // 2026-11-23 tickler mock: 547 Cherry 5A move-out 2 days later than the app + a move-in; 600 Lyon (house) move-in differs;
+    // 547 Cherry 4B has a future move-out (new-turn auto-fill).
+    apiTickler: function(){ function day(n){ var d = new Date(); d.setDate(d.getDate()+n); return Engine.iso(d); }
+      return [
+        {property_id:'11111111-1111-1111-1111-111111111111', unit_id:'aaaaaaaa-0000-0000-0000-000000000002', unit_label_af:'5A', event_type:'Move-out', event_date:day(16), last_seen_report_week:day(-7)},
+        {property_id:'11111111-1111-1111-1111-111111111111', unit_id:'aaaaaaaa-0000-0000-0000-000000000002', unit_label_af:'5A', event_type:'Move-in', event_date:day(33), last_seen_report_week:day(-7)},
+        {property_id:'55555555-5555-5555-5555-555555555555', unit_id:'bbbbbbbb-0000-0000-0000-000000000009', unit_label_af:'', event_type:'Move-out', event_date:day(12), last_seen_report_week:day(-7)},
+        {property_id:'55555555-5555-5555-5555-555555555555', unit_id:'bbbbbbbb-0000-0000-0000-000000000009', unit_label_af:'', event_type:'Move-in', event_date:day(28), last_seen_report_week:day(-7)},
+        {property_id:'11111111-1111-1111-1111-111111111111', unit_id:'aaaaaaaa-0000-0000-0000-000000000001', unit_label_af:'4B', event_type:'Move-out', event_date:day(40), last_seen_report_week:day(-7)},
+        {property_id:'11111111-1111-1111-1111-111111111111', unit_id:'aaaaaaaa-0000-0000-0000-000000000001', unit_label_af:'4B', event_type:'Move-in', event_date:day(55), last_seen_report_week:day(-7)}]; },
     apiProperties: function(){ return props; },
     apiUnits: function(id){ return units[id]||[]; }
   };

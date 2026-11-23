@@ -111,12 +111,39 @@ t('mergeScope keeps booked steps + dates, adds new in order', () => {
 
 t('vendor message drops empty lines', () => {
   const s = E.layout(E.stepsFromScope(scope({ paint: { size: 'full', note: 'Ceilings too' } }), cat, 0), '2026-11-20', cat).steps[0];
+  assert.equal(s.time, ''); // 2026-11-23: no made-up 9 AM default
+  s.time = '09:00';
   const m = E.vendorMessage(D.template, { vendor: 'Trevor', trade: 'paint (full paint)', address: '547 Cherry St SE', unit: 'Unit 4B',
     date: E.fmt(s.start), time: E.fmtTime(s.time), length: E.lengthText(s), scope: s.note, access: '' });
   assert.ok(m.includes('Mon Nov 23, starting 9 AM'));
   assert.ok(m.includes('Scope: Ceilings too'));
   assert.ok(!m.includes('Access'));
   console.log('\n' + m + '\n');
+});
+
+// ---------- 2026-11-23 half-day pairs: offered, never automatic ----------
+t('(11/23) compactOffers: tech quick + paint touch-up offered, not applied; accepting shares the day; rules respected', () => {
+  const steps = E.stepsFromScope(scope({ tech: { size: 'quick' }, paint: { size: 'touchup' }, clean: { size: 'std' }, surface: { size: 'std' } }), cat, 0);
+  let r = E.layout(steps, '2026-12-04', cat);
+  assert.deepEqual(r.steps.map(s => s.start), ['2026-12-07', '2026-12-08', '2026-12-09', '2026-12-10']); // nothing compacted by itself
+  const offers = E.compactOffers(r.steps);
+  assert.deepEqual(offers.map(o => [o.a.key, o.b.key, o.day, o.timeA, o.timeB]), [['tech', 'paint', '2026-12-07', '09:00', '13:00']]);
+  // clean (8 h) + surface (1 h) = 9 h: no offer
+  r.steps[1].shareDay = true;
+  r = E.layout(r.steps, '2026-12-04', cat);
+  assert.deepEqual(r.steps.map(s => s.start), ['2026-12-07', '2026-12-07', '2026-12-08', '2026-12-09']);
+  assert.ok(!r.warnings.some(w => /overlap/.test(w)), r.warnings.join('|'));
+  assert.equal(E.compactOffers(r.steps).length, 0);
+  // size grows past half a day: the accepted pair no longer fits, so it lays out on separate days again
+  r.steps[1].hours = 8;
+  r = E.layout(r.steps, '2026-12-04', cat);
+  assert.notEqual(r.steps[1].start, r.steps[0].start);
+  // booked or pinned steps are never offered
+  const s2 = E.layout(E.stepsFromScope(scope({ tech: { size: 'quick' }, paint: { size: 'touchup' } }), cat, 0), '2026-12-04', cat).steps;
+  s2[1].status = 'booked';
+  assert.equal(E.compactOffers(s2).length, 0);
+  assert.equal(E.addHours('09:00', 4), '13:00');
+  assert.equal(E.addHours('09:30', 1.25), '11:00');
 });
 
 // ---------- move-out scope changes (P4) ----------
@@ -208,7 +235,7 @@ t('B3 flagged turn: start + end buffer, rent ready = end buffer (skips Thanksgiv
   const r = E.layout(chain3(), '2026-11-20', cat, { buffers: true });   // move-out Fri
   assert.deepEqual(r.buffers.map(x => [x.key, x.date, x.label]), [
     ['buffer_start', '2026-11-23', 'Buffer: trash-out if needed'],
-    ['buffer_end', '2026-11-30', 'Buffer: tech punch list']]);
+    ['buffer_end', '2026-11-30', 'Buffer: final unit check']]);
   assert.deepEqual(r.steps.map(s => s.start), ['2026-11-24', '2026-11-25', '2026-11-27']); // clean skips Thu 11-26
   assert.equal(r.rentReady, '2026-11-30');
   assert.equal(r.firstBuildDay, '2026-11-23');

@@ -47,6 +47,13 @@ tr.miss td{background:var(--red-soft)}
 .conflict{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--red);color:#fff;font-weight:700;border-radius:10px;padding:9px 12px;margin-top:10px}
 .conflict .btn{color:var(--red)}
 .card .conflict{margin-top:0}
+.tk-flag{background:#FFF4D6;color:#6B4A00;border:1px solid #E8C66A;border-radius:10px;padding:6px 10px;font-weight:600;font-size:13px}
+.tk-flag.full{margin:10px 0;font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tk-flag small,.tk-hint{font-weight:400;color:var(--muted);font-size:12px}
+.tk-hint{display:block}
+.dup-warn{display:block;color:#9A3412;font-weight:600;margin-top:4px}
+.offers .offer-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line, #e5e2da)}
+.offers .offer-row:first-of-type{border-top:0}
 .g-bar.resched{background:var(--red)!important;color:#fff;box-shadow:0 0 0 2px var(--red-soft)}
 .g-legend i.resched{background:var(--red)}
 .step.resched{border-left-color:var(--red);background:var(--red-soft)}
@@ -596,7 +603,7 @@ tr.miss td{background:var(--red-soft)}
     return '<div class="card" data-open="' + t.id + '">' +
       '<div class="card-top"><div style="flex:1;min-width:0"><div class="card-unit">' + esc(propTitle(t)) + '</div>' +
       (unitSub(t) ? '<div class="card-prop">' + esc(unitSub(t)) + '</div>' : '') + '</div><span class="pill ' + t.stage + '">' + STAGE_LABEL[t.stage] + '</span></div>' +
-      conflictBanner(t) + pendingBanner(t) +
+      conflictBanner(t) + pendingBanner(t) + ticklerBanner(t, false) +
       '<div class="rr-line"><span class="lab">Rent ready</span><span class="val">' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</span>' + bufferHtml(t, 'span') + '</div>' +
       '<div class="meta"><span>Move-out <b>' + (t.move_out_date ? E.fmt(t.move_out_date) : '—') + '</b></span><span>Move-in <b>' + (t.move_in_date ? E.fmt(t.move_in_date) : '—') + '</b></span></div>' +
       progressHtml(t) +
@@ -646,6 +653,14 @@ tr.miss td{background:var(--red-soft)}
       '<span class="savestate" id="savestate"></span></div>';
     h += vendorLists();
     if (t._warnings && t._warnings.length) h += '<div class="warns">' + t._warnings.map(function (w) { return '<div>⚠ ' + esc(w) + '</div>'; }).join('') + '</div>';
+    h += ticklerBanner(t, true);
+    // 2026-11-23: half-day pairs are OFFERED from the scope's hours, never applied on their own
+    var offers = E.compactOffers(t.steps);
+    if (offers.length) h += '<div class="panel offers"><h3>Could share a day</h3>' + offers.map(function (o) {
+      return '<div class="offer-row"><span>' + esc(o.a.label) + ' (' + E.hoursOf(o.a) + ' h) + ' + esc(o.b.label) + ' (' + E.hoursOf(o.b) + ' h) on <b>' + E.fmt(o.day) + '</b>: ' +
+        esc(o.a.label) + ' ' + E.fmtTime(o.timeA) + ', ' + esc(o.b.label) + ' ' + E.fmtTime(o.timeB) + '. Saves a day if both vendors agree.</span> ' +
+        '<button class="btn sm" data-act="compact" data-i="' + o.i + '">Fit on one day</button></div>';
+    }).join('') + '</div>';
 
     // before move-out
     var sc = t.scope;
@@ -730,7 +745,9 @@ tr.miss td{background:var(--red-soft)}
     return '<div class="step ' + s.status + '" style="--c:' + color(s.key) + '" data-i="' + i + '">' +
       '<div class="step-title"><span class="n">' + (i + 1) + '</span><b>' + esc(s.label) + '</b><span class="when">' + when + '</span>' +
       (s.pinned ? '<button class="pin" data-act="unpin" data-i="' + i + '" title="You set this date. Click to let the system place it again.">📌 set by you · auto</button>' : '') +
-      (s.fromTechPrep ? '<span class="chip">' + s.hours + ' h from tech prep</span>' : '') + '</div>' +
+      (s.fromTechPrep ? '<span class="chip">' + s.hours + ' h from tech prep</span>' : '') +
+      (Number(s.hours) > 0 && Number(s.hours) < 8 * (s.days || 1) && !s.fromTechPrep ? '<span class="chip">about ' + s.hours + ' h</span>' : '') +
+      (s.shareDay && i > 0 && E.canShare(t.steps[i - 1], s) ? '<button class="pin" data-act="uncompact" data-i="' + i + '" title="Shares the day with ' + esc(t.steps[i - 1].label) + '. Click to give it its own day again.">↔ same day as ' + esc(t.steps[i - 1].label) + ' · separate</button>' : '') + '</div>' +
       '<div class="step-side"><div class="seg" title="Status">' + (s.status === 'resched' ? [['resched', '⚠ Reschedule']] : []).concat([['open', 'Not booked'], ['booked', 'Confirmed'], ['done', 'Done']]).map(function (x) {
         return '<button class="' + (s.status === x[0] ? 'on ' + x[0] : '') + '" data-act="status" data-v="' + x[0] + '" data-i="' + i + '">' + x[1] + '</button>';
       }).join('') + '</div>' +
@@ -741,7 +758,7 @@ tr.miss td{background:var(--red-soft)}
       '<label class="f"><span>Size</span><select data-ed="size" data-i="' + i + '" data-fid="sz' + i + '">' + c.sizes.map(function (z) {
         return '<option value="' + esc(z.id) + '"' + (z.id === s.size ? ' selected' : '') + '>' + esc(z.label) + '</option>';
       }).join('') + '</select></label>' +
-      '<label class="f w-vendor"><span>Vendor</span><input type="text" list="vbl-' + esc(s.key) + '" data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '" value="' + esc(s.vendor) + '"></label>' +
+      '<label class="f w-vendor"><span>Vendor</span>' + vendorSelect(s, 'data-ed="vendor" data-i="' + i + '" data-fid="v' + i + '"') + '</label>' +
       '<label class="f w-date"><span>Day</span><input type="date" data-ed="start" data-i="' + i + '" data-fid="d' + i + '" value="' + esc(s.start || '') + '"></label>' +
       '<label class="f w-time"><span>Time</span>' + timeSelect('data-ed="time" data-i="' + i + '" data-fid="t' + i + '"', s.time || '') + '</label>' +
       '<label class="f w-num"><span>Days</span><input type="number" min="1" max="20" data-ed="days" data-i="' + i + '" data-fid="n' + i + '" value="' + esc(s.days) + '"></label>' +
@@ -1082,7 +1099,8 @@ tr.miss td{background:var(--red-soft)}
       case 'text': case 'date': case 'number':
         return '<label class="' + cls + '">' + lab(f) + '<input type="' + f.type + '" ' + dp + ' value="' + esc(v == null ? '' : v) + '"' +
           (f.placeholder ? ' placeholder="' + esc(f.placeholder) + '"' : '') + (f.min != null ? ' min="' + f.min + '"' : '') + (f.step ? ' step="' + f.step + '"' : '') + '>' +
-          (f.help ? '<small style="color:var(--muted)">' + esc(f.help) + '</small>' : '') + '</label>';
+          (f.help ? '<small style="color:var(--muted)">' + esc(f.help) + '</small>' : '') +
+          (d.tk_filled && v && d.tk_filled[f.id] === v ? '<small class="tk-hint">Filled from the ' + esc(tkWeek({ week: d.tk_week })) + '. Check it.</small>' : '') + '</label>';
       case 'textarea':
         return '<label class="' + cls + '">' + lab(f) + '<textarea rows="3" ' + dp + '>' + esc(v || '') + '</textarea></label>';
       case 'select':
@@ -1105,7 +1123,10 @@ tr.miss td{background:var(--red-soft)}
           (!pid ? '<option value="">Pick a property first</option>' : !units ? '<option value="">Loading units…</option>' :
             '<option value="">Whole property / single unit</option>' + units.map(function (u) {
               return '<option value="' + u.unit_id + '"' + (u.unit_id === uv ? ' selected' : '') + '>' + esc(u.unit_label_af || '(no label)') + '</option>';
-            }).join('')) + '</select></label>';
+            }).join('')) + '</select>' + (function () {
+              var dd = S.view === 'new' ? dupTurns(pid, uv) : [];
+              return dd.length ? '<small class="dup-warn">⚠ Already an open turn for this unit: ' + esc(dupText(dd)) + '</small>' : '';
+            })() + '</label>';
       case 'trades':
         d.trades = d.trades || {};
         return '<div class="f">' + cat().filter(function (c) { return offered(c.key) || (d.trades[c.key] && d.trades[c.key].size); }).map(function (c) {
@@ -1532,6 +1553,56 @@ tr.miss td{background:var(--red-soft)}
     return '<div class="conflict">⚠ Scope changed, not applied to schedule<button class="btn sm" data-act="goto-apply" data-id="' + t.id + '">Apply now</button></div>';
   }
 
+  // ---------- 2026-11-23 AppFolio tenant tickler: auto-fill + mismatch flags ----------
+  /**
+   * The tickler's move-out + move-in for a unit (houses: the property, when it has only one unit in the tickler).
+   * near = the turn's move-out: picks the tickler move-out closest to it (within 45 days); without it, the next one
+   * from 30 days ago on. Move-in = the first tickler move-in after that move-out (within 120 days). null = nothing.
+   */
+  function ticklerFor(propertyId, unitId, near) {
+    if (!S.tickler || !propertyId) return null;
+    var rows = S.tickler.filter(function (r) { return r.property_id === propertyId && (!unitId || r.unit_id === unitId); });
+    if (!rows.length) return null;
+    if (!unitId && rows.some(function (r) { return r.unit_id !== rows[0].unit_id; })) return null; // several units: can't guess
+    var outs = rows.filter(function (r) { return r.event_type === 'Move-out'; }), mo = null;
+    if (near) {
+      outs.forEach(function (r) { var d = Math.abs(E.parse(r.event_date) - E.parse(near)) / 86400000; if (d <= 45 && (!mo || d < mo.d)) mo = { r: r, d: d }; });
+      mo = mo && mo.r;
+    } else {
+      var from = E.addDays(today(), -30);
+      mo = outs.filter(function (r) { return r.event_date >= from; })[0] || null;
+    }
+    var after = mo ? mo.event_date : near;
+    var mi = after ? rows.filter(function (r) { return r.event_type === 'Move-in' && r.event_date > after && E.parse(r.event_date) - E.parse(after) <= 120 * 86400000; })[0] : null;
+    if (!mo && !mi) return null;
+    return { move_out: mo ? mo.event_date : null, move_in: mi ? mi.event_date : null, week: (mo || mi).last_seen_report_week };
+  }
+  function tkWeek(tk) { return tk && tk.week ? 'AppFolio tickler, week of ' + E.fmt(tk.week) : 'AppFolio tickler'; }
+  /** Fills EMPTY move-out / move-in on the scope form from the tickler; remembers what it filled (for the hint). */
+  function fillFromTickler(d) {
+    var tk = ticklerFor(d.property && d.property.id, d.unit && d.unit.id, d.move_out_date || null);
+    if (!tk) return false;
+    var did = false;
+    d.tk_filled = d.tk_filled || {};
+    if (!d.move_out_date && tk.move_out) { d.move_out_date = tk.move_out; d.tk_filled.move_out_date = tk.move_out; did = true; }
+    if (!d.move_in_date && tk.move_in) { d.move_in_date = tk.move_in; d.tk_filled.move_in_date = tk.move_in; did = true; }
+    if (did) d.tk_week = tk.week;
+    return did;
+  }
+  /** Turn dates vs the tickler. full = turn page (with a Use button for a missing move-in); else the board card line. */
+  function ticklerBanner(t, full) {
+    var tk = ticklerFor(t.property_id, t.unit_id, t.move_out_date);
+    if (!tk) return '';
+    var diffs = [];
+    if (tk.move_out && t.move_out_date && tk.move_out !== t.move_out_date) diffs.push('move-out ' + E.fmt(tk.move_out) + ' (app: ' + E.fmt(t.move_out_date) + ')');
+    if (tk.move_in && tk.move_in !== t.move_in_date) diffs.push('move-in ' + E.fmt(tk.move_in) + ' (app: ' + (t.move_in_date ? E.fmt(t.move_in_date) : 'none') + ')');
+    if (!diffs.length) return '';
+    if (!full) return '<div class="tk-flag">⚠ AppFolio dates differ</div>';
+    return '<div class="tk-flag full">⚠ AppFolio says ' + esc(diffs.join(', ')) + '. <small>' + esc(tkWeek(tk)) + '</small>' +
+      (tk.move_in && tk.move_in !== t.move_in_date ? ' <button class="btn sm" data-act="tk-movein" data-v="' + tk.move_in + '">Use AppFolio move-in</button>' : '') +
+      (tk.move_out && t.move_out_date && tk.move_out !== t.move_out_date ? ' <small>Move-out: change it on the Scope tab if AppFolio is right.</small>' : '') + '</div>';
+  }
+
   function conflictBanner(t) {
     var n = reschedCount(t);
     if (!n) return '';
@@ -1578,11 +1649,14 @@ tr.miss td{background:var(--red-soft)}
         d.property = p ? { id: p.property_id, label: p.canonical_address } : { id: null, label: val };
         d.unit = null;
         if (p) d.walk_type = walkFor(p.canonical_address);
+        fillFromTickler(d); // houses: one unit in the tickler, so the property is enough
         rerender = true;
       } else if (id === 'unit') {
         var units = S.units[d.property && d.property.id] || [];
         var u = units.filter(function (x) { return x.unit_id === val; })[0];
         d.unit = u ? { id: u.unit_id, label: u.unit_label_af } : null;
+        if (fillFromTickler(d)) rerender = true;
+        rerender = rerender || S.view === 'new'; // duplicate-turn note under the unit
       } else {
         d[id] = el.type === 'number' ? (val === '' ? null : Number(val)) : val;
         rerender = el.tagName === 'SELECT' || el.type === 'checkbox';
@@ -1751,7 +1825,18 @@ tr.miss td{background:var(--red-soft)}
     t.steps.splice(idx, 0, step);
   }
 
+  /** Open (not archived) turns for the same property + unit (houses: same property, no unit). */
+  function dupTurns(propertyId, unitId, exceptId) {
+    if (!propertyId) return [];
+    return S.turns.filter(function (o) { return !o.archived && o.id !== exceptId && o.property_id === propertyId && (o.unit_id || null) === (unitId || null); });
+  }
+  function dupText(list) {
+    return list.map(function (o) { return (o.unit_label ? o.property_label + ' ' + o.unit_label : o.property_label) + ' (move-out ' + (o.move_out_date ? E.fmt(o.move_out_date) : 'not set') + ', ' + STAGE_LABEL[o.stage] + ')'; }).join('; ');
+  }
+
   function createTurn(d) {
+    var dups = dupTurns(d.property && d.property.id, d.unit && d.unit.id);
+    if (dups.length && !confirm('There is already an open turn for this unit: ' + dupText(dups) + '.\n\nCreate another turn anyway?')) return;
     var t = {
       property_id: d.property.id, property_label: d.property.label,
       unit_id: d.unit ? d.unit.id : null, unit_label: d.unit ? d.unit.label : null,
@@ -1807,6 +1892,21 @@ tr.miss td{background:var(--red-soft)}
       }).join('') + '</div>';
     h += '<div class="form-foot"><button class="btn primary" data-act="settings-save">Save settings</button><button class="btn ghost" data-act="settings-reset">Reset to defaults</button></div>';
     return h;
+  }
+
+  /**
+   * 2026-11-23 vendor DROPDOWN (was free text): this trade's companies first, then every other company in the vendor
+   * book. A saved name that is not in the book stays selectable, marked, so nothing is lost. New vendors: Settings.
+   */
+  function vendorSelect(s, attrs) {
+    var book = (S.settings.vendors || []).filter(function (x) { return x.company; });
+    var mine = book.filter(function (x) { return x.trade === s.key; }), rest = book.filter(function (x) { return x.trade !== s.key; });
+    var cur = String(s.vendor || ''), found = book.some(function (x) { return x.company === cur; });
+    var opt = function (x) { return '<option value="' + esc(x.company) + '"' + (x.company === cur ? ' selected' : '') + '>' + esc(x.company) + '</option>'; };
+    return '<select ' + attrs + '><option value=""' + (cur ? '' : ' selected') + '>— pick a vendor —</option>' +
+      (cur && !found ? '<option value="' + esc(cur) + '" selected>' + esc(cur) + ' (not in vendor book)</option>' : '') +
+      (mine.length ? '<optgroup label="' + esc(tradeLabel(s.key) || 'This trade') + '">' + mine.map(opt).join('') + '</optgroup>' : '') +
+      (rest.length ? '<optgroup label="Other vendors">' + rest.map(opt).join('') + '</optgroup>' : '') + '</select>';
   }
 
   // ---------- V1 vendor book (Settings) ----------
@@ -2032,6 +2132,9 @@ tr.miss td{background:var(--red-soft)}
       return;
     }
     if (a === 'email-schedule') { el.disabled = true; emailSchedule(t, true, el); return; }
+    if (a === 'tk-movein') { // AppFolio has a move-in the app doesn't: take it (Matt asked for no double entry)
+      t.move_in_date = el.dataset.v; t.scope.move_in_date = el.dataset.v; queueSave(t); render(); toast('Move-in set from AppFolio'); return;
+    }
     if (a === 'mark-ready') { if (!confirm('Mark this unit rent ready?')) return; t.stage = 'ready'; queueSave(t); render(); return; }
     if (a === 'unready') { t.stage = 'scheduling'; t.stage = stageOf(t); queueSave(t); render(); return; }
     if (a === 'project-status') { t.scope.project_status = el.dataset.v; queueSave(t); render(); return; }
@@ -2045,6 +2148,13 @@ tr.miss td{background:var(--red-soft)}
     if (a === 'recommended') { E.recommended(t.steps, t.move_out_date, cat(), layOpts(t)); toast('Recommended schedule laid out'); }
     else if (a === 'status') { t.steps[i].status = el.dataset.v; if (el.dataset.v === 'booked') t.steps[i].confirmedAt = new Date().toISOString(); }
     else if (a === 'unpin') t.steps[i].pinned = false;
+    else if (a === 'compact' && i > 0) { // accepted offer: same day, suggested times only where none is set
+      var pa = t.steps[i - 1], pb = t.steps[i];
+      pb.shareDay = true;
+      if (!pa.time) pa.time = '09:00';
+      if (!pb.time) pb.time = E.addHours(pa.time, E.hoursOf(pa));
+    }
+    else if (a === 'uncompact') t.steps[i].shareDay = false;
     else if (a === 'up' && i > 0) { var tmp = t.steps[i - 1]; t.steps[i - 1] = t.steps[i]; t.steps[i] = tmp; }
     else if (a === 'down' && i < t.steps.length - 1) { var tmp2 = t.steps[i + 1]; t.steps[i + 1] = t.steps[i]; t.steps[i] = tmp2; }
     else if (a === 'remove-step') {
@@ -2083,6 +2193,7 @@ tr.miss td{background:var(--red-soft)}
       S.user = r.user; S.settings = mergeSettings(r.settings);
       S.turns = (r.turns || []).map(prepTurn);
       render();
+      call('apiTickler').then(function (rows) { S.tickler = rows || []; if (!S.form) render(); }, function (e) { console.error('Tickler not loaded: ' + e.message); });
     }, function (e) {
       $('#main').innerHTML = '<div class="empty"><h2>Could not load turns</h2><p>' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">Try again</button></div>';
     });

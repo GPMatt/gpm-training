@@ -7,12 +7,15 @@
  * - First build step = next business day after move-out.
  * - Business days exclude weekends + 6 vendor holidays (New Year's, Memorial, July 4, Labor, Thanksgiving, Christmas).
  * - Only Appliances + Tech may share a day (Tech starts the same day when it directly follows Appliances).
+ *   Matt 2026-11-23: two short steps back to back (both one day, hours together <= 8, no cure on the first) can ALSO
+ *   share a day, but only when Spencer accepts the offer (compactOffers -> step.shareDay). Never automatic.
+ * - New steps have NO start time (Matt 2026-11-23: the old 9 AM default was made up; a person sets the time).
  * - A size can carry cure days (no entry) before the next step. Tub resurface: none, it sits overnight (Matt 2026-11-11).
  * - Rent ready = the last day of work. It should be at least 1 business day before move-in.
  * - A step whose date Spencer set by hand is "pinned"; later unpinned steps flow after it.
  * - Buffer days (Matt 2026-11-11), only on turns flagged scope.buffers (new turns): the first business day after
  *   move-out is held ("Buffer: trash-out if needed"), the first trade starts the business day after it, and one
- *   business day after the last step (after any cure) is held ("Buffer: tech punch list"); rent ready = that day.
+ *   business day after the last step (after any cure) is held ("Buffer: final unit check", renamed from tech punch list 2026-11-23); rent ready = that day.
  *   Buffers are not steps: layout returns them in result.buffers and the app draws them (no vendor, no booking).
  */
 var Engine = (function () {
@@ -68,7 +71,7 @@ var Engine = (function () {
       key: cat.key, label: cat.label, size: sz.id, sizeLabel: sz.label,
       vendor: sz.vendor || cat.vendor || '',
       days: sz.days || 1, hours: sz.hours || 8 * (sz.days || 1), cure: sz.cure || 0,
-      time: '09:00', start: null, end: null, pinned: false, status: 'open', note: note || ''
+      time: '', start: null, end: null, pinned: false, status: 'open', note: note || ''
     };
   }
 
@@ -139,7 +142,7 @@ var Engine = (function () {
     var cursor = withBuf ? nextBiz(first) : first, prev = null, lastEnd = null;
     steps.forEach(function (s) {
       var earliest = cursor;
-      var shares = prev && prev.key === 'appliances' && s.key === 'tech';
+      var shares = prev && ((prev.key === 'appliances' && s.key === 'tech') || (s.shareDay && canShare(prev, s)));
       if (shares) earliest = prev.start;
       var start;
       if (s.pinned && s.start) {
@@ -164,6 +167,7 @@ var Engine = (function () {
       var a = steps[i], b = steps[j];
       var pair = [a.key, b.key].sort().join('+');
       if (pair === 'appliances+tech') continue;
+      if (j === i + 1 && b.shareDay && canShare(a, b) && a.start === b.start) continue; // accepted half-day pair
       if (a.start <= b.end && b.start <= a.end) warnings.push(a.label + ' and ' + b.label + ' overlap (' + fmt(maxIso(a.start, b.start)) + '). Only Appliances + Tech may share a day.');
       else if (a.cure && b.start > a.end && b.start <= addBiz(a.end, a.cure)) warnings.push(b.label + ' is inside the ' + a.label + ' cure time (no entry).');
     }
@@ -185,9 +189,38 @@ var Engine = (function () {
     var buffers = [];
     if (withBuf) { // end buffer = the day the next step would start (cursor already skips cure days)
       buffers = [{ key: 'buffer_start', label: 'Buffer: trash-out if needed', date: first },
-        { key: 'buffer_end', label: 'Buffer: tech punch list', date: cursor }];
+        { key: 'buffer_end', label: 'Buffer: final unit check', date: cursor }];
     }
     return { steps: steps, rentReady: withBuf ? cursor : lastEnd || first, firstBuildDay: first, warnings: warnings, buffers: buffers };
+  }
+
+  function hoursOf(s) { var h = Number(s.hours); return h > 0 ? h : 8 * (Number(s.days) || 1); }
+  /** Two steps that could share one day: both one day long, hours together <= 8, no cure (no-entry) after the first. */
+  function canShare(a, b) {
+    return !!a && !!b && (Number(a.days) || 1) === 1 && (Number(b.days) || 1) === 1 && !(Number(a.cure) > 0) && hoursOf(a) + hoursOf(b) <= 8;
+  }
+  /** "HH:MM" + hours, rounded up to the half hour. */
+  function addHours(t, h) {
+    var p = String(t).split(':'), m = (+p[0]) * 60 + (+p[1] || 0) + Math.ceil(Number(h) * 2) * 30;
+    return (m / 60 < 10 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60);
+  }
+  /**
+   * Offers (never applied by themselves): step i could start the same day as step i-1. Only for a not-booked step
+   * whose date the system placed (not pinned), on a different day than the step before it. Appliances + Tech is
+   * excluded (it already shares automatically). Each offer suggests times: first step at its time (or 9 AM), the
+   * second right after it.
+   */
+  function compactOffers(steps) {
+    var out = [];
+    for (var i = 1; i < steps.length; i++) {
+      var a = steps[i - 1], b = steps[i];
+      if (b.shareDay || b.pinned || b.status !== 'open' || !a.start || !b.start || a.start === b.start) continue;
+      if (a.key === 'appliances' && b.key === 'tech') continue;
+      if (!canShare(a, b)) continue;
+      var t1 = a.time || '09:00';
+      out.push({ i: i, a: a, b: b, day: a.start, timeA: t1, timeB: addHours(t1, hoursOf(a)) });
+    }
+    return out;
   }
 
   /** Fresh recommended schedule: clears pins and the order Spencer set, keeps status/vendor/notes. */
@@ -304,7 +337,7 @@ var Engine = (function () {
     iso: iso, parse: parse, addDays: addDays, isBiz: isBiz, rollBiz: rollBiz, nextBiz: nextBiz, prevBiz: prevBiz,
     addBiz: addBiz, bizDiff: bizDiff, bizDaysInRange: bizDaysInRange, holidays: holidays, holidayName: holidayName,
     makeStep: makeStep, stepsFromScope: stepsFromScope, mergeScope: mergeScope, applyTechHours: applyTechHours,
-    layout: layout, recommended: recommended, buffer: buffer, progress: progress, applyChanges: applyChanges, diffSteps: diffSteps,
+    layout: layout, recommended: recommended, canShare: canShare, compactOffers: compactOffers, addHours: addHours, hoursOf: hoursOf, buffer: buffer, progress: progress, applyChanges: applyChanges, diffSteps: diffSteps,
     fmt: fmt, fmtTime: fmtTime, lengthText: lengthText, vendorMessage: vendorMessage, sizeOf: sizeOf, catalogByKey: catalogByKey
   };
 })();

@@ -393,35 +393,35 @@ t('(11/23) one Gmail thread per turn: first email stores it, later emails reply 
   let testTo = '';
   C.PropertiesService = { getScriptProperties: () => ({ getProperty: k => k === 'EMAIL_TEST_TO' ? testTo : (store[k] || null), setProperty: (k, v) => { store[k] = v; } }) };
   gasMailMocks(C, sent, { failThread: 'dead' });
-  const turn = { id: 'T1', property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' };
+  const turn = { id: '8a3671e2-0000-4000-8000-000000000001', property_label: '547 Cherry St SE', unit_label: '108', move_out_date: '2026-12-15' };
   const mk = (kind, t) => { const m = C.buildScheduleMail(t, kind, testTo); return C.sendTurnMail_(t, m, testTo); };
   mk('one', turn);
-  assert.equal(sent[0].subject, 'Turn: 547 Cherry St SE 108');
+  assert.equal(sent[0].subject, 'Turn: 547 Cherry St SE 108 · #8A3671');
   assert.equal(sent[0].threadId, ''); assert.equal(sent[0].inReplyTo, '');
   assert.equal(sent[0].cc, 'matt@greenpropertymgt.com');
-  assert.deepEqual(JSON.parse(store.mail_T1), { threadId: 't1', msgId: '<m1@mail.gmail.com>', subject: 'Turn: 547 Cherry St SE 108' });
+  assert.deepEqual(JSON.parse(store['mail_8a3671e2-0000-4000-8000-000000000001']), { threadId: 't1', msgId: '<m1@mail.gmail.com>', subject: 'Turn: 547 Cherry St SE 108 · #8A3671' });
   // move-out date changed later: subject stays the stored one, reply goes into the same thread
   const r = mk('two', Object.assign({}, turn, { move_out_date: '2026-12-18' }));
-  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108');
+  assert.equal(r.subject, 'Turn: 547 Cherry St SE 108 · #8A3671');
   assert.equal(sent[1].subject, sent[0].subject);
   assert.equal(sent[1].threadId, 't1');
   assert.equal(sent[1].inReplyTo, '<m1@mail.gmail.com>'); assert.equal(sent[1].references, '<m1@mail.gmail.com>');
   assert.equal(sent[1].body, 'PMI Scope submitted: turn schedule\n\ntwo');
   // a different turn gets its own thread
-  mk('three', { id: 'T2', property_label: '900 Leonard St NW', unit_label: '2' });
-  assert.equal(sent[2].threadId, ''); assert.equal(sent[2].subject, 'Turn: 900 Leonard St NW 2');
+  mk('three', { id: 'b0c1d2e3-0000', property_label: '547 Cherry St SE', unit_label: '108' }); // NEXT turn, same unit
+  assert.equal(sent[2].threadId, ''); assert.equal(sent[2].subject, 'Turn: 547 Cherry St SE 108 · #B0C1D2');
   // test mode: own thread, never mixes into the real one
   testTo = 'matt@greenpropertymgt.com';
   mk('four', turn);
-  assert.equal(sent[3].threadId, ''); assert.equal(sent[3].subject, '[TEST] Turn: 547 Cherry St SE 108');
+  assert.equal(sent[3].threadId, ''); assert.equal(sent[3].subject, '[TEST] Turn: 547 Cherry St SE 108 · #8A3671');
   assert.equal(sent[3].to, 'matt@greenpropertymgt.com'); assert.equal(sent[3].cc, '');
-  assert.ok(store.mail_T1_test);
+  assert.ok(store['mail_8a3671e2-0000-4000-8000-000000000001_test']);
   // stored thread deleted from the inbox: starts a fresh one and re-stores it
   testTo = '';
-  store.mail_T1 = JSON.stringify({ threadId: 'dead', msgId: '<x>', subject: 'Turn: old' });
+  store['mail_8a3671e2-0000-4000-8000-000000000001'] = JSON.stringify({ threadId: 'dead', msgId: '<x>', subject: 'Turn: old' });
   mk('five', turn);
   assert.equal(sent[4].threadId, ''); assert.equal(sent[4].subject, 'Turn: old');
-  assert.equal(JSON.parse(store.mail_T1).threadId, 't5');
+  assert.equal(JSON.parse(store['mail_8a3671e2-0000-4000-8000-000000000001']).threadId, 't5');
   // non-ASCII survives the MIME round trip
   mk('Tub · 2 days → done', turn);
   assert.ok(sent[5].body.endsWith('Tub · 2 days → done'));
@@ -604,7 +604,7 @@ t('(Run 2b B8) buffer days are all-day calendar events on flagged turns only', (
   assert.deepEqual(ev.map(e => e.key), ['tech', '_buffer_start', '_buffer_end', '_rentready']);
   const s = ev[1], e = ev[2];
   assert.deepEqual([s.title, s.allDay, s.start, s.end], ['Buffer: trash-out if needed – 90 Wealthy St SE 2', true, '2026-11-27', '2026-11-28']); // skips Thanksgiving
-  assert.deepEqual([e.title, e.allDay, e.start, e.end], ['Buffer: tech punch list – 90 Wealthy St SE 2', true, '2026-12-01', '2026-12-02']);
+  assert.deepEqual([e.title, e.allDay, e.start, e.end], ['Buffer: final unit check – 90 Wealthy St SE 2', true, '2026-12-01', '2026-12-02']);
   assert.equal(plain(D.calendarEvents(Object.assign({ scope: { buffers: true } }, base, { move_out_date: '2026-11-20' }), ''))[1].start, '2026-11-23'); // Fri -> Mon
 });
 
