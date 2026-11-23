@@ -7,12 +7,20 @@
 var CHECK_ROOMS_SERVER = [
   // Items match Jason's "TURN checklist 2026" (Drive 1CQD_TPlhFzpN3wyr3NTS4-0Dk6gzmSpdhwQrSywkutU) room by room.
   { id: 'exterior', label: 'Exterior', items: ['Garage opener', '1 remote per door', 'Garage service door', '2 GPM entry keys', 'Garage / storage room for items left behind', 'Porch light'] },
+  { id: 'patio', label: 'Patio / balcony', extra: true, items: ['Patio door lock / latch', 'Sliding door track + rollers', 'Door screen', 'Weatherstrip / door sweep', 'Exterior light', 'Railing secure', 'Deck / patio surface'] },
   { id: 'entry', label: 'Entry', items: ['Mailbox key', 'Entry lock', '2 key min', 'Door latches', 'Hallway light', 'Closet door / shelves'] },
+  { id: 'hall', label: 'Hallway', extra: true, items: ['Light fixture', 'Outlets have power', 'Outlet / switch covers', 'Smoke detector', 'Linen closet door / shelves', 'HVAC vents (replace / paint)'] },
+  { id: 'stairs', label: 'Stairs', extra: true, items: ['Handrail secure', 'Treads / stair carpet', 'Light + switches (top and bottom)', 'Smoke detector'] },
   { id: 'living', label: 'Living room', items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'HVAC vents (replace / paint)', 'Thermostat (heat / A/C)', 'Smoke / CO2 (outside bedroom)'] },
+  { id: 'dining', label: 'Dining room', extra: true, items: ['Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture'] },
   { id: 'kitchen', label: 'Kitchen', items: ['Light above sink', 'Run dishwasher', 'Disposal', 'Faucet', 'Drains under sink', 'Stove / oven', 'Drip pans', 'Hood filter', 'Microwave', 'Fridge / freezer', 'Countertops', 'Cabinets / drawers', 'GFCI protecting', 'Outlet / switch covers'] },
+  { id: 'laundry', label: 'Laundry room', extra: true, items: ['Washer', 'Dryer', 'Dryer vent / hose', 'Washer valves + drain', 'Light fixture', 'Outlets have power', 'Outlet / switch covers'] },
+  { id: 'utility', label: 'Utility closet', extra: true, items: ['Furnace filter', 'Water heater (leaks / pilot)', 'Smoke / CO2 detector', 'Light', 'Door latches'] },
   { id: 'basement', label: 'Basement', items: ['Smoke detector', 'Furnace filter', 'Washer', 'Dryer', 'Utility sink', 'Lights'] },
+  { id: 'halfbath', label: 'Half bath', extra: true, items: ['Light / vent fan', 'Toilet drain / fill', 'Bolt caps on toilet', 'Toilet seat / hinges', 'Vanity faucet', 'Vanity drain', 'Toilet paper bar', 'Towel bar', 'GFCI protecting', 'Outlet / switch covers'] },
   { id: 'bath', label: 'Bathroom', repeat: 'bathrooms', items: ['Light / vent fan', 'Tub faucet', 'Tub drain', 'Tub stopper', 'Shower caulk', 'Shower curtain', 'Shower bar', 'Toilet drain / fill', 'Bolt caps on toilet', 'Toilet seat / hinges', 'Vanity faucet', 'Vanity drain', 'Toilet paper bar', 'Towel bar', 'GFCI protecting', 'Outlet / switch covers'] },
-  { id: 'bed', label: 'Bedroom', repeat: 'bedrooms', items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Smoke detector', 'Closet door latches', 'Closet hardware'] }
+  { id: 'bed', label: 'Bedroom', repeat: 'bedrooms', items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Smoke detector', 'Closet door latches', 'Closet hardware'] },
+  { id: 'den', label: 'Den / office', extra: true, items: ['Door latches', 'Window panes', 'Window screens', 'Window locks', 'Window blinds', 'Outlets have power', 'Outlet / switch covers', 'Light fixture', 'Closet door latches'] }
 ];
 
 var REQUIRED_ENTRY_KEYS = 2;
@@ -55,7 +63,7 @@ function cleanTestTo(v) {
 function roomInstancesServer_(tp, rooms) {
   var out = [];
   rooms.forEach(function (r) {
-    if (!r.repeat) { out.push({ id: r.id, label: r.label, items: r.items }); return; }
+    if (!r.repeat) { out.push({ id: r.id, label: r.label, items: r.items, extra: !!r.extra }); return; }
     var n = parseInt(tp[r.repeat], 10) || 0;
     for (var i = 1; i <= n; i++) out.push({ id: r.id + i, label: r.label + (n > 1 ? ' ' + i : ''), items: r.items });
   });
@@ -158,9 +166,10 @@ function describeTechPrep(turn, rooms, settings) {
 
   // Top block: ready to paste into the AppFolio Unit Turn WO.
   var top = [], notChecked = [];
-  var off = roomsOff_(tp);
+  var off = roomsOff_(tp), on = {};
+  (Array.isArray(tp.rooms_on) ? tp.rooms_on : []).forEach(function (id) { on[id] = true; });
   instances.forEach(function (r) {
-    if (off[r.id]) return;
+    if (off[r.id] || (r.extra && !on[r.id])) return; // extra rooms (patio, hallway, ...) only when added (tech_prep.rooms_on)
     var st = cl[r.id] || {}, fixes = [];
     r.items.forEach(function (item, ii) {
       var e = st[ii];

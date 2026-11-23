@@ -23,6 +23,9 @@ tr.miss td{background:var(--red-soft)}
 .rp-h{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--muted);margin-bottom:6px}
 .rp-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .rp-chip{border:1px dashed var(--line-2);background:#fff;border-radius:99px;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);text-decoration:line-through}
+.rp-chip.add{text-decoration:none;color:var(--ink);border-style:dashed}
+.rp-h2{margin-top:8px}
+.rp-tip{text-transform:none;letter-spacing:0;font-weight:600}
 .rp-chip.on{border-style:solid;border-color:var(--green-3);background:var(--green-soft);color:var(--green);text-decoration:none}
 .list-t select[data-list="blinds"][data-col="room"]{min-width:118px}
 .dmg{border:1px solid var(--line);border-left:4px solid var(--green-3);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#fff;display:flex;flex-direction:column;gap:6px}
@@ -1176,11 +1179,12 @@ tr.miss td{background:var(--red-soft)}
     return '';
   }
 
+  /** Standard rooms are in unless listed in tech_prep.rooms_off; extra rooms (patio, hallway, ...) are out unless listed in rooms_on. */
+  function roomIn(d, r) { return r.extra ? (d.rooms_on || []).indexOf(r.id) >= 0 : (d.rooms_off || []).indexOf(r.id) < 0; }
   function roomInstances(d) {
     var out = [];
-    var off = d.rooms_off || []; // rooms this unit does not have (Tech Prep room picker)
     CHECK_ROOMS.forEach(function (r) {
-      if (!r.repeat) { if (off.indexOf(r.id) < 0) out.push({ id: r.id, label: r.label, items: r.items }); return; }
+      if (!r.repeat) { if (roomIn(d, r)) out.push({ id: r.id, label: r.label, items: r.items }); return; }
       var n = parseInt(d[r.repeat], 10) || 0;
       for (var i = 1; i <= n; i++) out.push({ id: r.id + i, label: r.label + (n > 1 ? ' ' + i : ''), items: r.items });
     });
@@ -1246,15 +1250,23 @@ tr.miss td{background:var(--red-soft)}
     return '<b>' + done + ' / ' + n + '</b> answered · ' + fix + ' fix';
   }
 
-  /** "Rooms in this unit": a chip per non-repeating room; off rooms leave the list (tech_prep.rooms_off). */
+  /** "Rooms in this unit": a chip per room in the walk (tap = remove) + "Add a room" chips for the rooms not in it (tap = add).
+   *  Standard rooms off -> tech_prep.rooms_off; extra rooms on -> tech_prep.rooms_on. */
   function roomPicker(d) {
-    var off = d.rooms_off || [];
-    return '<div class="rooms-pick"><span class="rp-h">Rooms in this unit</span><div class="rp-chips">' +
-      CHECK_ROOMS.filter(function (r) { return !r.repeat; }).map(function (r) {
-        var on = off.indexOf(r.id) < 0;
-        return '<button class="rp-chip' + (on ? ' on' : '') + '" data-act="room-toggle" data-rid="' + r.id + '" aria-pressed="' + on + '">' + (on ? '✓ ' : '') + esc(r.label) + '</button>';
-      }).join('') + '<span class="muted">' + esc(d.bedrooms || '0') + ' bed · ' + esc(d.bathrooms || '1') + ' bath (set above)</span></div>' +
+    var single = CHECK_ROOMS.filter(function (r) { return !r.repeat; });
+    var chip = function (r) { var on = roomIn(d, r);
+      return '<button class="rp-chip' + (on ? ' on' : ' add') + '" data-act="room-toggle" data-rid="' + r.id + '" aria-pressed="' + on + '">' + (on ? '✓ ' : '+ ') + esc(r.label) + '</button>'; };
+    var ins = single.filter(function (r) { return roomIn(d, r); }), outs = single.filter(function (r) { return !roomIn(d, r); });
+    return '<div class="rooms-pick"><span class="rp-h">Rooms in this unit <span class="rp-tip">(tap to remove)</span></span><div class="rp-chips">' +
+      ins.map(chip).join('') + '<span class="muted">' + esc(d.bedrooms || '0') + ' bed · ' + esc(d.bathrooms || '1') + ' bath (set above)</span></div>' +
+      (outs.length ? '<span class="rp-h rp-h2">Add a room</span><div class="rp-chips">' + outs.map(chip).join('') + '</div>' : '') +
       (S.roomCut && S.roomCut.room ? roomCutHtml() : '') + '</div>';
+  }
+  /** Take a single room out of the walk and drop its answers. */
+  function roomRemove(d, r) {
+    if (r.extra) { var on = d.rooms_on = d.rooms_on || [], i = on.indexOf(r.id); if (i >= 0) on.splice(i, 1); }
+    else (d.rooms_off = d.rooms_off || []).push(r.id);
+    if (d.checklist) delete d.checklist[r.id];
   }
   function roomAnswers(st) {
     var n = 0, fix = 0;
@@ -1350,10 +1362,12 @@ tr.miss td{background:var(--red-soft)}
     return out;
   }
 
+  function roomLabelOf(id) { var r = CHECK_ROOMS.filter(function (x) { return x.id === id; })[0]; return r ? r.label : id; }
   function ncReview(t, d) {
     var items = ncItems(t);
     var tp = t && t.tech_prep, by = tp && tp.submitted_at ? '<div class="muted" style="margin-bottom:6px">Tech Prep filled by ' + esc(tp.done_by || 'the tech') + '.' +
-      ((tp.rooms_off || []).length ? ' Rooms not in this unit: ' + esc(tp.rooms_off.map(function (id) { var r = CHECK_ROOMS.filter(function (x) { return x.id === id; })[0]; return r ? r.label : id; }).join(', ')) + '.' : '') + '</div>' : '';
+      ((tp.rooms_off || []).length ? ' Rooms not in this unit: ' + esc(tp.rooms_off.map(roomLabelOf).join(', ')) + '.' : '') +
+      ((tp.rooms_on || []).length ? ' Rooms added: ' + esc(tp.rooms_on.map(roomLabelOf).join(', ')) + '.' : '') + '</div>' : '';
     if (!items.length) return '<div class="muted">' + (tp && tp.submitted_at ? by + 'Nothing was left unchecked at the PMI.' : 'Tech prep is not done yet.') + '</div>';
     d.nc_review = d.nc_review || {};
     // stored values stay the same; only the label names the tech
@@ -2052,20 +2066,23 @@ tr.miss td{background:var(--red-soft)}
       return;
     }
     if (a === 'room-toggle') {
-      var rid = el.dataset.rid, off = S.form.rooms_off = S.form.rooms_off || [], oi = off.indexOf(rid);
+      var rid = el.dataset.rid, rdef = CHECK_ROOMS.filter(function (x) { return x.id === rid; })[0];
       S.roomCut = null;
-      if (oi >= 0) off.splice(oi, 1);
-      else {
-        var ra = roomAnswers((S.form.checklist || {})[rid]), rl = CHECK_ROOMS.filter(function (x) { return x.id === rid; })[0].label;
-        if (ra.n) { S.roomCut = { room: rid, label: rl, rooms: [{ label: rl, n: ra.n, fix: ra.fix }] }; render(); return; } // ask first
-        off.push(rid); if (S.form.checklist) delete S.form.checklist[rid];
+      if (!roomIn(S.form, rdef)) { // add it back / add an extra room, and open it
+        if (rdef.extra) (S.form.rooms_on = S.form.rooms_on || []).push(rid);
+        else { var off = S.form.rooms_off || [], oi = off.indexOf(rid); if (oi >= 0) off.splice(oi, 1); }
+        S.roomOpen[rid] = true; S.roomSel = rid;
+      } else {
+        var ra = roomAnswers((S.form.checklist || {})[rid]);
+        if (ra.n) { S.roomCut = { room: rid, label: rdef.label, rooms: [{ label: rdef.label, n: ra.n, fix: ra.fix }] }; render(); return; } // ask first
+        roomRemove(S.form, rdef);
       }
       markDirty(); render(); return;
     }
     if (a === 'room-cut-yes' || a === 'room-cut-no') {
       var rc = S.roomCut; S.roomCut = null;
       if (rc && a === 'room-cut-yes') {
-        if (rc.room) { (S.form.rooms_off = S.form.rooms_off || []).push(rc.room); if (S.form.checklist) delete S.form.checklist[rc.room]; }
+        if (rc.room) roomRemove(S.form, CHECK_ROOMS.filter(function (x) { return x.id === rc.room; })[0]);
         else { dropRooms(S.form, CHECK_ROOMS.filter(function (x) { return x.repeat === rc.field; })[0], rc.to, rc.from); S.form[rc.field] = String(rc.to); }
         markDirty();
       }

@@ -82,14 +82,14 @@ t('(R4) cleanTestTo: strips space + trailing punctuation, throws on junk', () =>
 t('(R4.8) blinds rows under Parts to order; old fields as fallback', () => {
   const turn = { tech_prep: { bedrooms: '2', bathrooms: '1', blinds_count: 9, blinds_sizes: 'ignored',
     blinds: [{ room: 'bed1', window: 'North', size: '35x64' }, { room: 'living', window: 'Front left', size: '23x64' },
-      { room: 'den', window: '', size: '30x64' }, { room: '', window: '', size: '' }] } };
+      { room: 'sunroom', window: '', size: '30x64' }, { room: '', window: '', size: '' }] } };
   assert.equal(D.describeTechPrep(turn, D.CHECK_ROOMS_SERVER, {}).text, [
     'No repairs found at the PMI.', '', '---- Not for the work order ----', '',
     'Parts to order:',
     '- Blinds to replace: 3',
     '  - Bedroom 1, North: 35x64',
     '  - Living room, Front left: 23x64',
-    '  - den: 30x64'
+    '  - sunroom: 30x64'
   ].join('\n'));
   delete turn.tech_prep.blinds;
   assert.ok(D.describeTechPrep(turn, D.CHECK_ROOMS_SERVER, {}).text.endsWith('- Blinds to replace: 9 (sizes: ignored)'));
@@ -110,6 +110,17 @@ t('(c) EMAIL_TEST_TO: only test address, [TEST] subject, first line names real r
   assert.deepEqual(real.cc, ['matt@greenpropertymgt.com']);
   assert.equal(real.text, 'Turn WO description: 2361 Example St SW #4 (WO 18171-1)\n\n' + EXPECTED_2361);
   assert.equal(real.subject, 'Turn: 2361 Example St SW #4');
+});
+
+t('(rooms+) extra rooms only print when added (rooms_on); standard rooms skip when in rooms_off', () => {
+  const tp = { bedrooms: '1', bathrooms: '1', checklist: { patio: { 1: { s: 'fix', note: 'Slider sticks' } }, hall: { 3: { s: 'fix', note: 'Replace' } }, entry: { 1: { s: 'fix', note: 'Rekey' } } } };
+  const txt = x => D.describeTechPrep({ tech_prep: Object.assign({}, tp, x) }, D.CHECK_ROOMS_SERVER, {}).text.split('\n---- ')[0];
+  assert.ok(!/Patio|Hallway/.test(txt({})), 'extras off by default');
+  const on = txt({ rooms_on: ['patio', 'hall'], rooms_off: ['entry'] });
+  assert.ok(/Patio \/ balcony: Sliding door track \+ rollers - slider sticks\./.test(on), on);
+  assert.ok(/Hallway: Smoke detector - replace\./.test(on), on);
+  assert.ok(!/Entry/.test(on), on);
+  assert.ok(on.indexOf('Patio') < on.indexOf('Hallway'), 'walk order');
 });
 
 t('(d) CHECK_ROOMS_SERVER deep-equals Config.html CHECK_ROOMS', () => {
