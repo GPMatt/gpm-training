@@ -7,8 +7,8 @@
 // hilltoprealtymanagement (Jefferson) is deliberately left out of this project.
 var LISTING_ACCOUNTS = ['greenproperty11', 'greenproperty', 'greenproperty7', 'greenproperty9'];
 var LISTINGS_CACHE_SECONDS = 10 * 60;
-var SLOTS_CACHE_SECONDS = 60 * 60;
-// AppFolio's availabilities endpoint only ever returns the next 4 days.
+// The showing button can change minute to minute; re-check at most every 10 min.
+var SLOTS_CACHE_SECONDS = 10 * 60;
 
 function listingsBase_(account) {
   return 'https://' + account + '.appfolio.com/listings';
@@ -56,39 +56,40 @@ function parseListingsPage_(account, html) {
   return out;
 }
 
-// Bookable showing times in the next 4 days, keyed by uid:
-// -1 = showings are turned off for the listing, 0 = calendar has no times.
+// Does the listing's public page show the blue "Schedule Showing" button?
+// keyed by uid: 1 = yes, 0 = no open times, -1 = showings off / check failed.
+// This is the same check AppFolio's own button script runs
+// (schedule_showing_button.js): it asks availabilities with
+// find_first_available_date=true and shows the button only when
+// first_available_date comes back non-null. The plain call only looks 4 days
+// ahead, which hid VoL's button when its first time was weeks out.
 function showingSlots_(listings) {
   var cache = CacheService.getScriptCache();
   var result = {};
   var todo = listings.filter(function (l) {
-    var hit = cache.get('slots_' + l.uid);
+    var hit = cache.get('showbtn_' + l.uid);
     if (hit !== null) { result[l.uid] = Number(hit); return false; }
     return true;
   });
   if (!todo.length) return result;
 
-  var requests = [], owners = [];
-  // AppFolio ignores startDate and always returns the next 4 days from today,
-  // so one request per listing (more only counted the same times again).
-  todo.forEach(function (l) {
-    requests.push({
-      url: listingsBase_(l.account) + '/api/listings/' + l.uid + '/availabilities',
+  var responses = UrlFetchApp.fetchAll(todo.map(function (l) {
+    return {
+      url: listingsBase_(l.account) + '/api/listings/' + l.uid + '/availabilities?find_first_available_date=true',
       headers: { Accept: 'application/json' }, muteHttpExceptions: true
-    });
-    owners.push(l.uid);
-  });
-  var counts = {};
-  UrlFetchApp.fetchAll(requests).forEach(function (res, i) {
-    var uid = owners[i];
-    if (counts[uid] === -1) return;
-    if (res.getResponseCode() !== 200) { counts[uid] = -1; return; }
-    var days = (JSON.parse(res.getContentText()).availabilities_by_date || []);
-    counts[uid] = (counts[uid] || 0) + days.reduce(function (n, day) { return n + (day.timeslots || []).length; }, 0);
-  });
-  Object.keys(counts).forEach(function (uid) {
-    result[uid] = counts[uid];
-    cache.put('slots_' + uid, String(counts[uid]), SLOTS_CACHE_SECONDS);
+    };
+  }));
+  responses.forEach(function (res, i) {
+    var uid = todo[i].uid, v = -1;
+    if (res.getResponseCode() === 200) {
+      try {
+        var d = JSON.parse(res.getContentText());
+        var anySlot = (d.availabilities_by_date || []).some(function (day) { return (day.timeslots || []).length > 0; });
+        v = (d.first_available_date || anySlot) ? 1 : 0;
+      } catch (e) { v = -1; }
+    }
+    result[uid] = v;
+    cache.put('showbtn_' + uid, String(v), SLOTS_CACHE_SECONDS);
   });
   return result;
 }
