@@ -51,8 +51,8 @@ var REQUIRED = [
 ];
 
 var DEFAULTS = [
-  ['CreditMin', '', 'e.g. 625'],
-  ['IncomeMultiple', '', 'e.g. 3 (income must be 3x the monthly rent)'],
+  ['CreditMin', '625', 'Company standard credit score'],
+  ['IncomeMultiple', '3', 'Company standard: gross household income of 3x the monthly rent'],
   ['CosignerPolicy', '', 'e.g. "Accepted when income or credit falls short"'],
   ['Section8Policy', '', 'e.g. "Accepted" / "Not accepted"'],
   ['ApplicationFee', '$50', 'Company-wide application fee'],
@@ -95,7 +95,7 @@ var TEMPLATE_BODY = [
   '',
   'WHAT YOU NEED TO QUALIFY',
   '• Credit score of {{CreditMin}} or higher',
-  '• Combined household income of {{IncomeMultiple}}x the monthly rent',
+  '• Gross household income of {{IncomeMultiple}}x the monthly rent',
   '• Cosigners / guarantors: {{CosignerPolicy}}',
   '• Housing vouchers (Section 8): {{Section8Policy}}',
   '• Application fee: {{ApplicationFee}}',

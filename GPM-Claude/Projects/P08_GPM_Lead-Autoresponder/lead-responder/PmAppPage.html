@@ -124,8 +124,11 @@
 
         <div class="row2">
           <div><label for="CreditMin">Credit minimum</label><input type="text" id="CreditMin" inputmode="numeric"></div>
-          <div><label for="IncomeMultiple">Income (x rent)</label><input type="text" id="IncomeMultiple" inputmode="decimal"></div>
+          <div><label for="IncomeMultiple">Gross income (x rent)</label><input type="text" id="IncomeMultiple" inputmode="decimal"></div>
         </div>
+        <p class="status-help" id="stdHelp" style="margin-top:-8px"></p>
+        <label class="chk" style="margin:0 0 14px;align-items:flex-start;font-size:14px;color:var(--ink)"><input type="checkbox" id="vote" style="margin-top:3px">
+          <span><b>Vote: turn off AppFolio's generic auto-reply</b> for this property, so prospects get only this email. <span class="hint">Matt is notified and turns it off in AppFolio.</span></span></label>
         <label for="Pets">Pets</label>
         <textarea id="Pets" rows="2"></textarea>
         <label for="LeaseLengths">Lease lengths</label>
@@ -179,8 +182,6 @@ google.script.run.withSuccessHandler(function (init) {
   who.innerHTML = '<option value="">Choose your name…</option>' + init.pms.map(function (p) { return '<option>' + esc(p.name) + '</option>'; }).join('');
   var me = init.pms.filter(function (p) { return p.email && p.email.toLowerCase() === String(init.user).toLowerCase(); })[0];
   if (me) { who.value = me.name; fillProps(); }
-  $('CreditMin').placeholder = init.defaults.CreditMin ? 'Company default: ' + init.defaults.CreditMin : 'e.g. 625';
-  $('IncomeMultiple').placeholder = init.defaults.IncomeMultiple ? 'Company default: ' + init.defaults.IncomeMultiple + 'x' : 'e.g. 3';
 }).withFailureHandler(fail('topMsg')).pmAppInit();
 
 $('who').onchange = fillProps;
@@ -222,6 +223,13 @@ function showView(v, resetForm) {
     document.querySelectorAll('input[name=ShowingMode]').forEach(function (x) { x.checked = x.value === r.ShowingMode; });
     $('ShowingUrl').value = r.ShowingMode === 'custom' ? r.ShowingLink : '';
     FIELDS.forEach(function (f) { $(f).value = r[f] || ''; });
+    // Company standards are prefilled; leaving them as-is keeps the property on the standard.
+    if (!r.CreditMin) $('CreditMin').value = v.defaults.CreditMin;
+    if (!r.IncomeMultiple) $('IncomeMultiple').value = v.defaults.IncomeMultiple;
+    $('stdHelp').textContent = 'Company standard: ' + (v.defaults.CreditMin || '?') + ' credit, ' + (v.defaults.IncomeMultiple || '?') +
+      'x gross income. Change these only if this property is different.';
+    $('vote').checked = !!r.TurnOffAppFolioReply;
+    $('vote').disabled = !v.voteColumn;
     $('addPm').style.display = 'none';
     setDirty(false);
     statusHelp(); showingUrlToggle();
@@ -257,6 +265,7 @@ function edits() {
   var st = document.querySelector('input[name=Status]:checked'); if (st) e.Status = st.value;
   var sm = document.querySelector('input[name=ShowingMode]:checked'); if (sm) e.ShowingMode = sm.value;
   e.ShowingUrl = $('ShowingUrl').value;
+  if (S.view && S.view.voteColumn) e.TurnOffAppFolioReply = $('vote').checked;
   if ($('PM').value && $('PM').value !== '__new') e.PM = $('PM').value;
   return e;
 }

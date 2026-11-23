@@ -16,10 +16,13 @@
 var PMS_TAB = 'PMs';
 var PM_EDITS_TAB = 'PM Edits';
 var ABOUT_COL = 'About';
+var VOTE_COL = 'TurnOffAppFolioReply';
+var OLD_INCOME_LINE = '• Combined household income of {{IncomeMultiple}}x the monthly rent';
+var NEW_INCOME_LINE = '• Gross household income of {{IncomeMultiple}}x the monthly rent';
 
 // What a PM may change from the app. Cosigner / Section 8 stay sheet-only.
 var APP_FIELDS = ['PM', 'PMEmail', 'Status', 'ShowingLink', 'Special', 'SpecialEnds', 'About', 'Pets',
-  'LeaseLengths', 'RentRange', 'VirtualTourLink', 'CreditMin', 'IncomeMultiple'];
+  'LeaseLengths', 'RentRange', 'VirtualTourLink', 'CreditMin', 'IncomeMultiple', VOTE_COL];
 
 function doGet() {
   return HtmlService.createTemplateFromFile('PmAppPage').evaluate()
@@ -75,6 +78,53 @@ function installPmApp() {
   Logger.log('PM app ready. Deploy it as a web app (Execute as: me, Who has access: anyone in greenpropertymgt.com).');
 }
 
+// One-time, 2026-11-23: Jason off the PM list, company standards 625 / 3x gross,
+// the "turn off AppFolio's auto-reply" vote column, and the income line in the
+// Template tab reworded to "Gross household income". Safe to run twice.
+function applyPmAppUpgrade20261123() {
+  var ss = profilesSs_();
+  var log = [];
+
+  var pms = ss.getSheetByName(PMS_TAB);
+  var props = loadProfiles_().properties;
+  var stillJason = props.filter(function (p) { return /jason/i.test(p.PM); }).map(function (p) { return p.Property; });
+  if (stillJason.length) {
+    log.push('Jason NOT removed: still the PM on ' + stillJason.join(', ') + '. Reassign those first.');
+  } else if (pms) {
+    for (var r = pms.getLastRow(); r >= 2; r--) {
+      if (/^jason\b/i.test(String(pms.getRange(r, 1).getValue()).trim())) { pms.deleteRow(r); log.push('Removed Jason from the PMs tab.'); }
+    }
+  }
+
+  var defs = ss.getSheetByName(DEFAULTS_TAB);
+  var rows = defs.getRange(2, 1, defs.getLastRow() - 1, 3).getValues();
+  [['CreditMin', 625, 'Company standard credit score'], ['IncomeMultiple', 3, 'Company standard: gross household income of 3x the monthly rent']].forEach(function (d) {
+    rows.forEach(function (row, i) {
+      if (row[0] !== d[0]) return;
+      if (String(row[1]).trim() === '') { defs.getRange(i + 2, 2).setValue(d[1]); log.push('Defaults ' + d[0] + ' = ' + d[1]); }
+      else log.push('Defaults ' + d[0] + ' already ' + row[1] + ' (left as is)');
+      defs.getRange(i + 2, 3).setValue(d[2]);
+    });
+  });
+
+  var sheet = ss.getSheetByName(PROPERTIES_TAB);
+  var col = headerCols_(sheet);
+  if (!col[VOTE_COL]) {
+    var c = sheet.getLastColumn() + 1;
+    sheet.getRange(1, c).setValue(VOTE_COL).setFontWeight('bold').setBackground('#d9ead3')
+      .setNote('Ticked by the PM in the app: they want AppFolio\'s own generic guest-card auto-reply turned off for this property, so prospects get only our email. Turning it off is done in AppFolio.');
+    var n = 1;
+    sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues().forEach(function (x, i) { if (String(x[0]).trim()) n = i + 1; });
+    sheet.getRange(2, c, n, 1).insertCheckboxes();
+    log.push('Added the ' + VOTE_COL + ' checkbox column.');
+  }
+
+  var tpl = ss.getSheetByName(TEMPLATE_TAB);
+  var body = String(tpl.getRange(2, 2).getValue());
+  if (body.indexOf(OLD_INCOME_LINE) >= 0) { tpl.getRange(2, 2).setValue(body.replace(OLD_INCOME_LINE, NEW_INCOME_LINE)); log.push('Template: income line now says "Gross household income".'); }
+  Logger.log(log.join('\n'));
+}
+
 // ---------- API for PmApp.html ----------
 
 function pmAppInit() {
@@ -99,7 +149,7 @@ function pmAppLoad(name) {
 function pmAppPreview(name, edits) {
   var profiles = loadProfiles_();
   var p = findProfile_(profiles, name);
-  var clean = cleanEdits_(edits, readPms_());
+  var clean = cleanEdits_(edits, readPms_(), profiles.defaults);
   var q = {};
   Object.keys(p).forEach(function (k) { q[k] = p[k]; });
   Object.keys(clean.values).forEach(function (k) { q[k] = clean.values[k]; });
@@ -114,7 +164,7 @@ function pmAppSave(name, edits) {
   try {
     var profiles = loadProfiles_();
     var p = findProfile_(profiles, name);
-    var clean = cleanEdits_(edits, readPms_());
+    var clean = cleanEdits_(edits, readPms_(), profiles.defaults);
     if (clean.errors.length) return { ok: false, errors: clean.errors };
 
     var next = {};
@@ -135,7 +185,7 @@ function pmAppSave(name, edits) {
       if (!(f in clean.values) || !col[f]) return;
       var before = sheet.getRange(r, col[f]).getValue();
       var after = clean.values[f];
-      if (sameValue_(before, after)) return;
+      if (f === VOTE_COL ? (before === true || String(before).toUpperCase() === 'TRUE') === after : sameValue_(before, after)) return;
       sheet.getRange(r, col[f]).setValue(after);
       changes.push([when, who, name, f, displayValue_(before), displayValue_(after)]);
     });
@@ -146,7 +196,10 @@ function pmAppSave(name, edits) {
     if (log) log.getRange(log.getLastRow() + 1, 1, changes.length, 6).setValues(changes);
     try {
       GmailApp.sendEmail(ALERT_EMAIL, '[Lead Responder] ' + who + ' edited ' + name,
-        changes.map(function (c) { return c[3] + ': "' + c[4] + '" → "' + c[5] + '"'; }).join('\n') +
+        changes.map(function (c) {
+          if (c[3] === VOTE_COL) return c[5] === 'true' ? '>>> VOTE: turn OFF AppFolio\'s generic auto-reply for ' + name + ' (do this in AppFolio).' : 'Vote to turn off AppFolio\'s auto-reply withdrawn.';
+          return c[3] + ': "' + c[4] + '" → "' + c[5] + '"';
+        }).join('\n') +
         '\n\nFull history: PM Edits tab of GPM Lead Response Profiles.');
     } catch (e) { Logger.log('Edit email failed: ' + e); }
 
@@ -203,6 +256,7 @@ function buildView_(p, profiles) {
     row[f] = v === null || v === undefined ? '' : String(v);
   });
   row.ShowingMode = mode;
+  row[VOTE_COL] = p[VOTE_COL] === true || String(p[VOTE_COL]).toUpperCase() === 'TRUE';
 
   var missing = missingFor_(p, profiles.defaults);
   var notes = [];
@@ -212,7 +266,8 @@ function buildView_(p, profiles) {
   if (mode === 'custom') notes.push('Every unit in the email uses your own booking link, whatever AppFolio shows.');
 
   return {
-    name: p.Property, row: row, missing: missing, notes: notes,
+    name: p.Property, row: row, missing: missing, notes: notes, voteColumn: !!(VOTE_COL in p),
+    defaults: { CreditMin: String(profiles.defaults.CreditMin || ''), IncomeMultiple: String(profiles.defaults.IncomeMultiple || '') },
     units: units, totalUnits: match.building.length,
     subject: mail.subject, html: mail.html,
     bookable: mail.bookable, shownCount: mail.unitsShown,
@@ -234,8 +289,9 @@ function buildingMatch_(p, listings, properties) {
 }
 
 // → {values: {field: sheetValue}, errors: [text]}
-function cleanEdits_(edits, pms) {
+function cleanEdits_(edits, pms, defaults) {
   edits = edits || {};
+  defaults = defaults || {};
   var v = {}, errors = [];
   var text = function (f, max) {
     if (!(f in edits)) return;
@@ -279,13 +335,15 @@ function cleanEdits_(edits, pms) {
   if ('CreditMin' in edits) {
     var c = String(edits.CreditMin || '').trim();
     if (c && !(/^\d{3}$/.test(c) && +c >= 300 && +c <= 850)) errors.push('Credit minimum must be a score from 300 to 850 (or blank for the company default).');
-    v.CreditMin = c ? +c : '';
+    // Same as the company standard → keep blank so a later change to the standard reaches this property.
+    v.CreditMin = !c || String(+c) === String(defaults.CreditMin || '').trim() ? '' : +c;
   }
   if ('IncomeMultiple' in edits) {
     var m = String(edits.IncomeMultiple || '').trim().replace(/x$/i, '');
     if (m && !(/^\d+(\.\d+)?$/.test(m) && +m >= 1 && +m <= 10)) errors.push('Income multiple must be a number like 3 or 2.5 (or blank for the company default).');
-    v.IncomeMultiple = m ? +m : '';
+    v.IncomeMultiple = !m || String(+m) === String(defaults.IncomeMultiple || '').trim().replace(/x$/i, '') ? '' : +m;
   }
+  if (VOTE_COL in edits) v[VOTE_COL] = edits[VOTE_COL] === true;
   return { values: v, errors: errors };
 }
 

@@ -41,7 +41,6 @@ var PM_EMAILS = {
   'Mike Green': 'mike@greenpropertymgt.com',
   'Jody Betsch': 'jody@greenpropertymgt.com',
   'Blake Roush': 'blake@greenpropertymgt.com',
-  'Jason Holmes': 'jason@greenpropertymgt.com',
   'Laura Porter': 'laura@greenpropertymgt.com',
   'Spencer Green': 'spencer@greenpropertymgt.com'
 };
