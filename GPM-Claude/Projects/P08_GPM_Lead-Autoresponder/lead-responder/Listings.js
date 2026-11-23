@@ -57,39 +57,50 @@ function parseListingsPage_(account, html) {
 }
 
 // Does the listing's public page show the blue "Schedule Showing" button?
-// keyed by uid: 1 = yes, 0 = no open times, -1 = showings off / check failed.
-// This is the same check AppFolio's own button script runs
-// (schedule_showing_button.js): it asks availabilities with
-// find_first_available_date=true and shows the button only when
-// first_available_date comes back non-null. The plain call only looks 4 days
-// ahead, which hid VoL's button when its first time was weeks out.
+// keyed by uid: 1 = yes, 0 = no, -1 = check failed (treated as no).
+// Mirrors AppFolio exactly, in two steps:
+//  1. The detail page HTML must contain the button (class js-schedule-showing).
+//     Accounts/listings with online showings off (e.g. Oakwood, greenproperty9)
+//     never render it, even though their calendar API still returns dates.
+//  2. AppFolio's schedule_showing_button.js then calls
+//     availabilities?find_first_available_date=true and un-hides the button
+//     only when first_available_date is non-null.
 function showingSlots_(listings) {
   var cache = CacheService.getScriptCache();
   var result = {};
   var todo = listings.filter(function (l) {
-    var hit = cache.get('showbtn_' + l.uid);
+    var hit = cache.get('showbtn2_' + l.uid);
     if (hit !== null) { result[l.uid] = Number(hit); return false; }
     return true;
   });
   if (!todo.length) return result;
 
-  var responses = UrlFetchApp.fetchAll(todo.map(function (l) {
-    return {
+  var requests = [];
+  todo.forEach(function (l) {
+    requests.push({ url: l.detailUrl, muteHttpExceptions: true });
+    requests.push({
       url: listingsBase_(l.account) + '/api/listings/' + l.uid + '/availabilities?find_first_available_date=true',
       headers: { Accept: 'application/json' }, muteHttpExceptions: true
-    };
-  }));
-  responses.forEach(function (res, i) {
-    var uid = todo[i].uid, v = -1;
-    if (res.getResponseCode() === 200) {
-      try {
-        var d = JSON.parse(res.getContentText());
-        var anySlot = (d.availabilities_by_date || []).some(function (day) { return (day.timeslots || []).length > 0; });
-        v = (d.first_available_date || anySlot) ? 1 : 0;
-      } catch (e) { v = -1; }
+    });
+  });
+  var res = UrlFetchApp.fetchAll(requests);
+  todo.forEach(function (l, i) {
+    var page = res[2 * i], api = res[2 * i + 1], v = -1;
+    if (page.getResponseCode() === 200) {
+      if (page.getContentText().indexOf('js-schedule-showing') === -1) {
+        v = 0; // page has no booking button at all
+      } else if (api.getResponseCode() === 200) {
+        try {
+          var d = JSON.parse(api.getContentText());
+          var anySlot = (d.availabilities_by_date || []).some(function (day) { return (day.timeslots || []).length > 0; });
+          v = (d.first_available_date || anySlot) ? 1 : 0;
+        } catch (e) { v = -1; }
+      } else if (api.getResponseCode() === 422) {
+        v = 0; // showings off for this listing
+      }
     }
-    result[uid] = v;
-    cache.put('showbtn_' + uid, String(v), SLOTS_CACHE_SECONDS);
+    result[l.uid] = v;
+    cache.put('showbtn2_' + l.uid, String(v), SLOTS_CACHE_SECONDS);
   });
   return result;
 }
