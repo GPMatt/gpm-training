@@ -241,7 +241,7 @@ function missingFormula_(col, r) {
   });
   // An override column is satisfied by either the row or the company default.
   [['CreditMin', 'Credit', 2], ['IncomeMultiple', 'Income', 3],
-   ['CosignerPolicy', 'Cosigner', 4], ['Section8Policy', 'Section 8', 5]].forEach(function (o) {
+   ['CosignerPolicy', 'Cosigner', 4]].forEach(function (o) {
     parts.push('IF(AND(' + cell(o[0]) + '="",' + DEFAULTS_TAB + '!$B$' + o[2] + '=""),"' + o[1] + '","")');
   });
   parts.push('IF(' + DEFAULTS_TAB + '!$B$6="","App fee (Defaults)","")');

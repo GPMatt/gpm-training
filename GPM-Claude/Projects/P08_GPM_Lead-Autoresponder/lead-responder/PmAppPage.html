@@ -131,9 +131,6 @@
         <label for="CosignerPolicy">Cosigners / guarantors <span class="hint">e.g. "Accepted when income or credit falls short"</span></label>
         <input type="text" id="CosignerPolicy" list="cosignerOpts">
         <datalist id="cosignerOpts"><option>Accepted</option><option>Accepted when income or credit falls short</option><option>Not accepted</option></datalist>
-        <label for="Section8Policy">Housing vouchers (Section 8)</label>
-        <input type="text" id="Section8Policy" list="s8Opts">
-        <datalist id="s8Opts"><option>Accepted</option><option>Not accepted</option></datalist>
         <p class="status-help" id="policyHelp" style="margin-top:-8px"></p>
         <label class="chk" style="margin:0 0 14px;align-items:flex-start;font-size:14px;color:var(--ink)"><input type="checkbox" id="vote" style="margin-top:3px">
           <span><b>Vote: turn off AppFolio's generic auto-reply</b> for this property, so prospects get only this email. <span class="hint">Matt is notified and turns it off in AppFolio.</span></span></label>
@@ -173,7 +170,7 @@
 
 <script>
 var S = { init: null, view: null, dirty: false };
-var FIELDS = ['Special','SpecialEnds','About','Pets','LeaseLengths','RentRange','VirtualTourLink','CreditMin','IncomeMultiple','CosignerPolicy','Section8Policy'];
+var FIELDS = ['Special','SpecialEnds','About','Pets','LeaseLengths','RentRange','VirtualTourLink','CreditMin','IncomeMultiple','CosignerPolicy'];
 var $ = function (id) { return document.getElementById(id); };
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function msg(el, kind, html) { $(el).innerHTML = html ? '<div class="' + kind + '">' + html + '</div>' : ''; }
@@ -236,10 +233,10 @@ function showView(v, resetForm) {
     if (!r.IncomeMultiple) $('IncomeMultiple').value = v.defaults.IncomeMultiple;
     $('stdHelp').textContent = 'Company standard: ' + (v.defaults.CreditMin || '?') + ' credit, ' + (v.defaults.IncomeMultiple || '?') +
       'x gross income. Change these only if this property is different.';
-    ['CosignerPolicy', 'Section8Policy'].forEach(function (f) { if (!r[f]) $(f).value = v.defaults[f]; });
-    $('policyHelp').textContent = v.defaults.CosignerPolicy || v.defaults.Section8Policy
-      ? 'Company standard: cosigners "' + (v.defaults.CosignerPolicy || 'not set') + '", Section 8 "' + (v.defaults.Section8Policy || 'not set') + '". Change only if this property is different.'
-      : 'No company standard is set for these yet, so fill them in for this property.';
+    if (!r.CosignerPolicy) $('CosignerPolicy').value = v.defaults.CosignerPolicy;
+    $('policyHelp').textContent = v.defaults.CosignerPolicy
+      ? 'Company standard: "' + v.defaults.CosignerPolicy + '". Change only if this property is different.'
+      : 'No company standard is set yet, so fill this in for this property.';
     $('vote').checked = !!r.TurnOffAppFolioReply;
     $('vote').disabled = !v.voteColumn;
     $('addPm').style.display = 'none';

@@ -23,12 +23,12 @@ var NEW_INCOME_LINE = '• Gross household income of {{IncomeMultiple}}x the mon
 // What a PM may change from the app.
 var APP_FIELDS = ['PM', 'PMEmail', 'Status', 'ShowingLink', 'Special', 'SpecialEnds', 'About', 'Pets',
   'LeaseLengths', 'RentRange', 'VirtualTourLink', 'CreditMin', 'IncomeMultiple',
-  'CosignerPolicy', 'Section8Policy', VOTE_COL];
+  'CosignerPolicy', VOTE_COL];
 
 // Every item the Missing check can name → the app field that fixes it. An item
 // with no field here is a company setting (Defaults tab) only Matt can change.
 var MISSING_FIELDS = { 'PM': 'PM', 'PM email': 'PM', 'Pets': 'Pets', 'Lease lengths': 'LeaseLengths',
-  'Credit': 'CreditMin', 'Income': 'IncomeMultiple', 'Cosigner': 'CosignerPolicy', 'Section 8': 'Section8Policy' };
+  'Credit': 'CreditMin', 'Income': 'IncomeMultiple', 'Cosigner': 'CosignerPolicy' };
 
 function doGet() {
   return HtmlService.createTemplateFromFile('PmAppPage').evaluate()
@@ -129,6 +129,19 @@ function applyPmAppUpgrade20261123() {
   var body = String(tpl.getRange(2, 2).getValue());
   if (body.indexOf(OLD_INCOME_LINE) >= 0) { tpl.getRange(2, 2).setValue(body.replace(OLD_INCOME_LINE, NEW_INCOME_LINE)); log.push('Template: income line now says "Gross household income".'); }
   Logger.log(log.join('\n'));
+}
+
+// One-time, 2026-11-23 (Matt): Section 8 is no longer required. Rewrites the
+// Properties tab's Missing formulas without it; the live responder blocks Live
+// rows using that column, so this must run for the change to take effect.
+function applySection8Removal20261123() {
+  var sheet = profilesSs_().getSheetByName(PROPERTIES_TAB);
+  var col = headerCols_(sheet);
+  var last = Math.max(sheet.getLastRow(), 100);
+  var formulas = [];
+  for (var r = 2; r <= last; r++) formulas.push([missingFormula_(col, r)]);
+  sheet.getRange(2, col.Missing, formulas.length, 1).setFormulas(formulas);
+  Logger.log('Missing formulas rewritten for rows 2-' + last + '; Section 8 is no longer required.');
 }
 
 // ---------- API for PmApp.html ----------
@@ -277,7 +290,7 @@ function buildView_(p, profiles) {
   return {
     name: p.Property, row: row, missing: missing, notes: notes, voteColumn: !!(VOTE_COL in p),
     defaults: { CreditMin: String(profiles.defaults.CreditMin || ''), IncomeMultiple: String(profiles.defaults.IncomeMultiple || ''),
-      CosignerPolicy: String(profiles.defaults.CosignerPolicy || ''), Section8Policy: String(profiles.defaults.Section8Policy || '') },
+      CosignerPolicy: String(profiles.defaults.CosignerPolicy || '') },
     missingFields: missing.map(function (m) { return MISSING_FIELDS[m] || ''; }),
     units: units, totalUnits: match.building.length,
     subject: mail.subject, html: mail.html,
@@ -313,7 +326,7 @@ function cleanEdits_(edits, pms, defaults) {
   ['Pets', 'LeaseLengths', 'RentRange'].forEach(function (f) { text(f, 500); });
   text('Special', 600);
   text('About', 2500);
-  ['CosignerPolicy', 'Section8Policy'].forEach(function (f) {
+  ['CosignerPolicy'].forEach(function (f) {
     text(f, 300);
     // Same as the company standard → blank, so the row follows the standard.
     if (f in v && v[f] && v[f] === String(defaults[f] || '').trim()) v[f] = '';
@@ -367,7 +380,7 @@ function cleanEdits_(edits, pms, defaults) {
 function missingFor_(p, defaults) {
   var out = [];
   REQUIRED.forEach(function (req) { if (!String(p[req[0]] || '').trim()) out.push(req[1]); });
-  [['CreditMin', 'Credit'], ['IncomeMultiple', 'Income'], ['CosignerPolicy', 'Cosigner'], ['Section8Policy', 'Section 8']].forEach(function (o) {
+  [['CreditMin', 'Credit'], ['IncomeMultiple', 'Income'], ['CosignerPolicy', 'Cosigner']].forEach(function (o) {
     if (!String(p[o[0]] || '').trim() && !String(defaults[o[0]] || '').trim()) out.push(o[1]);
   });
   if (!String(defaults.ApplicationFee || '').trim()) out.push('App fee (Defaults)');
