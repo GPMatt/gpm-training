@@ -58,6 +58,13 @@ function parseListingsPage_(account, html) {
 
 // Does the listing's public page show the blue "Schedule Showing" button?
 // keyed by uid: 1 = yes, 0 = no, -1 = check failed (treated as no).
+function showingSlots_(listings) {
+  var full = showingCheck_(listings, false), out = {};
+  Object.keys(full).forEach(function (uid) { out[uid] = full[uid].v; });
+  return out;
+}
+
+// → {uid: {v: 1|0|-1, why: text, first: 'YYYY-MM-DD'|''}}
 // Mirrors AppFolio exactly, in two steps:
 //  1. The detail page HTML must contain the button (class js-schedule-showing).
 //     Accounts/listings with online showings off (e.g. Oakwood, greenproperty9)
@@ -65,12 +72,13 @@ function parseListingsPage_(account, html) {
 //  2. AppFolio's schedule_showing_button.js then calls
 //     availabilities?find_first_available_date=true and un-hides the button
 //     only when first_available_date is non-null.
-function showingSlots_(listings) {
+// force = true skips the cache (the 10-minute Showing Links refresh).
+function showingCheck_(listings, force) {
   var cache = CacheService.getScriptCache();
   var result = {};
   var todo = listings.filter(function (l) {
-    var hit = cache.get('showbtn2_' + l.uid);
-    if (hit !== null) { result[l.uid] = Number(hit); return false; }
+    var hit = force ? null : cache.get('showbtn3_' + l.uid);
+    if (hit !== null) { result[l.uid] = JSON.parse(hit); return false; }
     return true;
   });
   if (!todo.length) return result;
@@ -85,22 +93,27 @@ function showingSlots_(listings) {
   });
   var res = UrlFetchApp.fetchAll(requests);
   todo.forEach(function (l, i) {
-    var page = res[2 * i], api = res[2 * i + 1], v = -1;
-    if (page.getResponseCode() === 200) {
-      if (page.getContentText().indexOf('js-schedule-showing') === -1) {
-        v = 0; // page has no booking button at all
-      } else if (api.getResponseCode() === 200) {
-        try {
-          var d = JSON.parse(api.getContentText());
-          var anySlot = (d.availabilities_by_date || []).some(function (day) { return (day.timeslots || []).length > 0; });
-          v = (d.first_available_date || anySlot) ? 1 : 0;
-        } catch (e) { v = -1; }
-      } else if (api.getResponseCode() === 422) {
-        v = 0; // showings off for this listing
-      }
+    var page = res[2 * i], api = res[2 * i + 1];
+    var r = { v: -1, why: '', first: '' };
+    if (page.getResponseCode() !== 200) {
+      r.why = 'Listing page returned ' + page.getResponseCode();
+    } else if (page.getContentText().indexOf('js-schedule-showing') === -1) {
+      r.v = 0; r.why = 'Online showings are off for this listing in AppFolio';
+    } else if (api.getResponseCode() === 422) {
+      r.v = 0; r.why = 'Online showings are off for this listing in AppFolio';
+    } else if (api.getResponseCode() !== 200) {
+      r.why = 'Calendar check returned ' + api.getResponseCode();
+    } else {
+      try {
+        var d = JSON.parse(api.getContentText());
+        var anySlot = (d.availabilities_by_date || []).some(function (day) { return (day.timeslots || []).length > 0; });
+        r.first = d.first_available_date || '';
+        r.v = (r.first || anySlot) ? 1 : 0;
+        r.why = r.v ? 'Open showing times on the calendar' : 'No open showing times on the calendar';
+      } catch (e) { r.why = 'Calendar check gave an unreadable answer'; }
     }
-    result[l.uid] = v;
-    cache.put('showbtn2_' + l.uid, String(v), SLOTS_CACHE_SECONDS);
+    result[l.uid] = r;
+    cache.put('showbtn3_' + l.uid, JSON.stringify(r), SLOTS_CACHE_SECONDS);
   });
   return result;
 }
