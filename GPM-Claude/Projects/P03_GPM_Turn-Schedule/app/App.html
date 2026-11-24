@@ -86,6 +86,11 @@ tr.miss td{background:var(--red-soft)}
 .card-unit{overflow-wrap:anywhere}
 /* Matt 11/11: form buttons at the end of the form, not pinned to the bottom of the screen (all screen sizes) */
 .form-foot{position:static}
+/* Matt 11/24: while a form has unsaved changes, a save bar floats at the bottom so Save is never out of sight */
+.savebar{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;align-items:center;justify-content:center;gap:12px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:#FFF6DD;border-top:2px solid var(--gold);box-shadow:0 -6px 18px rgba(0,0,0,.12)}
+.savebar.on{display:flex}
+.savebar b{color:var(--ink);font-size:14px}
+.form-howto{background:#F3F7F2;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:14px;line-height:1.45}
 /* ---------- V1 phone-first forms (Spencer + techs fill these on a phone during the walk) ---------- */
 @media (max-width:760px){
   html,body{font-size:15px;overflow-x:hidden;max-width:100%}
@@ -1033,6 +1038,18 @@ tr.miss td{background:var(--red-soft)}
       if (force) render();
     }, function (er) { if (btn) btn.disabled = false; toast('Schedule email not sent: ' + er.message, true); });
   }
+  /** After a later Scope save: what changed on the schedule, and a choice to email it (nothing is sent without a tap). */
+  function askEmailUpdate(t, stepsBefore, rrBefore) {
+    var df = E.diffSteps(stepsBefore, t.steps), lines = [];
+    if (rrBefore !== t.rent_ready_date) lines.push('Rent ready: ' + (rrBefore ? E.fmt(rrBefore) : '—') + ' → <b>' + (t.rent_ready_date ? E.fmt(t.rent_ready_date) : '—') + '</b>');
+    df.added.forEach(function (x) { lines.push('Added: ' + esc(x.label) + ' (' + E.fmt(x.after) + ')'); });
+    df.removed.forEach(function (x) { lines.push('Removed: ' + esc(x.label)); });
+    df.moved.forEach(function (x) { lines.push('Moved: ' + esc(x.label) + ' ' + E.fmt(x.before) + ' → <b>' + E.fmt(x.after) + '</b>' + (x.was_confirmed ? ' <span class="bad">(was confirmed with the vendor)</span>' : '')); });
+    if (!lines.length) { toast('Scope saved. No schedule dates changed, so no email is needed.'); return; }
+    $('#overlay').innerHTML = '<div class="modal-bg" data-act="close-modal"><div class="modal"><h3>Scope saved. The schedule changed</h3>' +
+      '<div style="margin:8px 0 14px;line-height:1.6">' + lines.map(function (l) { return '<div>• ' + l + '</div>'; }).join('') + '</div>' +
+      '<div class="row"><button class="btn primary" data-act="email-update">✉ Email updated schedule to Jason + Spencer</button><button class="btn ghost" data-act="close-modal">Not now</button></div></div></div>';
+  }
   function sendTechPrepEmail(t) {
     return sendEmail('apiSendTechPrepEmail', t, function (r) {
       // keep the server's stamp locally, so the next save of tech_prep does not wipe it
@@ -1058,6 +1075,8 @@ tr.miss td{background:var(--red-soft)}
   function formHtml(key, d, t, isNew) {
     var F = FORMS[key];
     var h = '<div class="form"><div class="page-head"><h1>' + esc(F.title) + '</h1></div><div class="form-who">' + esc(F.who) + '</div>';
+    if (key === 'scope' && !isNew) h += '<div class="form-howto"><b>Changing the scope:</b> edit anything below, then tap <b>Save scope + update schedule</b> (bottom of the page, or the yellow bar that shows up once you change something). The schedule rebuilds right away. If any dates change, you\'ll be asked whether to email the new schedule to Jason + Spencer.' +
+      (d.schedule_emailed_at ? ' <span class="muted">Schedule last emailed ' + esc(new Date(d.schedule_emailed_at).toLocaleString()) + '.</span>' : '') + '</div>';
     if (key === 'techprep' && t && t.move_out_check) {
       var mo = t.move_out_check;
       var added = (mo.exceptions || []).filter(function (x) { return x.type === 'New tech item'; }).map(function (x) { return x.note; })
@@ -1090,6 +1109,8 @@ tr.miss td{background:var(--red-soft)}
       if (key === 'techprep' && d.email_sent_at) h += '<span class="muted">Email sent ' + esc(new Date(d.email_sent_at).toLocaleString()) + '</span>';
     }
     h += '<span class="dirty" id="dirty">' + (S.formDirty ? 'Unsaved changes' : '') + '</span></div></div>';
+    var mainLabel = isNew ? 'Create turn + build schedule' : key === 'scope' ? 'Save scope + update schedule' : (submitted ? 'Save changes' : 'Submit');
+    h += '<div class="savebar' + (S.formDirty ? ' on' : '') + '" id="savebar"><b>Unsaved changes</b><button class="btn primary" data-act="form-submit">' + mainLabel + '</button></div>';
     return h;
   }
 
@@ -1654,7 +1675,7 @@ tr.miss td{background:var(--red-soft)}
     t.steps.forEach(function (s) { if (s.key === 'tech' && s.status === 'open' && !s.vendorEdited) s.vendor = tp.tech; });
   }
 
-  function markDirty() { S.formDirty = true; var el = $('#dirty'); if (el) el.textContent = 'Unsaved changes'; }
+  function markDirty() { S.formDirty = true; var el = $('#dirty'); if (el) el.textContent = 'Unsaved changes'; var sb = $('#savebar'); if (sb) sb.classList.add('on'); }
 
   function formChange(el) {
     var d = S.form; if (!d) return;
@@ -1783,7 +1804,7 @@ tr.miss td{background:var(--red-soft)}
       S.missing = null;
     }
     if (S.view === 'new') return createTurn(d);
-    var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false, sendPending = false;
+    var before = t.rent_ready_date, doneMsg = '', firstTechSubmit = false, sendPending = false, stepsBefore = clone(t.steps);
     if (key === 'scope') {
       pushUndo(t);
       t.scope = clone(d);
@@ -1827,7 +1848,10 @@ tr.miss td{background:var(--red-soft)}
       if (key === 'scope') { S.tab = 'schedule'; }
       render(); flashRR(before, t);
       if (firstTechSubmit) sendTechPrepEmail(t); // only the FIRST final submit sends; Resend is on purpose
-      if (key === 'scope') emailSchedule(t); // E2: first final Scope submit only (scope.schedule_emailed_at)
+      if (key === 'scope') { // E2: first Scope save sends by itself; later saves ask when the schedule changed (Matt 2026-11-24)
+        if (!t.scope.schedule_emailed_at) emailSchedule(t);
+        else askEmailUpdate(t, stepsBefore, before);
+      }
       if (sendPending) sendEmail('apiSendMoveOutEmail', t, function (r) {
         var at = r.sentAt || new Date().toISOString();
         t.move_out_check.pending_impact.alert_sent_at = at;
@@ -2152,6 +2176,7 @@ tr.miss td{background:var(--red-soft)}
       if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('hl'); setTimeout(function () { row.classList.remove('hl'); }, 1600); }
       return;
     }
+    if (a === 'email-update') { closeModal(); emailSchedule(t, true); return; }
     if (a === 'email-schedule') { el.disabled = true; emailSchedule(t, true, el); return; }
     if (a === 'tk-movein') { // AppFolio has a move-in the app doesn't: take it (Matt asked for no double entry)
       t.move_in_date = el.dataset.v; t.scope.move_in_date = el.dataset.v; queueSave(t); render(); toast('Move-in set from AppFolio'); return;

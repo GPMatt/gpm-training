@@ -314,3 +314,6 @@ Decision log:
 
 ## 2026-11-24: skip buffer days (LIVE @30)
 Scope form section "Buffer days": `skip_buffer_start` / `skip_buffer_end` checkboxes (unchecked = held, the default). Engine.layout opts.skipStart/skipEnd; no end buffer = rent ready is the last work day. Calendar sync drops the skipped buffer event; tech calendar's final unit check follows skip_buffer_end. Only affects turns with scope.buffers (new-style turns).
+
+## 2026-11-24: scope edits more obvious (LIVE @31)
+Yellow save bar floats at the bottom of any form once it has unsaved changes. Existing-turn Scope shows a "Changing the scope" how-to + when the schedule was last emailed. Later Scope saves: if dates changed, a popup lists rent-ready/added/removed/moved steps (flags vendor-confirmed ones) and offers "Email updated schedule"; nothing sends without the tap. No date change = toast says no email needed. First save still emails by itself.
