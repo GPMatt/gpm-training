@@ -415,11 +415,13 @@ function calendarEvents(turn, appUrl) {
   });
   // Run 2b buffer days, flagged turns only (scope.buffers). Start = next business day after move-out; end = rent ready
   // (Engine.layout makes rent ready the end buffer day on flagged turns). Same keys = same create/update/cleanup path.
-  if (turn.scope && turn.scope.buffers && hasVal_(turn.move_out_date)) {
+  // Either buffer can be skipped on the scope (skip_buffer_start / skip_buffer_end, Matt 2026-11-24).
+  var sc_ = turn.scope || {};
+  if (sc_.buffers && hasVal_(turn.move_out_date)) {
     var b1 = addDaysIso_(String(turn.move_out_date).slice(0, 10), 1);
     while (!isBizServer_(b1)) b1 = addDaysIso_(b1, 1);
-    out.push({ key: '_buffer_start', title: 'Buffer: trash-out if needed – ' + place, description: info('Buffer day, no vendor booked'), allDay: true, start: b1, end: addDaysIso_(b1, 1) });
-    if (hasVal_(turn.rent_ready_date)) out.push({ key: '_buffer_end', title: 'Buffer: final unit check – ' + place, description: info('Buffer day, no vendor booked'),
+    if (!sc_.skip_buffer_start) out.push({ key: '_buffer_start', title: 'Buffer: trash-out if needed – ' + place, description: info('Buffer day, no vendor booked'), allDay: true, start: b1, end: addDaysIso_(b1, 1) });
+    if (hasVal_(turn.rent_ready_date) && !sc_.skip_buffer_end) out.push({ key: '_buffer_end', title: 'Buffer: final unit check – ' + place, description: info('Buffer day, no vendor booked'),
       allDay: true, start: turn.rent_ready_date, end: addDaysIso_(turn.rent_ready_date, 1) });
   }
   if (hasVal_(turn.rent_ready_date)) {
@@ -450,7 +452,7 @@ function techTurn_(turn, settings) {
     move_out: turn.move_out_date ? String(turn.move_out_date).slice(0, 10) : '',
     rent_ready: turn.rent_ready_date ? String(turn.rent_ready_date).slice(0, 10) : '',
     access: sc.access || '', walk_type: sc.walk_type || '', pmi_date: sc.pmi_date || '', pmi_time: sc.pmi_time || '',
-    buffers: !!sc.buffers,
+    buffers: !!sc.buffers && !sc.skip_buffer_end, // = has the final unit check (end buffer) day
     tech: steps.filter(function (s) { return s.key === 'tech'; }).map(pick),
     trades: steps.map(function (s) { return s.label + (s.sizeLabel ? ' – ' + s.sizeLabel : '') + (hasVal_(s.vendor) ? ': ' + String(s.vendor).trim() : ''); }),
     other_vendors: (sc.other_vendors || []).filter(function (o) { return o && (hasVal_(o.type) || hasVal_(o.note)); })

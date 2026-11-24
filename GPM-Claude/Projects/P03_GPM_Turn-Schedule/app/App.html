@@ -390,7 +390,7 @@ tr.miss td{background:var(--red-soft)}
   function techHours(t) { return t.tech_prep && Number(t.tech_prep.tech_hours) || 0; }
 
   /** Buffer days only on turns flagged at first build (scope.buffers, Run 2b): older turns' dates never move. */
-  function layOpts(t) { return { buffers: !!(t.scope && t.scope.buffers) }; }
+  function layOpts(t) { var sc = t.scope || {}; return { buffers: !!sc.buffers, skipStart: !!sc.skip_buffer_start, skipEnd: !!sc.skip_buffer_end }; }
 
   function recompute(t) {
     var r = E.layout(t.steps, t.move_out_date, cat(), layOpts(t));
@@ -683,7 +683,7 @@ tr.miss td{background:var(--red-soft)}
     } else {
       h += gantt(t);
       var bufs = t._buffers || [];
-      h += '<div class="steps">' + bufs.slice(0, 1).map(bufRow).join('') + t.steps.map(function (s, i) { return stepRow(t, s, i); }).join('') + bufs.slice(1).map(bufRow).join('') + '</div>';
+      h += '<div class="steps">' + bufsOf(bufs, 'buffer_start').map(bufRow).join('') + t.steps.map(function (s, i) { return stepRow(t, s, i); }).join('') + bufsOf(bufs, 'buffer_end').map(bufRow).join('') + '</div>';
     }
     var have = {}; t.steps.forEach(function (s) { have[s.key] = 1; });
     var missing = cat().filter(function (c) { return !have[c.key] && offered(c.key); });
@@ -705,15 +705,15 @@ tr.miss td{background:var(--red-soft)}
     var idx = {}; days.forEach(function (d, i) { idx[d] = i; });
     var mi = t.move_in_date ? E.rollBiz(t.move_in_date) : null;
     var cols = '150px repeat(' + days.length + ', minmax(92px, 1fr))';
-    var bufs = t._buffers || [], off = bufs.length ? 1 : 0; // start buffer row on top, end buffer row at the bottom
+    var bufs = t._buffers || [], off = bufsOf(bufs, 'buffer_start').length; // start buffer row on top, end buffer row at the bottom
     var h = '<div class="gantt-wrap"><div class="gantt" style="grid-template-columns:' + cols + '">';
     h += '<div class="g-h" style="text-align:left;padding-left:10px">Step</div>' + days.map(function (d) {
       var dt = E.parse(d);
       var cls = d === mi ? ' mi' : d === t.rent_ready_date ? ' rr' : '';
       return '<div class="g-h' + cls + '" title="' + (d === mi ? 'Move-in' : d === t.rent_ready_date ? 'Rent ready' : '') + '">' + 'SMTWTFS'.charAt(dt.getDay()) + '<br>' + (dt.getMonth() + 1) + '/' + dt.getDate() + '</div>';
     }).join('');
-    bufs.forEach(function (bf, k) {
-      var row = k === 0 ? 2 : t.steps.length + 3;
+    bufs.forEach(function (bf) {
+      var row = bf.key === 'buffer_start' ? 2 : t.steps.length + 2 + off;
       h += '<div class="g-lab bufday" style="grid-row:' + row + '">' + esc(bf.label) + '</div>';
       days.forEach(function (d, i) { h += '<div class="g-cell' + (d === mi ? ' mi' : '') + '" style="grid-row:' + row + ';grid-column:' + (i + 2) + '"></div>'; });
       if (idx[bf.date] != null) h += '<div class="g-bar bufday" style="grid-row:' + row + ';grid-column:' + (idx[bf.date] + 2) + '/' + (idx[bf.date] + 3) + '"><span class="g-v">' + esc(bf.label.replace(/^Buffer: /, '')) + '</span><span class="g-t">buffer day</span></div>';
@@ -737,6 +737,9 @@ tr.miss td{background:var(--red-soft)}
       (t.steps.some(function (s) { return s.status === 'resched'; }) ? '<span><i class="resched"></i>⚠ Reschedule</span>' : '') + '<span>Click a bar for details</span></div>';
     return h + '</div>';
   }
+
+  /** The buffer days with this key (0 or 1; either can be skipped on the scope). */
+  function bufsOf(bufs, key) { return (bufs || []).filter(function (b) { return b.key === key; }); }
 
   /** Grey buffer day row: no vendor, no booking, not movable. */
   function bufRow(b) { return '<div class="step bufday"><b>' + esc(b.label) + '</b><span class="when">' + E.fmt(b.date) + '</span></div>'; }
@@ -780,7 +783,8 @@ tr.miss td{background:var(--red-soft)}
         (s.time ? ', ' + E.fmtTime(s.time) : '') + ' [' + STATUS_LABEL[s.status].toLowerCase() + ']' + (s.measure ? ' · measure ' + E.fmt(s.measure) : ''));
     });
     var bufs = t._buffers || [];
-    if (bufs.length) { lines.splice(4, 0, bufs[0].label + ': ' + E.fmt(bufs[0].date)); lines.push(bufs[1].label + ': ' + E.fmt(bufs[1].date)); }
+    bufsOf(bufs, 'buffer_start').forEach(function (b) { lines.splice(4, 0, b.label + ': ' + E.fmt(b.date)); });
+    bufsOf(bufs, 'buffer_end').forEach(function (b) { lines.push(b.label + ': ' + E.fmt(b.date)); });
     // Jason books Eastpointe by hand from this email: their order form answers go after the steps
     t.steps.forEach(function (s) {
       if (s.key === 'flooring' && EASTPOINTE_SIZES.indexOf(s.size) >= 0) lines.push('', 'Eastpointe order (' + s.label + '):', eastpointeOrder(t, s));

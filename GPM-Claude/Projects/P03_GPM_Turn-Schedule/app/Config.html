@@ -127,6 +127,11 @@ var FORMS = {
         { id: 'move_in_date', type: 'date', label: 'Move-in date (if known)', half: true },
         { id: 'access', type: 'text', label: 'Access for vendors', placeholder: 'Lockbox code, key location, gate, parking' }
       ]},
+      // Matt 2026-11-24: either buffer day can be skipped. Unchecked = the day is held (default).
+      { title: 'Buffer days', help: 'Held by default. Skip one to pull the schedule in by a day.', fields: [
+        { id: 'skip_buffer_start', type: 'checkbox', label: 'Skip the start buffer day (trash-out, day after move-out)' },
+        { id: 'skip_buffer_end', type: 'checkbox', label: 'Skip the end buffer day (final unit check, rent ready = last work day)' }
+      ]},
       { title: 'Trades', help: 'Pick a size, or leave it Not needed. Full paint is the default. The schedule is built from these.', fields: [
         { id: 'trades', type: 'trades' }
       ]},

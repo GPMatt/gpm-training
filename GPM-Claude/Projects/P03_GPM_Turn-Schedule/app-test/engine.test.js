@@ -265,6 +265,23 @@ t('B3 end buffer comes after cure days; applyChanges + recommended keep the buff
   assert.equal(r.rentReady, '2026-11-30');
 });
 
+t('Skip buffers: start only, end only, both (Matt 2026-11-24)', () => {
+  let r = E.layout(chain3(), '2026-11-20', cat, { buffers: true, skipStart: true });
+  assert.deepEqual(r.buffers.map(x => [x.key, x.date]), [['buffer_end', '2026-11-27']]);
+  assert.deepEqual(r.steps.map(s => s.start), ['2026-11-23', '2026-11-24', '2026-11-25']);
+  assert.equal(r.rentReady, '2026-11-27');
+  r = E.layout(chain3(), '2026-11-20', cat, { buffers: true, skipEnd: true });
+  assert.deepEqual(r.buffers.map(x => [x.key, x.date]), [['buffer_start', '2026-11-23']]);
+  assert.deepEqual(r.steps.map(s => s.start), ['2026-11-24', '2026-11-25', '2026-11-27']);
+  assert.equal(r.rentReady, '2026-11-27');
+  r = E.layout(chain3(), '2026-11-20', cat, { buffers: true, skipStart: true, skipEnd: true });
+  const plain = E.layout(chain3(), '2026-11-20', cat);
+  assert.deepEqual(r.buffers, []);
+  assert.equal(r.rentReady, plain.rentReady);
+  r = E.applyChanges(chain3(), [], cat, '2026-11-20', { buffers: true, skipStart: true });
+  assert.deepEqual(r.buffers.map(x => x.key), ['buffer_end']);
+});
+
 t('B10 pinned step warns only when it starts before the move-out date', () => {
   const warnAt = (day, buf) => { const st = chain3(); st[0].pinned = true; st[0].start = day;
     return E.layout(st, '2026-11-20', cat, { buffers: buf }).warnings.filter(w => /before the move-out date/.test(w)); };

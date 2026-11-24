@@ -616,6 +616,8 @@ t('(Run 2b B8) buffer days are all-day calendar events on flagged turns only', (
   const s = ev[1], e = ev[2];
   assert.deepEqual([s.title, s.allDay, s.start, s.end], ['Buffer: trash-out if needed – 90 Wealthy St SE 2', true, '2026-11-27', '2026-11-28']); // skips Thanksgiving
   assert.deepEqual([e.title, e.allDay, e.start, e.end], ['Buffer: final unit check – 90 Wealthy St SE 2', true, '2026-12-01', '2026-12-02']);
+  assert.deepEqual(plain(D.calendarEvents(Object.assign({ scope: { buffers: true, skip_buffer_start: true } }, base), '')).map(e => e.key), ['tech', '_buffer_end', '_rentready']);
+  assert.deepEqual(plain(D.calendarEvents(Object.assign({ scope: { buffers: true, skip_buffer_end: true } }, base), '')).map(e => e.key), ['tech', '_buffer_start', '_rentready']);
   assert.equal(plain(D.calendarEvents(Object.assign({ scope: { buffers: true } }, base, { move_out_date: '2026-11-20' }), ''))[1].start, '2026-11-23'); // Fri -> Mon
 });
 

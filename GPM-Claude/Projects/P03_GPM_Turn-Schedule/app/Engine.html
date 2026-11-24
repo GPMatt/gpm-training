@@ -133,13 +133,15 @@ var Engine = (function () {
    * Lay out dates. Mutates and returns {steps, rentReady, firstBuildDay, warnings, buffers}.
    * steps are in Spencer's chosen order (default = locked order).
    * opts.buffers = the turn has buffer days (buffers = [{key, label, date}], start then end; [] otherwise).
+   * opts.skipStart / opts.skipEnd = drop that buffer day (scope checkboxes, Matt 2026-11-24). No end buffer = rent ready is the last work day.
    */
   function layout(steps, moveOut, catalog, opts) {
     var reflow = opts && opts.reflow, withBuf = !!(opts && opts.buffers);
+    var bufStart = withBuf && !opts.skipStart, bufEnd = withBuf && !opts.skipEnd;
     var warnings = [];
     if (!moveOut) return { steps: steps, rentReady: null, firstBuildDay: null, warnings: ['Set a move-out date to build the schedule.'], buffers: [] };
     var first = nextBiz(moveOut);
-    var cursor = withBuf ? nextBiz(first) : first, prev = null, lastEnd = null;
+    var cursor = bufStart ? nextBiz(first) : first, prev = null, lastEnd = null;
     steps.forEach(function (s) {
       var earliest = cursor;
       var shares = prev && ((prev.key === 'appliances' && s.key === 'tech') || (s.shareDay && canShare(prev, s)));
@@ -187,11 +189,10 @@ var Engine = (function () {
     var tub = steps.filter(function (s) { return s.key === 'tub'; })[0];
     if (tub && tub.size === 'replace' && keys.indexOf('flooring') < 0) warnings.push('Tub is being replaced but no flooring is scheduled. A tub replacement normally means new flooring.');
     var buffers = [];
-    if (withBuf) { // end buffer = the day the next step would start (cursor already skips cure days)
-      buffers = [{ key: 'buffer_start', label: 'Buffer: trash-out if needed', date: first },
-        { key: 'buffer_end', label: 'Buffer: final unit check', date: cursor }];
-    }
-    return { steps: steps, rentReady: withBuf ? cursor : lastEnd || first, firstBuildDay: first, warnings: warnings, buffers: buffers };
+    // end buffer = the day the next step would start (cursor already skips cure days)
+    if (bufStart) buffers.push({ key: 'buffer_start', label: 'Buffer: trash-out if needed', date: first });
+    if (bufEnd) buffers.push({ key: 'buffer_end', label: 'Buffer: final unit check', date: cursor });
+    return { steps: steps, rentReady: bufEnd ? cursor : lastEnd || first, firstBuildDay: first, warnings: warnings, buffers: buffers };
   }
 
   function hoursOf(s) { var h = Number(s.hours); return h > 0 ? h : 8 * (Number(s.days) || 1); }
@@ -280,7 +281,7 @@ var Engine = (function () {
         t.hoursEdited = true;
       }
     }
-    return layout(steps, moveOut, catalog, { reflow: true, buffers: !!(opts && opts.buffers) });
+    return layout(steps, moveOut, catalog, { reflow: true, buffers: !!(opts && opts.buffers), skipStart: !!(opts && opts.skipStart), skipEnd: !!(opts && opts.skipEnd) });
   }
 
   /**
